@@ -1,0 +1,34 @@
+prefix: '.'
+activity_name: '{count} accounts'
+activity_type: 'watching'
+users_list_pagination_size: 8
+users_list_page_counter_position: 'title'
+
+tweets_check_period: 10
+tweets_updater_retry_delay: 5
+tasks_monitor_check_period: 1
+tasks_monitor_log_period: 4
+auth_max_attempts: 2
+
+auto_change_client: false
+auto_turn_off_notification: true
+auto_unfollow: true
+
+auto_repair_mismatched_clients: false
+
+embed:
+  type: 'built_in'
+
+  built_in:
+    fx_image: true
+    video_link_button: false
+    legacy_logo: true
+    
+  fx_twitter:
+    domain_name: 'fxtwitter'
+    original_url_button: true
+
+default_message: |
+  {mention}**{author}** just {action} here: 
+  {url}
+emoji_auto_format: true
