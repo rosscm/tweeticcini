@@ -1,16 +1,18 @@
-import os
-
-import aiosqlite
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from core.classes import Cog_Extension
 from configs.load_configs import configs
+from src.repositories.notifier_repository import (
+    get_enabled_client_names,
+    get_server_channel_ids,
+    list_server_notifications,
+)
 from src.permission import ADMINISTRATOR
 from src.utils import str_to_bool as stb
-from src.db_function.readonly_db import connect_readonly
 from src.discord_ui.pagination import Pagination
+from src.settings import get_db_path
 
 CHECK = '\u2705'
 XMARK = '\u274C'
@@ -39,19 +41,7 @@ class ListUsers(Cog_Extension):
 
         server_id = itn.guild_id
 
-        async with connect_readonly(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
-            async with db.execute("""
-                SELECT user.username, channel.id, notification.role_id, notification.enable_type, notification.enable_media_type, user.client_used
-                FROM user
-                JOIN notification
-                ON user.id = notification.user_id
-                JOIN channel
-                ON notification.channel_id = channel.id
-                WHERE channel.server_id = ? AND notification.enabled = 1
-                AND (user.client_used = ? OR '' = ?)
-                AND (channel.id = ? OR '' = ?)
-            """, (str(server_id), account, account, channel, channel)) as cursor:
-                user_channel_role_data = await cursor.fetchall()
+        user_channel_role_data = await list_server_notifications(get_db_path(), str(server_id), account, channel)
 
         formatted_data = [
             f"{i + 1}. ```{username}``` <#{channel_id}>{f' <@&{role_id}>' if role_id else ''} {symbol(enable_type[0])}retweet {symbol(enable_type[1])}quote {symbol(enable_media_type[0])}text {symbol(enable_media_type[1])}media, using {client_used}"
@@ -73,21 +63,14 @@ class ListUsers(Cog_Extension):
 
     @list_users.autocomplete('account')
     async def get_clients(self, itn: discord.Interaction, account: str) -> list[app_commands.Choice[str]]:
-        async with connect_readonly(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.cursor() as cursor:
-                await cursor.execute('SELECT client_used FROM user WHERE enabled = 1')
-                client_used = list(set([row['client_used'] async for row in cursor]))
-                return [app_commands.Choice(name=row, value=row) for row in client_used if account.lower() in row.lower()]
+        client_used = await get_enabled_client_names(get_db_path())
+        return [app_commands.Choice(name=row, value=row) for row in client_used if account.lower() in row.lower()]
 
     @list_users.autocomplete('channel')
     async def get_channel(self, itn: discord.Interaction, input_channel: str) -> list[app_commands.Choice[str]]:
-        async with connect_readonly(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.cursor() as cursor:
-                await cursor.execute('SELECT id FROM channel WHERE server_id = ?', (str(itn.guild_id),))
-                channel_list = [itn.guild.get_channel(int(row['id'])) async for row in cursor]
-                return [app_commands.Choice(name=f'#{channel.name}', value=str(channel.id)) for channel in channel_list if input_channel.lower() in channel.name.lower()]
+        channel_ids = await get_server_channel_ids(get_db_path(), str(itn.guild_id))
+        channel_list = [itn.guild.get_channel(int(channel_id)) for channel_id in channel_ids]
+        return [app_commands.Choice(name=f'#{channel.name}', value=str(channel.id)) for channel in channel_list if channel is not None and input_channel.lower() in channel.name.lower()]
 
 
 async def setup(bot: commands.Bot):

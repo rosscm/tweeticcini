@@ -108,6 +108,9 @@ Important production parameters:
 - `auth_max_attempts`
 - embed configuration
 - keyword filtering rules
+- `force_everyone_default`
+- `keywords_triggering_everyone`
+- `keywords_excluded`
 
 > Avoid setting polling intervals too low to prevent rate limiting.
 
@@ -116,7 +119,7 @@ Important production parameters:
 Tweeticcini is designed to run as a standalone service.
 
 Recommended setup:
-- Python 3.11+
+- Python 3.9+
 - systemd service with automatic restart
 - environment-based secret management
 - persistent database storage
@@ -129,8 +132,6 @@ git clone https://github.com/rosscm/tweeticcini.git
 cd tweeticcini
 python bot.py
 ```
-
-> For production environments, deploying on a VPS is recommended for improved uptime and network stability.
 
 # 📜 License
 

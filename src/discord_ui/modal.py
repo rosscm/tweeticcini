@@ -1,8 +1,7 @@
-import os
-
 import aiosqlite
 import discord
 
+from src.settings import get_db_path
 from src.utils import get_lock
 
 lock = get_lock()
@@ -23,7 +22,7 @@ class CustomizeMsgModal(discord.ui.Modal, title='customize message'):
     async def on_submit(self, itn: discord.Interaction):
         await itn.response.defer(ephemeral=True)
 
-        async with aiosqlite.connect(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
+        async with aiosqlite.connect(get_db_path()) as db:
             db.row_factory = aiosqlite.Row
             async with lock:
                 await db.execute('UPDATE notification SET customized_msg = ? WHERE user_id = ? AND channel_id = ?', (self.customized_msg.value, self.user_id, str(self.channel.id)))

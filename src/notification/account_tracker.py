@@ -1,5 +1,4 @@
 import asyncio
-import os
 import sys
 import re
 from datetime import datetime, timezone, timedelta
@@ -7,35 +6,36 @@ from datetime import datetime, timezone, timedelta
 import aiosqlite
 import discord
 from discord.ext import commands
-from tweety import Twitter
 
+from src.adapters.twitter_adapter import create_twitter_session
 from configs.load_configs import configs
+from src.repositories.notifier_repository import (
+    get_enabled_notifications_for_user,
+    get_enabled_user_client_map,
+    get_user_by_username,
+    update_user_latest_tweet,
+)
 from src.log import setup_logger
+from src.db_function.guild_settings import EffectiveGuildSettings, get_effective_guild_settings
 from src.notification.display_tools import gen_embed, get_action
 from src.notification.get_tweets import get_tweets
 from src.notification.utils import is_match_media_type, is_match_type, replace_emoji
-from src.utils import get_accounts, get_lock, extract_first_line
-from src.db_function.readonly_db import connect_readonly
-
+from src.settings import get_accounts, get_db_path, get_default_message
+from src.utils import get_lock, extract_first_line
 EMBED_TYPE = configs['embed']['type'] if configs['embed']['type'] in ['built_in', 'fx_twitter'] else 'built_in'
 DOMAIN_NAME = configs['embed']['fx_twitter']['domain_name'] if configs['embed']['fx_twitter']['domain_name'] in ['fxtwitter', 'fixupx'] else 'fxtwitter'
 
-TRIGGER_KEYWORDS = configs.get("keywords_triggering_everyone")
-FORCE_EVERYONE_DEFAULT = configs.get("force_everyone_default", False)
-
-EXCLUDE_KEYWORDS = configs.get("keywords_excluded", [])
-
-def should_ping_everyone(text: str) -> bool:
+def should_ping_everyone(text: str, trigger_keywords: list[str]) -> bool:
     text_lower = text.lower()
-    for phrase in TRIGGER_KEYWORDS:
+    for phrase in trigger_keywords:
         words = phrase.lower().split()
         if all(word in text_lower for word in words):
             return True
     return False
 
-def should_exclude(text: str) -> bool:
+def should_exclude(text: str, exclude_keywords: list[str]) -> bool:
     text_lower = text.lower()
-    for phrase in EXCLUDE_KEYWORDS:
+    for phrase in exclude_keywords:
         words = phrase.lower().split()
         if all(word in text_lower for word in words):
             return True
@@ -45,18 +45,29 @@ def should_exclude(text: str) -> bool:
 log = setup_logger(__name__)
 lock = get_lock()
 
+
+def build_notification_message(template: str, mention: str, tweet, url: str) -> str:
+    author_name = getattr(tweet.author, 'name', getattr(tweet.author, 'username', 'Unknown'))
+    values = {
+        'action': get_action(tweet),
+        'author': author_name,
+        'mention': mention,
+        'url': url,
+    }
+    return template.format_map(values).strip()
+
 class AccountTracker():
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.accounts_data = get_accounts()
-        self.db_path = os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')
+        self.db_path = get_db_path()
         self.tweets = {account_name: [] for account_name in self.accounts_data.keys()}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         bot.loop.create_task(self.setup_tasks())
 
     async def setup_tasks(self):
         async def authenticate_account(account_name, account_token):
-            app = Twitter(account_name)
+            app = create_twitter_session(account_name)
             max_attempts = configs['auth_max_attempts']
             for attempt in range(max_attempts):
                 try:
@@ -77,9 +88,7 @@ class AccountTracker():
             except Exception:
                 sys.exit(1)
 
-        async with connect_readonly(self.db_path) as db:
-            async with db.execute('SELECT username, client_used FROM user WHERE enabled = 1') as cursor:
-                usernames_and_clients = {row[0]: row[1] async for row in cursor}
+        usernames_and_clients = await get_enabled_user_client_map(self.db_path)
 
         for username, client_used in usernames_and_clients.items():
             self.bot.loop.create_task(self.notification(username, client_used)).set_name(username)
@@ -96,18 +105,15 @@ class AccountTracker():
             async with aiosqlite.connect(self.db_path) as db:
                 db.row_factory = aiosqlite.Row
                 async with db.cursor() as cursor:
-                    await cursor.execute('SELECT * FROM user WHERE username = ?', (username,))
-                    user = await cursor.fetchone()
+                    user = await get_user_by_username(cursor, username)
                     async with lock:
-                        await cursor.execute(
-                            'UPDATE user SET lastest_tweet = ? WHERE username = ?',
-                            (str(lastest_tweets[-1].created_on), username)
-                        )
+                        await update_user_latest_tweet(cursor, username, str(lastest_tweets[-1].created_on))
                         await db.commit()
 
                     for tweet in lastest_tweets:
                         log.info(f'find a new tweet from {username}')
                         url = re.sub('twitter', DOMAIN_NAME, tweet.url) if EMBED_TYPE == 'fx_twitter' else tweet.url
+                        guild_settings_cache: dict[int, EffectiveGuildSettings] = {}
 
                         view, create_view = None, False
                         if bool(tweet.media) and tweet.media[0].type == 'video' and EMBED_TYPE == 'built_in' and configs['embed']['built_in']['video_link_button']:
@@ -121,16 +127,20 @@ class AccountTracker():
                             view = discord.ui.View()
                             view.add_item(discord.ui.Button(label=button_label, style=discord.ButtonStyle.link, url=button_url))
 
-                        await cursor.execute('SELECT * FROM notification WHERE user_id = ? AND enabled = 1', (user['id'],))
-                        notifications = await cursor.fetchall()
+                        notifications = await get_enabled_notifications_for_user(cursor, user['id'])
                         for data in notifications:
                             channel = self.bot.get_channel(int(data['channel_id']))
                             if channel is not None and is_match_type(tweet, data['enable_type']) and is_match_media_type(tweet, data['enable_media_type']):
                                 try:
-                                    mention = f"{channel.guild.get_role(int(data['role_id'])).mention} " if data['role_id'] else ''
+                                    guild_settings = guild_settings_cache.get(channel.guild.id)
+                                    if guild_settings is None:
+                                        guild_settings = await get_effective_guild_settings(str(channel.guild.id))
+                                        guild_settings_cache[channel.guild.id] = guild_settings
+                                    role = channel.guild.get_role(int(data['role_id'])) if data['role_id'] else None
+                                    mention = f"{role.mention} " if role is not None else ''
 
                                     data_dict = dict(data)
-                                    force_everyone = data_dict.get("force_everyone", FORCE_EVERYONE_DEFAULT)
+                                    force_everyone = self._resolve_force_everyone(data_dict, guild_settings)
 
                                     text = (
                                         getattr(tweet, 'rawContent', None)
@@ -143,11 +153,11 @@ class AccountTracker():
                                         log.info(f"[DEBUG] tweet.rawContent missing. Falling back to tweet.content: {getattr(tweet, 'content', None)}")
                                         text = getattr(tweet, 'content', None) or ''
 
-                                    if should_exclude(text):
+                                    if should_exclude(text, guild_settings.keywords_excluded):
                                         log.info(f"[DEBUG] Tweet excluded by keyword filter: {text}")
                                         continue
 
-                                    match = should_ping_everyone(text)
+                                    match = should_ping_everyone(text, guild_settings.keywords_triggering_everyone)
 
                                     log.info(f"[DEBUG] Evaluating @everyone condition for {username} in channel {channel.id}")
                                     log.info(f"[DEBUG] tweet content: {text}")
@@ -157,8 +167,19 @@ class AccountTracker():
                                         mention = "@everyone "
                                         log.info(f"[DEBUG] @everyone mention triggered for tweet: {tweet.url}")
 
-                                    headline = extract_first_line(text)
-                                    msg = f"{mention}{headline}: {url}" if headline else f"{mention}{url}"
+                                    template = data['customized_msg'] or get_default_message()
+                                    try:
+                                        msg = build_notification_message(template, mention, tweet, url)
+                                    except KeyError as e:
+                                        log.warning(f'invalid message template placeholder {e} for {username}, falling back to default message')
+                                        msg = build_notification_message(get_default_message(), mention, tweet, url)
+
+                                    if configs.get('emoji_auto_format', False):
+                                        msg = re.sub(r':([a-zA-Z0-9_]+):', lambda m: replace_emoji(m, channel.guild), msg)
+
+                                    if not msg:
+                                        headline = extract_first_line(text)
+                                        msg = f"{mention}{headline}: {url}" if headline else f"{mention}{url}"
 
                                     if EMBED_TYPE == 'fx_twitter':
                                         await channel.send(content=msg, view=view)
@@ -171,7 +192,14 @@ class AccountTracker():
                                     if not isinstance(e, discord.errors.Forbidden):
                                         log.error(f'an error occurred at {channel.mention} while sending notification: {e}')
 
-    async def tweetsUpdater(self, app: Twitter):
+    @staticmethod
+    def _resolve_force_everyone(data: dict, guild_settings: EffectiveGuildSettings) -> bool:
+        force_everyone = data.get('force_everyone')
+        if force_everyone is None:
+            return guild_settings.force_everyone_default
+        return bool(force_everyone)
+
+    async def tweetsUpdater(self, app):
         updater_name = asyncio.current_task().get_name().split('_', 1)[1]
         while True:
             try:
@@ -219,9 +247,7 @@ class AccountTracker():
                 except Exception as e:
                     log.warning(f'addTask : {e}')
 
-        async with connect_readonly(self.db_path) as db:
-            async with db.execute('SELECT username, client_used FROM user WHERE enabled = 1') as cursor:
-                usernames_and_clients = {row[0]: row[1] async for row in cursor}
+        usernames_and_clients = await get_enabled_user_client_map(self.db_path)
         self.bot.loop.create_task(self.tasksMonitor(usernames_and_clients)).set_name('TasksMonitor')
         log.info('new TasksMonitor has been started')
 
@@ -240,8 +266,6 @@ class AccountTracker():
                 except Exception as e:
                     log.warning(f'removeTask : {e}')
 
-        async with connect_readonly(self.db_path) as db:
-            async with db.execute('SELECT username, client_used FROM user WHERE enabled = 1') as cursor:
-                usernames_and_clients = {row[0]: row[1] async for row in cursor}
+        usernames_and_clients = await get_enabled_user_client_map(self.db_path)
         self.bot.loop.create_task(self.tasksMonitor(usernames_and_clients)).set_name('TasksMonitor')
         log.info('new TasksMonitor has been started')

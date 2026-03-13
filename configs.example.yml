@@ -32,3 +32,6 @@ default_message: |
   {mention}**{author}** just {action} here: 
   {url}
 emoji_auto_format: true
+force_everyone_default: false
+keywords_triggering_everyone: []
+keywords_excluded: []

@@ -19,11 +19,18 @@ async def gen_embed(tweet: Tweet) -> list[discord.Embed]:
         return [embed]
     elif len(tweet.media) > 1:
         if configs['embed']['built_in']['fx_image']:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(re.sub(r'twitter', r'fxtwitter', tweet.url)) as response:
-                    raw = await response.text()
-            fximage_url = BeautifulSoup(raw, 'html.parser').find('meta', property='og:image')['content']
-            embed.set_image(url=fximage_url)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(re.sub(r'twitter', r'fxtwitter', tweet.url)) as response:
+                        raw = await response.text()
+                image_meta = BeautifulSoup(raw, 'html.parser').find('meta', property='og:image')
+                if image_meta and image_meta.get('content'):
+                    embed.set_image(url=image_meta['content'])
+                    return [embed]
+            except Exception:
+                pass
+
+            embed.set_image(url=tweet.media[0].media_url_https)
             return [embed]
         else:
             imgs_embed = [discord.Embed(url=tweet.url).set_image(url=media.media_url_https) for media in tweet.media]

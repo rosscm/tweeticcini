@@ -1,5 +1,4 @@
 import asyncio
-import os
 import sys
 
 import discord
@@ -9,10 +8,11 @@ from dotenv import load_dotenv
 
 from configs.load_configs import configs
 from src.checker import check_configs, check_env, check_db, check_upgrade
-from src.db_function.init_db import init_db
+from src.db_function.init_db import ensure_db_schema
 from src.db_function.repair_db import auto_repair_mismatched_clients
 from src.presence_updater import update_presence
 from src.log import setup_logger
+from src.settings import get_db_path
 
 log = setup_logger(__name__)
 
@@ -24,8 +24,7 @@ bot = commands.Bot(command_prefix=configs['prefix'], intents=intents)
 
 @bot.event
 async def on_ready():
-    if not (os.path.isfile(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db'))):
-        await init_db()
+    await ensure_db_schema()
         
     check_upgrade()
         
@@ -92,7 +91,7 @@ async def download_log(ctx: commands.context.Context):
 @bot.command()
 @commands.is_owner()
 async def download_data(ctx: commands.context.Context):
-    message = await ctx.send(file=discord.File(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')))
+    message = await ctx.send(file=discord.File(get_db_path()))
     await message.delete(delay=15)
 
 
@@ -100,7 +99,7 @@ async def download_data(ctx: commands.context.Context):
 @commands.is_owner()
 async def upload_data(ctx: commands.context.Context):
     raw = await [attachment for attachment in ctx.message.attachments if attachment.filename[-3:] == '.db'][0].read()
-    with open(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db'), 'wb') as wbf:
+    with open(get_db_path(), 'wb') as wbf:
         wbf.write(raw)
     message = await ctx.send('successfully uploaded data')
     await message.delete(delay=5)

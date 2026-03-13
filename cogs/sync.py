@@ -1,14 +1,12 @@
-import os
-
-import aiosqlite
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from core.classes import Cog_Extension
 from src.log import setup_logger
+from src.repositories.notifier_repository import get_all_user_client_map
 from src.sync_db.sync_db import sync_db
-from src.db_function.readonly_db import connect_readonly
+from src.settings import get_db_path
 
 log = setup_logger(__name__)
 
@@ -22,10 +20,7 @@ class Sync(Cog_Extension):
 
         await itn.response.defer(ephemeral=True)
 
-        async with connect_readonly(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute('SELECT id, client_used FROM user') as cursor:
-                follow_list = {row[0]: row[1] async for row in cursor}
+        follow_list = await get_all_user_client_map(get_db_path())
 
         self.bot.loop.create_task(sync_db(follow_list))
 

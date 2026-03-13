@@ -1,7 +1,6 @@
 import asyncio
 
-from tweety import Twitter
-
+from src.adapters.twitter_adapter import create_twitter_session
 from src.log import setup_logger
 from src.utils import get_accounts
 
@@ -10,9 +9,9 @@ log = setup_logger(__name__)
 
 async def sync_db(follow_list: dict[str, str]) -> None:
 
-    apps: dict[str, Twitter] = {}
+    apps = {}
     for account_name, _ in get_accounts().items():
-        app = Twitter(account_name)
+        app = create_twitter_session(account_name)
         await app.connect()
         apps[account_name] = app
 

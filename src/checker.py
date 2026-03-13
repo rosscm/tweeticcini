@@ -1,7 +1,10 @@
 import os
+import subprocess
+import sys
 
 from src.db_function.readonly_db import connect_readonly
 from src.log import setup_logger
+from src.settings import get_accounts, get_db_path
 
 log = setup_logger(__name__)
 
@@ -66,7 +69,7 @@ def check_env():
         return False
 
     twitter_token = os.getenv('TWITTER_TOKEN')
-    if not all([(lambda e : len(e) == 2 and all(e))(entry.split(':')) for entry in twitter_token.split(',')]):
+    if not all([(lambda e : len(e) == 2 and all(e))(entry.split(':', 1)) for entry in twitter_token.split(',')]):
         log.error('invalid TWITTER_TOKEN format, must be in the form of "account_name:twitter_token"')
         return False
 
@@ -75,14 +78,12 @@ def check_env():
 
 # currently only client_used is checked
 async def check_db() -> set[str]:
-    twitter_token = os.getenv('TWITTER_TOKEN')
-    
-    async with connect_readonly(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
+    async with connect_readonly(get_db_path()) as db:
         async with db.execute('SELECT client_used FROM user') as cursor:
             row = await cursor.fetchall()
             
     db_clients = set(client[0] for client in row)
-    env_clients = set(entry.split(':')[0] for entry in twitter_token.split(','))
+    env_clients = set(get_accounts().keys())
     invalid_clients = db_clients - env_clients
     
     return invalid_clients
@@ -90,4 +91,7 @@ async def check_db() -> set[str]:
 def check_upgrade():
     if os.path.isfile('upgrade.py'):
         log.info('found upgrade.py, executing...')
-        os.system('python upgrade.py')
+        try:
+            subprocess.run([sys.executable, 'upgrade.py'], check=True)
+        except subprocess.CalledProcessError as e:
+            log.error(f'upgrade.py failed with exit code {e.returncode}')
