@@ -17,6 +17,7 @@ from src.repositories.notifier_repository import (
 )
 from src.log import setup_logger
 from src.db_function.guild_settings import EffectiveGuildSettings, get_effective_guild_settings
+from src.services.alert_rule_service import AlertRuleService
 from src.notification.display_tools import gen_embed, get_action
 from src.notification.get_tweets import get_tweets
 from src.notification.utils import is_match_media_type, is_match_type, replace_emoji
@@ -24,22 +25,6 @@ from src.settings import get_accounts, get_db_path, get_default_message
 from src.utils import get_lock, extract_first_line
 EMBED_TYPE = configs['embed']['type'] if configs['embed']['type'] in ['built_in', 'fx_twitter'] else 'built_in'
 DOMAIN_NAME = configs['embed']['fx_twitter']['domain_name'] if configs['embed']['fx_twitter']['domain_name'] in ['fxtwitter', 'fixupx'] else 'fxtwitter'
-
-def should_ping_everyone(text: str, trigger_keywords: list[str]) -> bool:
-    text_lower = text.lower()
-    for phrase in trigger_keywords:
-        words = phrase.lower().split()
-        if all(word in text_lower for word in words):
-            return True
-    return False
-
-def should_exclude(text: str, exclude_keywords: list[str]) -> bool:
-    text_lower = text.lower()
-    for phrase in exclude_keywords:
-        words = phrase.lower().split()
-        if all(word in text_lower for word in words):
-            return True
-    return False
 
 
 log = setup_logger(__name__)
@@ -61,6 +46,7 @@ class AccountTracker():
         self.bot = bot
         self.accounts_data = get_accounts()
         self.db_path = get_db_path()
+        self.alert_rule_service = AlertRuleService(self.db_path)
         self.tweets = {account_name: [] for account_name in self.accounts_data.keys()}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         bot.loop.create_task(self.setup_tasks())
@@ -153,17 +139,23 @@ class AccountTracker():
                                         log.info(f"[DEBUG] tweet.rawContent missing. Falling back to tweet.content: {getattr(tweet, 'content', None)}")
                                         text = getattr(tweet, 'content', None) or ''
 
-                                    if should_exclude(text, guild_settings.keywords_excluded):
+                                    alert_decision = await self.alert_rule_service.resolve_alert_decision(
+                                        server_id=str(channel.guild.id),
+                                        channel_id=str(channel.id),
+                                        source_username=username,
+                                        text=text,
+                                        default_force_everyone=force_everyone,
+                                        guild_settings=guild_settings,
+                                    )
+                                    if alert_decision.should_exclude:
                                         log.info(f"[DEBUG] Tweet excluded by keyword filter: {text}")
                                         continue
 
-                                    match = should_ping_everyone(text, guild_settings.keywords_triggering_everyone)
-
                                     log.info(f"[DEBUG] Evaluating @everyone condition for {username} in channel {channel.id}")
                                     log.info(f"[DEBUG] tweet content: {text}")
-                                    log.info(f"[DEBUG] force_everyone = {force_everyone}, should_ping_everyone = {match}")
+                                    log.info(f"[DEBUG] force_everyone = {force_everyone}, matched_rule = {alert_decision.matched_rule_name}")
 
-                                    if force_everyone and match:
+                                    if alert_decision.should_force_everyone:
                                         mention = "@everyone "
                                         log.info(f"[DEBUG] @everyone mention triggered for tweet: {tweet.url}")
 

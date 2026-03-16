@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/dashboard/static/dashboard.css">
+  </head>
+  <body>
+    <main class="shell shell--centered">
+      <section class="hero-card">
+        <p class="eyebrow">Internal Dashboard Prototype</p>
+        <h1>Configure Tweeticcini by Discord server</h1>
+        <p class="lede">
+          This is the first dashboard layer for guild-scoped alert settings and source rules.
+          It is intentionally internal-only and does not include Discord OAuth yet.
+        </p>
+        <form id="guild-picker" class="stack">
+          <label for="guild-id">Discord server ID</label>
+          <input id="guild-id" name="guild_id" type="text" placeholder="123456789012345678" required>
+          <button type="submit">Open Guild Dashboard</button>
+        </form>
+      </section>
+    </main>
+    <script>
+      document.getElementById('guild-picker').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const guildId = document.getElementById('guild-id').value.trim();
+        if (!guildId) {
+          return;
+        }
+        window.location.href = `/dashboard/guilds/${guildId}`;
+      });
+    </script>
+  </body>
+</html>

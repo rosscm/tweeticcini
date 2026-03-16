@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/dashboard/static/dashboard.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Guild Dashboard</p>
+          <h1>Server {{ guild_id }}</h1>
+          <p class="lede">Manage guild-scoped alert defaults and source-specific escalation rules.</p>
+        </div>
+        <a class="ghost-link" href="/dashboard">Change Guild</a>
+      </header>
+
+      <section class="notice">
+        <strong>Internal prototype:</strong> no Discord OAuth yet. This page is for local/admin testing only.
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Alert Defaults</p>
+              <h2>Guild Settings</h2>
+            </div>
+            <span id="settings-source" class="pill">{{ settings.source }}</span>
+          </div>
+
+          <form id="settings-form" class="stack">
+            <label class="checkbox">
+              <input id="force-everyone-default" type="checkbox" {% if settings.force_everyone_default %}checked{% endif %}>
+              <span>Force `@everyone` by default when triggers match</span>
+            </label>
+
+            <label for="trigger-keywords">Escalation trigger keywords</label>
+            <textarea id="trigger-keywords" rows="4" placeholder="queue live, queue is live">{{ settings.keywords_triggering_everyone | join(', ') }}</textarea>
+
+            <label for="exclude-keywords">Excluded keywords</label>
+            <textarea id="exclude-keywords" rows="8" placeholder="lorcana, sports, amazon">{{ settings.keywords_excluded | join(', ') }}</textarea>
+
+            <div class="actions">
+              <button type="submit">Save Guild Settings</button>
+              <button id="bootstrap-settings" type="button" class="button-secondary">Bootstrap From Legacy Defaults</button>
+              <button id="reset-settings" type="button" class="button-secondary">Reset To Legacy Defaults</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Source Rules</p>
+              <h2>Alert Rules</h2>
+            </div>
+          </div>
+
+          <form id="rule-form" class="stack">
+            <label for="rule-name">Rule name</label>
+            <input id="rule-name" type="text" placeholder="pokemoncenter-queue">
+
+            <label for="source-username">Source username</label>
+            <input id="source-username" type="text" placeholder="pokemoncenterca">
+
+            <label for="channel-id">Channel ID</label>
+            <input id="channel-id" type="text" placeholder="Optional Discord channel ID">
+
+            <label for="priority">Priority</label>
+            <input id="priority" type="number" value="0">
+
+            <label for="escalation-mode">Escalation mode</label>
+            <select id="escalation-mode">
+              <option value="inherit">Inherit guild default</option>
+              <option value="everyone">Force everyone</option>
+              <option value="role_only">Role only</option>
+            </select>
+
+            <label for="rule-trigger-keywords">Trigger keywords</label>
+            <textarea id="rule-trigger-keywords" rows="3" placeholder="queue live, queue is live"></textarea>
+
+            <label for="rule-exclude-keywords">Exclude keywords</label>
+            <textarea id="rule-exclude-keywords" rows="4" placeholder="lorcana, plush, sleeves"></textarea>
+
+            <div class="actions">
+              <button type="submit">Save Rule</button>
+            </div>
+          </form>
+
+          <div class="rule-list-wrap">
+            <table class="rule-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Source</th>
+                  <th>Escalation</th>
+                  <th>Priority</th>
+                  <th>Keywords</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="rule-table-body">
+                {% for rule in rules %}
+                <tr data-rule-name="{{ rule.rule_name }}">
+                  <td>{{ rule.rule_name }}</td>
+                  <td>{{ rule.source_username or 'all sources' }}</td>
+                  <td>{{ rule.escalation_mode }}</td>
+                  <td>{{ rule.priority }}</td>
+                  <td>
+                    <div><strong>Triggers:</strong> {{ rule.trigger_keywords | join(', ') or 'none' }}</div>
+                    <div><strong>Excludes:</strong> {{ rule.exclude_keywords | join(', ') or 'none' }}</div>
+                  </td>
+                  <td><button type="button" class="button-secondary delete-rule" data-rule-name="{{ rule.rule_name }}">Delete</button></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Activity</p>
+            <h2>Status</h2>
+          </div>
+        </div>
+        <p id="status-message" class="status-message">Ready.</p>
+      </section>
+    </main>
+
+    <script>
+      const guildId = {{ guild_id | tojson }};
+
+      function parseKeywords(value) {
+        return value.split(',').map(part => part.trim()).filter(Boolean);
+      }
+
+      function setStatus(message, isError = false) {
+        const node = document.getElementById('status-message');
+        node.textContent = message;
+        node.classList.toggle('status-message--error', isError);
+      }
+
+      async function jsonRequest(url, options = {}) {
+        const response = await fetch(url, {
+          headers: { 'Content-Type': 'application/json' },
+          ...options,
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `Request failed with ${response.status}`);
+        }
+        if (response.status === 204) {
+          return null;
+        }
+        return response.json();
+      }
+
+      document.getElementById('settings-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        try {
+          const payload = {
+            force_everyone_default: document.getElementById('force-everyone-default').checked,
+            keywords_triggering_everyone: parseKeywords(document.getElementById('trigger-keywords').value),
+            keywords_excluded: parseKeywords(document.getElementById('exclude-keywords').value),
+          };
+          const result = await jsonRequest(`/guilds/${guildId}/settings`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          });
+          document.getElementById('settings-source').textContent = result.source;
+          setStatus('Saved guild settings.');
+        } catch (error) {
+          setStatus(`Failed to save settings: ${error.message}`, true);
+        }
+      });
+
+      document.getElementById('bootstrap-settings').addEventListener('click', async function () {
+        try {
+          const result = await jsonRequest(`/guilds/${guildId}/settings/bootstrap`, {
+            method: 'POST',
+          });
+          document.getElementById('force-everyone-default').checked = result.force_everyone_default;
+          document.getElementById('trigger-keywords').value = result.keywords_triggering_everyone.join(', ');
+          document.getElementById('exclude-keywords').value = result.keywords_excluded.join(', ');
+          document.getElementById('settings-source').textContent = result.source;
+          setStatus('Bootstrapped guild settings from legacy defaults.');
+        } catch (error) {
+          setStatus(`Failed to bootstrap settings: ${error.message}`, true);
+        }
+      });
+
+      document.getElementById('reset-settings').addEventListener('click', async function () {
+        try {
+          await jsonRequest(`/guilds/${guildId}/settings`, {
+            method: 'DELETE',
+          });
+          window.location.reload();
+        } catch (error) {
+          setStatus(`Failed to reset settings: ${error.message}`, true);
+        }
+      });
+
+      document.getElementById('rule-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const ruleName = document.getElementById('rule-name').value.trim();
+        if (!ruleName) {
+          setStatus('Rule name is required.', true);
+          return;
+        }
+
+        try {
+          const payload = {
+            source_username: document.getElementById('source-username').value.trim() || null,
+            channel_id: document.getElementById('channel-id').value.trim() || null,
+            priority: Number(document.getElementById('priority').value || 0),
+            escalation_mode: document.getElementById('escalation-mode').value,
+            trigger_keywords: parseKeywords(document.getElementById('rule-trigger-keywords').value),
+            exclude_keywords: parseKeywords(document.getElementById('rule-exclude-keywords').value),
+          };
+          await jsonRequest(`/guilds/${guildId}/rules/${encodeURIComponent(ruleName)}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          });
+          window.location.reload();
+        } catch (error) {
+          setStatus(`Failed to save rule: ${error.message}`, true);
+        }
+      });
+
+      document.querySelectorAll('.delete-rule').forEach(function (button) {
+        button.addEventListener('click', async function () {
+          const ruleName = button.dataset.ruleName;
+          try {
+            await jsonRequest(`/guilds/${guildId}/rules/${encodeURIComponent(ruleName)}`, {
+              method: 'DELETE',
+            });
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to delete rule: ${error.message}`, true);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

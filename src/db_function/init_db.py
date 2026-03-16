@@ -39,6 +39,20 @@ async def ensure_db_schema() -> str:
                 keywords_triggering_everyone TEXT DEFAULT NULL,
                 keywords_excluded TEXT DEFAULT NULL
             );
+            CREATE TABLE IF NOT EXISTS alert_rule (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id TEXT NOT NULL,
+                rule_name TEXT NOT NULL,
+                source_username TEXT DEFAULT NULL,
+                channel_id TEXT DEFAULT NULL,
+                enabled INTEGER DEFAULT 1,
+                priority INTEGER DEFAULT 0,
+                trigger_keywords TEXT DEFAULT NULL,
+                exclude_keywords TEXT DEFAULT NULL,
+                force_everyone INTEGER DEFAULT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_rule_server_name
+            ON alert_rule (server_id, rule_name);
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:

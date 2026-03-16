@@ -114,6 +114,28 @@ Important production parameters:
 
 > Avoid setting polling intervals too low to prevent rate limiting.
 
+## 🖥 Dashboard Prototype
+
+An internal dashboard prototype is available for guild-scoped alert configuration.
+
+Run it locally with:
+
+```bash
+uvicorn src.dashboard_api.app:app --host 0.0.0.0 --port 8000
+```
+
+Then open:
+
+- `http://localhost:8000/dashboard`
+
+Current dashboard scope:
+- guild alert defaults
+- source-specific alert rules
+- legacy-to-guild bootstrap flow
+
+Current limitation:
+- no Discord OAuth yet; this is an internal/admin-only prototype
+
 # 🚀 Production Deployment
 
 Tweeticcini is designed to run as a standalone service.

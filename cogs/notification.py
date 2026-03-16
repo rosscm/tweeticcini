@@ -9,6 +9,8 @@ from src.log import setup_logger
 from src.notification.account_tracker import AccountTracker
 from src.permission import ADMINISTRATOR
 from src.presence_updater import update_presence
+from src.services.alert_rule_service import AlertRuleService
+from src.services.guild_settings_service import GuildSettingsService
 from src.services.notifier_service import (
     AddNotifierRequest,
     AutoChangeClientDisabledError,
@@ -34,11 +36,15 @@ class Notification(Cog_Extension):
     def __init__(self, bot):
         super().__init__(bot)
         self.account_tracker = AccountTracker(bot)
+        self.alert_rule_service = AlertRuleService()
+        self.guild_settings_service = GuildSettingsService()
         self.notifier_service = NotifierService()
 
     add_group = app_commands.Group(name='add', description='Add something', default_permissions=ADMINISTRATOR)
     remove_group = app_commands.Group(name='remove', description='Remove something', default_permissions=ADMINISTRATOR)
     customize_group = app_commands.Group(name='customize', description='Customize something', default_permissions=ADMINISTRATOR)
+    rule_group = app_commands.Group(name='rule', description='Manage alert rules', default_permissions=ADMINISTRATOR)
+    settings_group = app_commands.Group(name='settings', description='Manage server settings', default_permissions=ADMINISTRATOR)
 
     @add_group.command(name='notifier')
     @app_commands.choices(
@@ -205,6 +211,162 @@ class Notification(Cog_Extension):
 
         users = await self.notifier_service.get_enabled_usernames_for_channel(selected_channel_id)
         return [app_commands.Choice(name=row, value=row) for row in users if username.lower() in row.lower()]
+
+    @rule_group.command(name='list')
+    async def list_rules(self, itn: discord.Interaction):
+        await itn.response.defer(ephemeral=True)
+        rules = await self.alert_rule_service.list_rules(str(itn.guild_id))
+        if not rules:
+            await itn.followup.send('no alert rules configured for this server', ephemeral=True)
+            return
+
+        lines = []
+        for rule in rules:
+            scope = rule.source_username or 'all sources'
+            channel = f' <#{rule.channel_id}>' if rule.channel_id else ''
+            triggers = ', '.join(rule.trigger_keywords) if rule.trigger_keywords else 'none'
+            excludes = ', '.join(rule.exclude_keywords) if rule.exclude_keywords else 'none'
+            lines.append(
+                f"**{rule.rule_name}**: source=`{scope}`{channel}, priority=`{rule.priority}`, escalation=`{rule.escalation_mode}`, triggers=`{triggers}`, excludes=`{excludes}`"
+            )
+
+        embed = discord.Embed(
+            title=f'Alert Rules for {itn.guild.name}',
+            description='\n'.join(lines),
+            color=0x4f7cac,
+        )
+        await itn.followup.send(embed=embed, ephemeral=True)
+
+    @rule_group.command(name='upsert')
+    @app_commands.choices(
+        escalation_mode=[
+            app_commands.Choice(name='Inherit Guild Default', value='inherit'),
+            app_commands.Choice(name='Force Everyone', value='everyone'),
+            app_commands.Choice(name='Role Only', value='role_only'),
+        ]
+    )
+    async def upsert_rule(
+        self,
+        itn: discord.Interaction,
+        rule_name: str,
+        source_username: str,
+        escalation_mode: str = 'inherit',
+        trigger_keywords: str = '',
+        exclude_keywords: str = '',
+        channel: discord.TextChannel = None,
+        priority: app_commands.Range[int, -100, 100] = 0,
+    ):
+        await itn.response.defer(ephemeral=True)
+
+        def parse_keywords(raw: str) -> list[str]:
+            return [part.strip() for part in raw.split(',') if part.strip()]
+
+        await self.alert_rule_service.upsert_rule(
+            server_id=str(itn.guild_id),
+            rule_name=rule_name,
+            source_username=source_username.strip() or None,
+            channel_id=str(channel.id) if channel is not None else None,
+            priority=priority,
+            trigger_keywords=parse_keywords(trigger_keywords),
+            exclude_keywords=parse_keywords(exclude_keywords),
+            escalation_mode=escalation_mode,
+        )
+
+        await itn.followup.send(f'upserted alert rule `{rule_name}`', ephemeral=True)
+
+    @rule_group.command(name='remove')
+    async def remove_rule(self, itn: discord.Interaction, rule_name: str):
+        await itn.response.defer(ephemeral=True)
+        deleted = await self.alert_rule_service.delete_rule(str(itn.guild_id), rule_name)
+        if deleted:
+            await itn.followup.send(f'removed alert rule `{rule_name}`', ephemeral=True)
+        else:
+            await itn.followup.send(f'could not find alert rule `{rule_name}`', ephemeral=True)
+
+    @remove_rule.autocomplete('rule_name')
+    async def autocomplete_rule_name(self, itn: discord.Interaction, rule_name: str) -> list[app_commands.Choice[str]]:
+        names = await self.alert_rule_service.get_rule_names(str(itn.guild_id))
+        return [app_commands.Choice(name=name, value=name) for name in names if rule_name.lower() in name.lower()]
+
+    @settings_group.command(name='view')
+    async def view_settings(self, itn: discord.Interaction):
+        await itn.response.defer(ephemeral=True)
+        settings_view = await self.guild_settings_service.get_settings_view(str(itn.guild_id))
+        effective = settings_view.effective
+
+        trigger_keywords = ', '.join(effective.keywords_triggering_everyone) if effective.keywords_triggering_everyone else 'none'
+        exclude_keywords = ', '.join(effective.keywords_excluded) if effective.keywords_excluded else 'none'
+        source = 'legacy configs.yml fallback' if settings_view.uses_legacy_defaults else 'guild database settings'
+
+        embed = discord.Embed(
+            title=f'Settings for {itn.guild.name}',
+            color=0x708090,
+        )
+        embed.add_field(name='Source', value=source, inline=False)
+        embed.add_field(name='force_everyone_default', value=str(effective.force_everyone_default), inline=False)
+        embed.add_field(name='keywords_triggering_everyone', value=trigger_keywords[:1024], inline=False)
+        embed.add_field(name='keywords_excluded', value=exclude_keywords[:1024], inline=False)
+        await itn.followup.send(embed=embed, ephemeral=True)
+
+    @settings_group.command(name='bootstrap_alerts')
+    async def bootstrap_alerts(self, itn: discord.Interaction):
+        await itn.response.defer(ephemeral=True)
+        _, created = await self.guild_settings_service.bootstrap_from_legacy_defaults(str(itn.guild_id))
+        if created:
+            await itn.followup.send('copied the current legacy alert defaults into this server\'s database settings', ephemeral=True)
+        else:
+            await itn.followup.send('this server already has database-backed alert settings', ephemeral=True)
+
+    @settings_group.command(name='set_force_everyone_default')
+    async def set_force_everyone_default(self, itn: discord.Interaction, value: bool):
+        await itn.response.defer(ephemeral=True)
+        updated = await self.guild_settings_service.update_settings(
+            str(itn.guild_id),
+            force_everyone_default=value,
+        )
+        await itn.followup.send(
+            f'updated `force_everyone_default` to `{updated.force_everyone_default}` for this server',
+            ephemeral=True,
+        )
+
+    @settings_group.command(name='set_trigger_keywords')
+    async def set_trigger_keywords(self, itn: discord.Interaction, keywords: str):
+        await itn.response.defer(ephemeral=True)
+        parsed = self._parse_keywords(keywords)
+        await self.guild_settings_service.update_settings(
+            str(itn.guild_id),
+            keywords_triggering_everyone=parsed,
+        )
+        await itn.followup.send(
+            f'updated trigger keywords for this server to: `{", ".join(parsed) if parsed else "none"}`',
+            ephemeral=True,
+        )
+
+    @settings_group.command(name='set_exclude_keywords')
+    async def set_exclude_keywords(self, itn: discord.Interaction, keywords: str):
+        await itn.response.defer(ephemeral=True)
+        parsed = self._parse_keywords(keywords)
+        await self.guild_settings_service.update_settings(
+            str(itn.guild_id),
+            keywords_excluded=parsed,
+        )
+        await itn.followup.send(
+            f'updated exclude keywords for this server to: `{", ".join(parsed) if parsed else "none"}`',
+            ephemeral=True,
+        )
+
+    @settings_group.command(name='reset_alerts')
+    async def reset_alerts(self, itn: discord.Interaction):
+        await itn.response.defer(ephemeral=True)
+        reset = await self.guild_settings_service.reset_to_legacy_defaults(str(itn.guild_id))
+        if reset:
+            await itn.followup.send('removed this server\'s database-backed alert settings and restored legacy fallback behavior', ephemeral=True)
+        else:
+            await itn.followup.send('this server was already using legacy fallback behavior', ephemeral=True)
+
+    @staticmethod
+    def _parse_keywords(raw: str) -> list[str]:
+        return [part.strip() for part in raw.split(',') if part.strip()]
 
 
 async def setup(bot: commands.Bot):
