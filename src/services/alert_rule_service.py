@@ -1,12 +1,16 @@
 from dataclasses import dataclass
+from typing import Optional
 
-from src.db_function.guild_settings import EffectiveGuildSettings
 from src.repositories.alert_rule_repository import (
+    LEGACY_IMPORTED_ESCALATION_RULE,
+    LEGACY_IMPORTED_EXCLUSION_RULE,
     deserialize_keywords,
     delete_alert_rule,
     get_alert_rule_names,
     get_matching_alert_rules,
+    import_legacy_alert_rules_for_guild,
     list_alert_rules,
+    migrate_legacy_alert_rules_for_existing_guilds,
     upsert_alert_rule,
 )
 from src.settings import get_db_path
@@ -16,14 +20,14 @@ from src.settings import get_db_path
 class AlertDecision:
     should_exclude: bool
     should_force_everyone: bool
-    matched_rule_name: str | None = None
+    matched_rule_name: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class AlertRuleRecord:
     rule_name: str
-    source_username: str | None
-    channel_id: str | None
+    source_username: Optional[str]
+    channel_id: Optional[str]
     priority: int
     trigger_keywords: list[str]
     exclude_keywords: list[str]
@@ -50,16 +54,8 @@ class AlertRuleService:
         channel_id: str,
         source_username: str,
         text: str,
-        default_force_everyone: bool,
-        guild_settings: EffectiveGuildSettings,
     ) -> AlertDecision:
-        if self._is_excluded_by_guild_settings(text, guild_settings):
-            return AlertDecision(
-                should_exclude=True,
-                should_force_everyone=False,
-            )
-
-        should_force_everyone = default_force_everyone and self._matches_guild_trigger(text, guild_settings)
+        should_force_everyone = False
         rules = await get_matching_alert_rules(self.db_path, server_id, channel_id, source_username)
 
         for rule in rules:
@@ -91,8 +87,8 @@ class AlertRuleService:
         self,
         server_id: str,
         rule_name: str,
-        source_username: str | None,
-        channel_id: str | None,
+        source_username: Optional[str],
+        channel_id: Optional[str],
         priority: int,
         trigger_keywords: list[str],
         exclude_keywords: list[str],
@@ -131,16 +127,36 @@ class AlertRuleService:
     async def delete_rule(self, server_id: str, rule_name: str) -> bool:
         return (await delete_alert_rule(self.db_path, server_id, rule_name)) > 0
 
-    @staticmethod
-    def _is_excluded_by_guild_settings(text: str, guild_settings: EffectiveGuildSettings) -> bool:
-        return _matches_any(text, guild_settings.keywords_excluded)
+    async def import_legacy_rules_for_guild(
+        self,
+        server_id: str,
+        trigger_keywords: list[str],
+        exclude_keywords: list[str],
+    ) -> int:
+        return await import_legacy_alert_rules_for_guild(
+            self.db_path,
+            server_id=server_id,
+            trigger_keywords=trigger_keywords,
+            exclude_keywords=exclude_keywords,
+        )
+
+    async def migrate_legacy_rules_for_existing_guilds(
+        self,
+        trigger_keywords: list[str],
+        exclude_keywords: list[str],
+    ) -> int:
+        return await migrate_legacy_alert_rules_for_existing_guilds(
+            self.db_path,
+            trigger_keywords=trigger_keywords,
+            exclude_keywords=exclude_keywords,
+        )
 
     @staticmethod
-    def _matches_guild_trigger(text: str, guild_settings: EffectiveGuildSettings) -> bool:
-        return _matches_any(text, guild_settings.keywords_triggering_everyone)
+    def is_legacy_imported_rule(rule_name: str) -> bool:
+        return rule_name in {LEGACY_IMPORTED_EXCLUSION_RULE, LEGACY_IMPORTED_ESCALATION_RULE}
 
     @staticmethod
-    def _escalation_mode_to_db_value(escalation_mode: str) -> int | None:
+    def _escalation_mode_to_db_value(escalation_mode: str) -> Optional[int]:
         if escalation_mode == 'inherit':
             return None
         if escalation_mode == 'everyone':
@@ -148,7 +164,7 @@ class AlertRuleService:
         return 0
 
     @staticmethod
-    def _db_value_to_escalation_mode(force_everyone: int | None) -> str:
+    def _db_value_to_escalation_mode(force_everyone: Optional[int]) -> str:
         if force_everyone is None:
             return 'inherit'
         return 'everyone' if bool(force_everyone) else 'role_only'

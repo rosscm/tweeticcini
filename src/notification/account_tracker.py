@@ -16,7 +16,6 @@ from src.repositories.notifier_repository import (
     update_user_latest_tweet,
 )
 from src.log import setup_logger
-from src.db_function.guild_settings import EffectiveGuildSettings, get_effective_guild_settings
 from src.services.alert_rule_service import AlertRuleService
 from src.notification.display_tools import gen_embed, get_action
 from src.notification.get_tweets import get_tweets
@@ -99,8 +98,6 @@ class AccountTracker():
                     for tweet in lastest_tweets:
                         log.info(f'find a new tweet from {username}')
                         url = re.sub('twitter', DOMAIN_NAME, tweet.url) if EMBED_TYPE == 'fx_twitter' else tweet.url
-                        guild_settings_cache: dict[int, EffectiveGuildSettings] = {}
-
                         view, create_view = None, False
                         if bool(tweet.media) and tweet.media[0].type == 'video' and EMBED_TYPE == 'built_in' and configs['embed']['built_in']['video_link_button']:
                             create_view = True
@@ -118,15 +115,8 @@ class AccountTracker():
                             channel = self.bot.get_channel(int(data['channel_id']))
                             if channel is not None and is_match_type(tweet, data['enable_type']) and is_match_media_type(tweet, data['enable_media_type']):
                                 try:
-                                    guild_settings = guild_settings_cache.get(channel.guild.id)
-                                    if guild_settings is None:
-                                        guild_settings = await get_effective_guild_settings(str(channel.guild.id))
-                                        guild_settings_cache[channel.guild.id] = guild_settings
                                     role = channel.guild.get_role(int(data['role_id'])) if data['role_id'] else None
                                     mention = f"{role.mention} " if role is not None else ''
-
-                                    data_dict = dict(data)
-                                    force_everyone = self._resolve_force_everyone(data_dict, guild_settings)
 
                                     text = (
                                         getattr(tweet, 'rawContent', None)
@@ -144,8 +134,6 @@ class AccountTracker():
                                         channel_id=str(channel.id),
                                         source_username=username,
                                         text=text,
-                                        default_force_everyone=force_everyone,
-                                        guild_settings=guild_settings,
                                     )
                                     if alert_decision.should_exclude:
                                         log.info(f"[DEBUG] Tweet excluded by keyword filter: {text}")
@@ -153,7 +141,7 @@ class AccountTracker():
 
                                     log.info(f"[DEBUG] Evaluating @everyone condition for {username} in channel {channel.id}")
                                     log.info(f"[DEBUG] tweet content: {text}")
-                                    log.info(f"[DEBUG] force_everyone = {force_everyone}, matched_rule = {alert_decision.matched_rule_name}")
+                                    log.info(f"[DEBUG] matched_rule = {alert_decision.matched_rule_name}")
 
                                     if alert_decision.should_force_everyone:
                                         mention = "@everyone "
@@ -183,13 +171,6 @@ class AccountTracker():
                                 except Exception as e:
                                     if not isinstance(e, discord.errors.Forbidden):
                                         log.error(f'an error occurred at {channel.mention} while sending notification: {e}')
-
-    @staticmethod
-    def _resolve_force_everyone(data: dict, guild_settings: EffectiveGuildSettings) -> bool:
-        force_everyone = data.get('force_everyone')
-        if force_everyone is None:
-            return guild_settings.force_everyone_default
-        return bool(force_everyone)
 
     async def tweetsUpdater(self, app):
         updater_name = asyncio.current_task().get_name().split('_', 1)[1]

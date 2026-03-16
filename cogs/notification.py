@@ -10,7 +10,6 @@ from src.notification.account_tracker import AccountTracker
 from src.permission import ADMINISTRATOR
 from src.presence_updater import update_presence
 from src.services.alert_rule_service import AlertRuleService
-from src.services.guild_settings_service import GuildSettingsService
 from src.services.notifier_service import (
     AddNotifierRequest,
     AutoChangeClientDisabledError,
@@ -37,14 +36,12 @@ class Notification(Cog_Extension):
         super().__init__(bot)
         self.account_tracker = AccountTracker(bot)
         self.alert_rule_service = AlertRuleService()
-        self.guild_settings_service = GuildSettingsService()
         self.notifier_service = NotifierService()
 
     add_group = app_commands.Group(name='add', description='Add something', default_permissions=ADMINISTRATOR)
     remove_group = app_commands.Group(name='remove', description='Remove something', default_permissions=ADMINISTRATOR)
     customize_group = app_commands.Group(name='customize', description='Customize something', default_permissions=ADMINISTRATOR)
     rule_group = app_commands.Group(name='rule', description='Manage alert rules', default_permissions=ADMINISTRATOR)
-    settings_group = app_commands.Group(name='settings', description='Manage server settings', default_permissions=ADMINISTRATOR)
 
     @add_group.command(name='notifier')
     @app_commands.choices(
@@ -287,86 +284,6 @@ class Notification(Cog_Extension):
     async def autocomplete_rule_name(self, itn: discord.Interaction, rule_name: str) -> list[app_commands.Choice[str]]:
         names = await self.alert_rule_service.get_rule_names(str(itn.guild_id))
         return [app_commands.Choice(name=name, value=name) for name in names if rule_name.lower() in name.lower()]
-
-    @settings_group.command(name='view')
-    async def view_settings(self, itn: discord.Interaction):
-        await itn.response.defer(ephemeral=True)
-        settings_view = await self.guild_settings_service.get_settings_view(str(itn.guild_id))
-        effective = settings_view.effective
-
-        trigger_keywords = ', '.join(effective.keywords_triggering_everyone) if effective.keywords_triggering_everyone else 'none'
-        exclude_keywords = ', '.join(effective.keywords_excluded) if effective.keywords_excluded else 'none'
-        source = 'legacy configs.yml fallback' if settings_view.uses_legacy_defaults else 'guild database settings'
-
-        embed = discord.Embed(
-            title=f'Settings for {itn.guild.name}',
-            color=0x708090,
-        )
-        embed.add_field(name='Source', value=source, inline=False)
-        embed.add_field(name='force_everyone_default', value=str(effective.force_everyone_default), inline=False)
-        embed.add_field(name='keywords_triggering_everyone', value=trigger_keywords[:1024], inline=False)
-        embed.add_field(name='keywords_excluded', value=exclude_keywords[:1024], inline=False)
-        await itn.followup.send(embed=embed, ephemeral=True)
-
-    @settings_group.command(name='bootstrap_alerts')
-    async def bootstrap_alerts(self, itn: discord.Interaction):
-        await itn.response.defer(ephemeral=True)
-        _, created = await self.guild_settings_service.bootstrap_from_legacy_defaults(str(itn.guild_id))
-        if created:
-            await itn.followup.send('copied the current legacy alert defaults into this server\'s database settings', ephemeral=True)
-        else:
-            await itn.followup.send('this server already has database-backed alert settings', ephemeral=True)
-
-    @settings_group.command(name='set_force_everyone_default')
-    async def set_force_everyone_default(self, itn: discord.Interaction, value: bool):
-        await itn.response.defer(ephemeral=True)
-        updated = await self.guild_settings_service.update_settings(
-            str(itn.guild_id),
-            force_everyone_default=value,
-        )
-        await itn.followup.send(
-            f'updated `force_everyone_default` to `{updated.force_everyone_default}` for this server',
-            ephemeral=True,
-        )
-
-    @settings_group.command(name='set_trigger_keywords')
-    async def set_trigger_keywords(self, itn: discord.Interaction, keywords: str):
-        await itn.response.defer(ephemeral=True)
-        parsed = self._parse_keywords(keywords)
-        await self.guild_settings_service.update_settings(
-            str(itn.guild_id),
-            keywords_triggering_everyone=parsed,
-        )
-        await itn.followup.send(
-            f'updated trigger keywords for this server to: `{", ".join(parsed) if parsed else "none"}`',
-            ephemeral=True,
-        )
-
-    @settings_group.command(name='set_exclude_keywords')
-    async def set_exclude_keywords(self, itn: discord.Interaction, keywords: str):
-        await itn.response.defer(ephemeral=True)
-        parsed = self._parse_keywords(keywords)
-        await self.guild_settings_service.update_settings(
-            str(itn.guild_id),
-            keywords_excluded=parsed,
-        )
-        await itn.followup.send(
-            f'updated exclude keywords for this server to: `{", ".join(parsed) if parsed else "none"}`',
-            ephemeral=True,
-        )
-
-    @settings_group.command(name='reset_alerts')
-    async def reset_alerts(self, itn: discord.Interaction):
-        await itn.response.defer(ephemeral=True)
-        reset = await self.guild_settings_service.reset_to_legacy_defaults(str(itn.guild_id))
-        if reset:
-            await itn.followup.send('removed this server\'s database-backed alert settings and restored legacy fallback behavior', ephemeral=True)
-        else:
-            await itn.followup.send('this server was already using legacy fallback behavior', ephemeral=True)
-
-    @staticmethod
-    def _parse_keywords(raw: str) -> list[str]:
-        return [part.strip() for part in raw.split(',') if part.strip()]
 
 
 async def setup(bot: commands.Bot):

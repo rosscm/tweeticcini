@@ -1,9 +1,13 @@
 import json
+from typing import Optional
 
 import aiosqlite
 
 from src.db_function.readonly_db import connect_readonly
 from src.repositories.notifier_repository import connect_writable
+
+LEGACY_IMPORTED_EXCLUSION_RULE = '__legacy_imported_exclusions__'
+LEGACY_IMPORTED_ESCALATION_RULE = '__legacy_imported_escalation__'
 
 
 def normalize_keywords(value) -> list[str]:
@@ -14,13 +18,13 @@ def normalize_keywords(value) -> list[str]:
     return []
 
 
-def deserialize_keywords(raw_value: str | None) -> list[str]:
+def deserialize_keywords(raw_value: Optional[str]) -> list[str]:
     if not raw_value:
         return []
     return normalize_keywords(json.loads(raw_value))
 
 
-def serialize_keywords(value: list[str]) -> str | None:
+def serialize_keywords(value: list[str]) -> Optional[str]:
     keywords = normalize_keywords(value)
     if not keywords:
         return None
@@ -79,14 +83,14 @@ async def upsert_alert_rule(
     db_path,
     server_id: str,
     rule_name: str,
-    source_username: str | None,
-    channel_id: str | None,
+    source_username: Optional[str],
+    channel_id: Optional[str],
     priority: int,
     trigger_keywords: list[str],
     exclude_keywords: list[str],
-    force_everyone: int | None,
+    force_everyone: Optional[int],
 ) -> None:
-    async with await connect_writable(db_path) as db:
+    async with connect_writable(db_path) as db:
         await db.execute(
             '''
             INSERT INTO alert_rule (
@@ -123,10 +127,106 @@ async def upsert_alert_rule(
 
 
 async def delete_alert_rule(db_path, server_id: str, rule_name: str) -> int:
-    async with await connect_writable(db_path) as db:
+    async with connect_writable(db_path) as db:
         cursor = await db.execute(
             'DELETE FROM alert_rule WHERE server_id = ? AND rule_name = ?',
             (server_id, rule_name),
         )
         await db.commit()
         return cursor.rowcount
+
+
+async def import_legacy_alert_rules_for_guild(
+    db_path,
+    server_id: str,
+    trigger_keywords: list[str],
+    exclude_keywords: list[str],
+) -> int:
+    changed = 0
+    async with connect_writable(db_path) as db:
+        if exclude_keywords:
+            await db.execute(
+                '''
+                INSERT INTO alert_rule (
+                    server_id,
+                    rule_name,
+                    source_username,
+                    channel_id,
+                    priority,
+                    trigger_keywords,
+                    exclude_keywords,
+                    force_everyone
+                ) VALUES (?, ?, NULL, NULL, ?, NULL, ?, NULL)
+                ON CONFLICT(server_id, rule_name) DO UPDATE SET
+                    priority = excluded.priority,
+                    exclude_keywords = excluded.exclude_keywords,
+                    force_everyone = NULL,
+                    enabled = 1
+                ''',
+                (
+                    server_id,
+                    LEGACY_IMPORTED_EXCLUSION_RULE,
+                    1000,
+                    serialize_keywords(exclude_keywords),
+                ),
+            )
+            changed += 1
+
+        if trigger_keywords:
+            await db.execute(
+                '''
+                INSERT INTO alert_rule (
+                    server_id,
+                    rule_name,
+                    source_username,
+                    channel_id,
+                    priority,
+                    trigger_keywords,
+                    exclude_keywords,
+                    force_everyone
+                ) VALUES (?, ?, NULL, NULL, ?, ?, NULL, 1)
+                ON CONFLICT(server_id, rule_name) DO UPDATE SET
+                    priority = excluded.priority,
+                    trigger_keywords = excluded.trigger_keywords,
+                    force_everyone = 1,
+                    enabled = 1
+                ''',
+                (
+                    server_id,
+                    LEGACY_IMPORTED_ESCALATION_RULE,
+                    1000,
+                    serialize_keywords(trigger_keywords),
+                ),
+            )
+            changed += 1
+
+        await db.commit()
+    return changed
+
+
+async def migrate_legacy_alert_rules_for_existing_guilds(
+    db_path,
+    trigger_keywords: list[str],
+    exclude_keywords: list[str],
+) -> int:
+    async with connect_writable(db_path) as db:
+        cursor = await db.execute(
+            '''
+            SELECT DISTINCT channel.server_id
+            FROM channel
+            JOIN notification ON notification.channel_id = channel.id
+            WHERE notification.enabled = 1
+            '''
+        )
+        server_ids = [row[0] for row in await cursor.fetchall()]
+        await db.commit()
+
+    changed = 0
+    for server_id in server_ids:
+        changed += await import_legacy_alert_rules_for_guild(
+            db_path,
+            server_id=server_id,
+            trigger_keywords=trigger_keywords,
+            exclude_keywords=exclude_keywords,
+        )
+    return changed

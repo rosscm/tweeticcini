@@ -131,10 +131,15 @@ Then open:
 Current dashboard scope:
 - guild alert defaults
 - source-specific alert rules
-- legacy-to-guild bootstrap flow
 
 Current limitation:
 - no Discord OAuth yet; this is an internal/admin-only prototype
+
+One-time legacy keyword migration for already-configured servers can be run locally with:
+
+```bash
+python3 scripts/import_legacy_alert_rules.py
+```
 
 # 🚀 Production Deployment
 

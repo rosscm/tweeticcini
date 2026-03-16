@@ -1,13 +1,20 @@
 import logging
 import logging.handlers
 import os
+from pathlib import Path
+
+from src.settings import get_data_path
 
 
-# Persistent log location
-ROOT_DIR = "/home/pi/discord_projects/tweeticcini"
-LOG_DIR = os.path.join(ROOT_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-LOG_PATH = os.path.join(LOG_DIR, "tweeticcini.log")
+def get_log_path() -> Path:
+    try:
+        base_dir = get_data_path()
+    except TypeError:
+        base_dir = Path.cwd() / 'data'
+
+    log_dir = base_dir / 'logs'
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir / 'tweeticcini.log'
 
 
 class LogFormatter(logging.Formatter):
@@ -63,6 +70,7 @@ class ConsoleFormatter(LogFormatter):
 
 
 def setup_logger(module_name: str) -> logging.Logger:
+    log_path = get_log_path()
 
     library, _, _ = module_name.partition('.py')
     logger = logging.getLogger(library)
@@ -77,7 +85,7 @@ def setup_logger(module_name: str) -> logging.Logger:
 
         # Rotating persistent file handler
         file_handler = logging.handlers.RotatingFileHandler(
-            filename=LOG_PATH,
+            filename=log_path,
             encoding='utf-8',
             maxBytes=3 * 1024 * 1024,  # 3 MB per file
             backupCount=4,            # Keep 4 rotated files (~12 MB max)

@@ -1,4 +1,6 @@
 import aiosqlite
+from contextlib import asynccontextmanager
+from typing import Optional
 
 from src.db_function.readonly_db import connect_readonly
 
@@ -52,7 +54,7 @@ async def get_channel_ids_for_server(cursor, server_id: str) -> list[str]:
     return [row['id'] for row in rows]
 
 
-async def get_enabled_notifier_user_id(cursor, username: str, channel_id: str) -> str | None:
+async def get_enabled_notifier_user_id(cursor, username: str, channel_id: str) -> Optional[str]:
     await cursor.execute(
         '''
         SELECT user_id
@@ -77,7 +79,7 @@ async def get_active_notifications_for_user(cursor, user_id: str):
     return await cursor.fetchall()
 
 
-async def get_client_used_for_user(cursor, user_id: str) -> str | None:
+async def get_client_used_for_user(cursor, user_id: str) -> Optional[str]:
     await cursor.execute('SELECT client_used FROM user WHERE id = ?', (user_id,))
     row = await cursor.fetchone()
     return row['client_used'] if row is not None else None
@@ -186,9 +188,10 @@ async def get_enabled_usernames_for_channel(db_path, channel_id: str) -> list[st
             return [row['username'] async for row in cursor]
 
 
+@asynccontextmanager
 async def connect_writable(db_path):
-    db = await aiosqlite.connect(db_path)
-    await db.execute('PRAGMA synchronous = OFF')
-    await db.execute('PRAGMA count_changes = OFF')
-    db.row_factory = aiosqlite.Row
-    return db
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute('PRAGMA synchronous = OFF')
+        await db.execute('PRAGMA count_changes = OFF')
+        db.row_factory = aiosqlite.Row
+        yield db

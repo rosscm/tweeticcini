@@ -25,35 +25,6 @@
         <section class="card">
           <div class="card-header">
             <div>
-              <p class="eyebrow">Alert Defaults</p>
-              <h2>Guild Settings</h2>
-            </div>
-            <span id="settings-source" class="pill">{{ settings.source }}</span>
-          </div>
-
-          <form id="settings-form" class="stack">
-            <label class="checkbox">
-              <input id="force-everyone-default" type="checkbox" {% if settings.force_everyone_default %}checked{% endif %}>
-              <span>Force `@everyone` by default when triggers match</span>
-            </label>
-
-            <label for="trigger-keywords">Escalation trigger keywords</label>
-            <textarea id="trigger-keywords" rows="4" placeholder="queue live, queue is live">{{ settings.keywords_triggering_everyone | join(', ') }}</textarea>
-
-            <label for="exclude-keywords">Excluded keywords</label>
-            <textarea id="exclude-keywords" rows="8" placeholder="lorcana, sports, amazon">{{ settings.keywords_excluded | join(', ') }}</textarea>
-
-            <div class="actions">
-              <button type="submit">Save Guild Settings</button>
-              <button id="bootstrap-settings" type="button" class="button-secondary">Bootstrap From Legacy Defaults</button>
-              <button id="reset-settings" type="button" class="button-secondary">Reset To Legacy Defaults</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
               <p class="eyebrow">Source Rules</p>
               <h2>Alert Rules</h2>
             </div>
@@ -160,51 +131,6 @@
         }
         return response.json();
       }
-
-      document.getElementById('settings-form').addEventListener('submit', async function (event) {
-        event.preventDefault();
-        try {
-          const payload = {
-            force_everyone_default: document.getElementById('force-everyone-default').checked,
-            keywords_triggering_everyone: parseKeywords(document.getElementById('trigger-keywords').value),
-            keywords_excluded: parseKeywords(document.getElementById('exclude-keywords').value),
-          };
-          const result = await jsonRequest(`/guilds/${guildId}/settings`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-          });
-          document.getElementById('settings-source').textContent = result.source;
-          setStatus('Saved guild settings.');
-        } catch (error) {
-          setStatus(`Failed to save settings: ${error.message}`, true);
-        }
-      });
-
-      document.getElementById('bootstrap-settings').addEventListener('click', async function () {
-        try {
-          const result = await jsonRequest(`/guilds/${guildId}/settings/bootstrap`, {
-            method: 'POST',
-          });
-          document.getElementById('force-everyone-default').checked = result.force_everyone_default;
-          document.getElementById('trigger-keywords').value = result.keywords_triggering_everyone.join(', ');
-          document.getElementById('exclude-keywords').value = result.keywords_excluded.join(', ');
-          document.getElementById('settings-source').textContent = result.source;
-          setStatus('Bootstrapped guild settings from legacy defaults.');
-        } catch (error) {
-          setStatus(`Failed to bootstrap settings: ${error.message}`, true);
-        }
-      });
-
-      document.getElementById('reset-settings').addEventListener('click', async function () {
-        try {
-          await jsonRequest(`/guilds/${guildId}/settings`, {
-            method: 'DELETE',
-          });
-          window.location.reload();
-        } catch (error) {
-          setStatus(`Failed to reset settings: ${error.message}`, true);
-        }
-      });
 
       document.getElementById('rule-form').addEventListener('submit', async function (event) {
         event.preventDefault();

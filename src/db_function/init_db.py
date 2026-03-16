@@ -2,7 +2,10 @@ import os
 
 import aiosqlite
 
+from src.db_function.guild_settings import get_legacy_alert_settings, get_legacy_exclude_keywords, get_legacy_trigger_keywords
 from src.log import setup_logger
+from src.repositories.guild_settings_repository import migrate_legacy_guild_settings
+from src.repositories.alert_rule_repository import migrate_legacy_alert_rules_for_existing_guilds
 from src.settings import DB_FILENAME, get_data_path
 
 log = setup_logger(__name__)
@@ -39,6 +42,10 @@ async def ensure_db_schema() -> str:
                 keywords_triggering_everyone TEXT DEFAULT NULL,
                 keywords_excluded TEXT DEFAULT NULL
             );
+            CREATE TABLE IF NOT EXISTS app_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT DEFAULT NULL
+            );
             CREATE TABLE IF NOT EXISTS alert_rule (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 server_id TEXT NOT NULL,
@@ -63,6 +70,45 @@ async def ensure_db_schema() -> str:
             log.info('added missing notification.force_everyone column')
 
         await db.commit()
+
+    async with aiosqlite.connect(db_path) as db:
+        async with db.execute(
+            "SELECT value FROM app_meta WHERE key = 'legacy_alert_settings_migrated'"
+        ) as cursor:
+            settings_row = await cursor.fetchone()
+
+        if settings_row is None:
+            legacy_settings = get_legacy_alert_settings()
+            migrated_servers = await migrate_legacy_guild_settings(
+                db_path,
+                force_everyone_default=legacy_settings.force_everyone_default,
+                keywords_triggering_everyone=[],
+                keywords_excluded=[],
+            )
+            await db.execute(
+                "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('legacy_alert_settings_migrated', '1')"
+            )
+            await db.commit()
+            if migrated_servers:
+                log.info(f'migrated legacy force_everyone defaults into guild settings for {migrated_servers} server(s)')
+
+        async with db.execute(
+            "SELECT value FROM app_meta WHERE key = 'legacy_alert_rules_migrated'"
+        ) as cursor:
+            rules_row = await cursor.fetchone()
+
+        if rules_row is None:
+            migrated_rules = await migrate_legacy_alert_rules_for_existing_guilds(
+                db_path,
+                trigger_keywords=get_legacy_trigger_keywords(),
+                exclude_keywords=get_legacy_exclude_keywords(),
+            )
+            await db.execute(
+                "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('legacy_alert_rules_migrated', '1')"
+            )
+            await db.commit()
+            if migrated_rules:
+                log.info(f'migrated legacy keyword rules into alert rules for {migrated_rules} server(s)')
 
     if db_created:
         log.info('database file not found, a blank database file has been created')

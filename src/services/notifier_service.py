@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from src.adapters.twitter_adapter import create_twitter_session
 from configs.load_configs import configs
@@ -43,7 +44,7 @@ class AddNotifierRequest:
 @dataclass(frozen=True)
 class AddNotifierResult:
     created_or_reactivated: bool
-    task_client_used: str | None
+    task_client_used: Optional[str]
     response_message: str
 
 
@@ -59,7 +60,7 @@ class RemoveNotifierRequest:
 class RemoveNotifierResult:
     removed: bool
     removed_last_notifier: bool
-    client_used: str | None
+    client_used: Optional[str]
     response_message: str
 
 
@@ -84,7 +85,7 @@ class NotifierService:
         self.db_path = db_path or get_db_path()
 
     async def add_notifier(self, request: AddNotifierRequest) -> AddNotifierResult:
-        async with await connect_writable(self.db_path) as db:
+        async with connect_writable(self.db_path) as db:
             async with db.cursor() as cursor:
                 try:
                     match_user = await get_user_by_username(cursor, request.username)
@@ -123,7 +124,7 @@ class NotifierService:
         )
 
     async def remove_notifier(self, request: RemoveNotifierRequest) -> RemoveNotifierResult:
-        async with await connect_writable(self.db_path) as db:
+        async with connect_writable(self.db_path) as db:
             async with db.cursor() as cursor:
                 try:
                     valid_ids = await get_channel_ids_for_server(cursor, request.server_id)
@@ -168,13 +169,13 @@ class NotifierService:
             response_message=f'successfully remove notifier of {request.username}!',
         )
 
-    async def get_enabled_notifier_user_id(self, username: str, channel_id: str) -> str | None:
-        async with await connect_writable(self.db_path) as db:
+    async def get_enabled_notifier_user_id(self, username: str, channel_id: str) -> Optional[str]:
+        async with connect_writable(self.db_path) as db:
             async with db.cursor() as cursor:
                 return await get_enabled_notifier_user_id(cursor, username, channel_id)
 
     async def reset_custom_message(self, user_id: str, channel_id: str) -> None:
-        async with await connect_writable(self.db_path) as db:
+        async with connect_writable(self.db_path) as db:
             async with db.cursor() as cursor:
                 async with lock:
                     await reset_notification_custom_message(cursor, user_id, channel_id)
