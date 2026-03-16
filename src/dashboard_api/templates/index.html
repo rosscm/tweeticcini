@@ -9,19 +9,50 @@
   <body>
     <main class="shell shell--centered">
       <section class="hero-card">
-        <p class="eyebrow">Internal Dashboard Prototype</p>
+        <p class="eyebrow">Dashboard</p>
         <h1>Configure Tweeticcini by Discord server</h1>
         <p class="lede">
-          This is the first dashboard layer for guild-scoped alert settings and source rules.
-          It is intentionally internal-only and does not include Discord OAuth yet.
+          Manage tracked sources, alert rules, and presentation settings for the Discord servers you administer.
         </p>
+        {% if oauth_enabled %}
+        {% if discord_user %}
+        <div class="notice">
+          Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong>.
+          <a class="ghost-link" href="/dashboard/logout">Sign Out</a>
+        </div>
+        {% if manageable_guilds %}
+        <div class="stack">
+          <label>Your Servers</label>
+          <div class="guild-list">
+            {% for guild in manageable_guilds %}
+            <a class="guild-link" href="/dashboard/guilds/{{ guild.id }}">{{ guild.name }}</a>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div class="notice">
+          No manageable Discord servers were returned by your account.
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="stack">
+          <a class="oauth-button" href="{{ discord_login_url }}">Sign In With Discord</a>
+          <p class="section-copy">You’ll see the Discord servers where you have administrator or manage-server permissions.</p>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="notice">
+          Discord OAuth is not configured yet. You can still use the manual guild picker below for local testing.
+        </div>
         <form id="guild-picker" class="stack">
           <label for="guild-id">Discord server ID</label>
           <input id="guild-id" name="guild_id" type="text" placeholder="123456789012345678" required>
           <button type="submit">Open Guild Dashboard</button>
         </form>
+        {% endif %}
       </section>
     </main>
+    {% if not oauth_enabled %}
     <script>
       document.getElementById('guild-picker').addEventListener('submit', function (event) {
         event.preventDefault();
@@ -32,5 +63,6 @@
         window.location.href = `/dashboard/guilds/${guildId}`;
       });
     </script>
+    {% endif %}
   </body>
 </html>

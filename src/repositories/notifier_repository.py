@@ -92,6 +92,13 @@ async def reset_custom_message(cursor, user_id: str, channel_id: str) -> None:
     )
 
 
+async def set_custom_message(cursor, user_id: str, channel_id: str, customized_msg: str) -> None:
+    await cursor.execute(
+        'UPDATE notification SET customized_msg = ? WHERE user_id = ? AND channel_id = ?',
+        (customized_msg, user_id, channel_id),
+    )
+
+
 async def get_enabled_notifications_for_user(cursor, user_id: str):
     await cursor.execute('SELECT * FROM notification WHERE user_id = ? AND enabled = 1', (user_id,))
     return await cursor.fetchall()
@@ -137,6 +144,109 @@ async def list_server_notifications(db_path, server_id: str, account: str = '', 
             (server_id, account, account, channel_id, channel_id),
         ) as cursor:
             return await cursor.fetchall()
+
+
+async def count_dashboard_sources(db_path, server_id: str) -> int:
+    async with connect_readonly(db_path) as db:
+        async with db.execute(
+            '''
+            SELECT COUNT(*)
+            FROM notification
+            JOIN channel ON notification.channel_id = channel.id
+            WHERE channel.server_id = ?
+              AND notification.enabled = 1
+            ''',
+            (server_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+    return int(row[0] or 0)
+
+
+async def list_dashboard_sources(db_path, server_id: str):
+    async with connect_readonly(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            '''
+            SELECT
+                user.username,
+                user.client_used,
+                channel.id AS channel_id,
+                notification.role_id,
+                notification.enable_type,
+                notification.enable_media_type,
+                notification.customized_msg,
+                COUNT(alert_rule.id) AS rule_count
+            FROM user
+            JOIN notification ON user.id = notification.user_id
+            JOIN channel ON notification.channel_id = channel.id
+            LEFT JOIN alert_rule
+              ON alert_rule.server_id = channel.server_id
+             AND alert_rule.enabled = 1
+             AND (
+                alert_rule.source_username IS NULL
+                OR lower(alert_rule.source_username) = lower(user.username)
+             )
+             AND (
+                alert_rule.channel_id IS NULL
+                OR alert_rule.channel_id = channel.id
+             )
+            WHERE channel.server_id = ?
+              AND notification.enabled = 1
+            GROUP BY
+                user.username,
+                user.client_used,
+                channel.id,
+                notification.role_id,
+                notification.enable_type,
+                notification.enable_media_type,
+                notification.customized_msg
+            ORDER BY user.username ASC, channel.id ASC
+            ''',
+            (server_id,),
+        ) as cursor:
+            return await cursor.fetchall()
+
+
+async def update_notification_settings(
+    db_path,
+    username: str,
+    channel_id: str,
+    role_id: str,
+    enable_type: str,
+    media_type: str,
+) -> bool:
+    async with connect_writable(db_path) as db:
+        cursor = await db.execute(
+            '''
+            UPDATE notification
+            SET role_id = ?, enable_type = ?, enable_media_type = ?
+            WHERE channel_id = ?
+              AND user_id = (SELECT id FROM user WHERE username = ?)
+            ''',
+            (role_id, enable_type, media_type, channel_id, username),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def get_dashboard_source_message(db_path, username: str, channel_id: str) -> Optional[str]:
+    async with connect_readonly(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            '''
+            SELECT notification.customized_msg
+            FROM notification
+            JOIN user ON user.id = notification.user_id
+            WHERE user.username = ?
+              AND notification.channel_id = ?
+              AND notification.enabled = 1
+            ''',
+            (username, channel_id),
+        ) as cursor:
+            row = await cursor.fetchone()
+    if row is None:
+        return None
+    return row['customized_msg']
 
 
 async def get_enabled_client_names(db_path) -> list[str]:

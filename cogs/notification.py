@@ -16,6 +16,7 @@ from src.services.notifier_service import (
     ChannelNotTrackedError,
     NotifierService,
     NotifierServiceError,
+    PlanLimitExceededError,
     RemoveNotifierRequest,
     UserNotFoundError,
 )
@@ -95,6 +96,9 @@ class Notification(Cog_Extension):
                 f'user {username} already exists under {account_used}. No changes due to `auto_change_client` setting',
                 ephemeral=True,
             )
+            return
+        except PlanLimitExceededError as error:
+            await itn.followup.send(str(error), ephemeral=True)
             return
         except NotifierServiceError:
             await itn.followup.send('failed to add notifier, please try again later.', ephemeral=True)
@@ -237,9 +241,8 @@ class Notification(Cog_Extension):
     @rule_group.command(name='upsert')
     @app_commands.choices(
         escalation_mode=[
-            app_commands.Choice(name='Inherit Guild Default', value='inherit'),
-            app_commands.Choice(name='Force Everyone', value='everyone'),
             app_commands.Choice(name='Role Only', value='role_only'),
+            app_commands.Choice(name='Force Everyone', value='everyone'),
         ]
     )
     async def upsert_rule(
@@ -247,7 +250,7 @@ class Notification(Cog_Extension):
         itn: discord.Interaction,
         rule_name: str,
         source_username: str,
-        escalation_mode: str = 'inherit',
+        escalation_mode: str = 'role_only',
         trigger_keywords: str = '',
         exclude_keywords: str = '',
         channel: discord.TextChannel = None,
@@ -258,16 +261,20 @@ class Notification(Cog_Extension):
         def parse_keywords(raw: str) -> list[str]:
             return [part.strip() for part in raw.split(',') if part.strip()]
 
-        await self.alert_rule_service.upsert_rule(
-            server_id=str(itn.guild_id),
-            rule_name=rule_name,
-            source_username=source_username.strip() or None,
-            channel_id=str(channel.id) if channel is not None else None,
-            priority=priority,
-            trigger_keywords=parse_keywords(trigger_keywords),
-            exclude_keywords=parse_keywords(exclude_keywords),
-            escalation_mode=escalation_mode,
-        )
+        try:
+            await self.alert_rule_service.upsert_rule(
+                server_id=str(itn.guild_id),
+                rule_name=rule_name,
+                source_username=source_username.strip() or None,
+                channel_id=str(channel.id) if channel is not None else None,
+                priority=priority,
+                trigger_keywords=parse_keywords(trigger_keywords),
+                exclude_keywords=parse_keywords(exclude_keywords),
+                escalation_mode=escalation_mode,
+            )
+        except ValueError as error:
+            await itn.followup.send(str(error), ephemeral=True)
+            return
 
         await itn.followup.send(f'upserted alert rule `{rule_name}`', ephemeral=True)
 

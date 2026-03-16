@@ -5,20 +5,17 @@ import discord
 from bs4 import BeautifulSoup
 from tweety.types import Tweet
 
-from configs.load_configs import configs
-
-
-async def gen_embed(tweet: Tweet) -> list[discord.Embed]:
+async def gen_embed(tweet: Tweet, use_fx_image: bool, use_legacy_logo: bool) -> list[discord.Embed]:
     author = tweet.author
     embed = discord.Embed(title=f'{author.name} {get_action(tweet, disable_quoted=True)} {get_tweet_type(tweet)}', description=tweet.text, url=tweet.url, color=0x1da0f2, timestamp=tweet.created_on)
     embed.set_author(name=f'{author.name} (@{author.username})', icon_url=author.profile_image_url_https, url=f'https://twitter.com/{author.username}')
     embed.set_thumbnail(url=re.sub(r'normal(?=\.jpg$)', '400x400', tweet.author.profile_image_url_https))
-    embed.set_footer(text='Twitter' if configs['embed']['built_in']['legacy_logo'] else 'X', icon_url='attachment://footer.png')
+    embed.set_footer(text='Twitter' if use_legacy_logo else 'X', icon_url='attachment://footer.png')
     if len(tweet.media) == 1:
         embed.set_image(url=tweet.media[0].media_url_https)
         return [embed]
     elif len(tweet.media) > 1:
-        if configs['embed']['built_in']['fx_image']:
+        if use_fx_image:
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(re.sub(r'twitter', r'fxtwitter', tweet.url)) as response:

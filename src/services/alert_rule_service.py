@@ -6,6 +6,7 @@ from src.repositories.alert_rule_repository import (
     LEGACY_IMPORTED_EXCLUSION_RULE,
     deserialize_keywords,
     delete_alert_rule,
+    get_alert_rule_count,
     get_alert_rule_names,
     get_matching_alert_rules,
     import_legacy_alert_rules_for_guild,
@@ -13,6 +14,7 @@ from src.repositories.alert_rule_repository import (
     migrate_legacy_alert_rules_for_existing_guilds,
     upsert_alert_rule,
 )
+from src.services.guild_settings_service import GuildSettingsService
 from src.settings import get_db_path
 
 
@@ -47,6 +49,7 @@ def _matches_any(text: str, phrases: list[str]) -> bool:
 class AlertRuleService:
     def __init__(self, db_path=None):
         self.db_path = db_path or get_db_path()
+        self.guild_settings_service = GuildSettingsService(self.db_path)
 
     async def resolve_alert_decision(
         self,
@@ -94,6 +97,31 @@ class AlertRuleService:
         exclude_keywords: list[str],
         escalation_mode: str,
     ) -> None:
+        presentation = await self.guild_settings_service.get_presentation_view(server_id)
+        existing_names = await self.get_rule_names(server_id)
+        if rule_name not in existing_names:
+            current_count = await get_alert_rule_count(self.db_path, server_id)
+            if current_count >= presentation.features.max_rules:
+                raise ValueError(f'plan limit reached: {presentation.features.max_rules} alert rules max for {presentation.plan}')
+
+        existing_rules = await self.list_rules(server_id)
+        trigger_total = len(trigger_keywords)
+        exclude_total = len(exclude_keywords)
+        for existing_rule in existing_rules:
+            if existing_rule.rule_name == rule_name:
+                continue
+            trigger_total += len(existing_rule.trigger_keywords)
+            exclude_total += len(existing_rule.exclude_keywords)
+
+        if trigger_total > presentation.features.max_trigger_keywords_total:
+            raise ValueError(
+                f'plan limit reached: {presentation.features.max_trigger_keywords_total} total trigger keywords max for {presentation.plan}'
+            )
+        if exclude_total > presentation.features.max_exclude_keywords_total:
+            raise ValueError(
+                f'plan limit reached: {presentation.features.max_exclude_keywords_total} total exclusion keywords max for {presentation.plan}'
+            )
+
         await upsert_alert_rule(
             self.db_path,
             server_id=server_id,
@@ -157,8 +185,6 @@ class AlertRuleService:
 
     @staticmethod
     def _escalation_mode_to_db_value(escalation_mode: str) -> Optional[int]:
-        if escalation_mode == 'inherit':
-            return None
         if escalation_mode == 'everyone':
             return 1
         return 0
@@ -166,5 +192,5 @@ class AlertRuleService:
     @staticmethod
     def _db_value_to_escalation_mode(force_everyone: Optional[int]) -> str:
         if force_everyone is None:
-            return 'inherit'
+            return 'role_only'
         return 'everyone' if bool(force_everyone) else 'role_only'

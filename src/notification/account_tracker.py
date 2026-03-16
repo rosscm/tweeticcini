@@ -15,15 +15,14 @@ from src.repositories.notifier_repository import (
     get_user_by_username,
     update_user_latest_tweet,
 )
+from src.services.guild_settings_service import GuildSettingsService
 from src.log import setup_logger
 from src.services.alert_rule_service import AlertRuleService
 from src.notification.display_tools import gen_embed, get_action
 from src.notification.get_tweets import get_tweets
 from src.notification.utils import is_match_media_type, is_match_type, replace_emoji
-from src.settings import get_accounts, get_db_path, get_default_message
+from src.settings import get_accounts, get_db_path
 from src.utils import get_lock, extract_first_line
-EMBED_TYPE = configs['embed']['type'] if configs['embed']['type'] in ['built_in', 'fx_twitter'] else 'built_in'
-DOMAIN_NAME = configs['embed']['fx_twitter']['domain_name'] if configs['embed']['fx_twitter']['domain_name'] in ['fxtwitter', 'fixupx'] else 'fxtwitter'
 
 
 log = setup_logger(__name__)
@@ -46,6 +45,7 @@ class AccountTracker():
         self.accounts_data = get_accounts()
         self.db_path = get_db_path()
         self.alert_rule_service = AlertRuleService(self.db_path)
+        self.guild_settings_service = GuildSettingsService(self.db_path)
         self.tweets = {account_name: [] for account_name in self.accounts_data.keys()}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         bot.loop.create_task(self.setup_tasks())
@@ -77,7 +77,7 @@ class AccountTracker():
 
         for username, client_used in usernames_and_clients.items():
             self.bot.loop.create_task(self.notification(username, client_used)).set_name(username)
-        self.bot.loop.create_task(self.tasksMonitor(usernames_and_clients)).set_name('TasksMonitor')
+        self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
 
     async def notification(self, username: str, client_used: str):
         while True:
@@ -97,24 +97,25 @@ class AccountTracker():
 
                     for tweet in lastest_tweets:
                         log.info(f'find a new tweet from {username}')
-                        url = re.sub('twitter', DOMAIN_NAME, tweet.url) if EMBED_TYPE == 'fx_twitter' else tweet.url
-                        view, create_view = None, False
-                        if bool(tweet.media) and tweet.media[0].type == 'video' and EMBED_TYPE == 'built_in' and configs['embed']['built_in']['video_link_button']:
-                            create_view = True
-                            button_label, button_url = 'View Video', tweet.media[0].expanded_url
-                        elif EMBED_TYPE == 'fx_twitter' and configs['embed']['fx_twitter']['original_url_button']:
-                            create_view = True
-                            button_label, button_url = 'View Original', tweet.url
-
-                        if create_view:
-                            view = discord.ui.View()
-                            view.add_item(discord.ui.Button(label=button_label, style=discord.ButtonStyle.link, url=button_url))
-
                         notifications = await get_enabled_notifications_for_user(cursor, user['id'])
                         for data in notifications:
                             channel = self.bot.get_channel(int(data['channel_id']))
                             if channel is not None and is_match_type(tweet, data['enable_type']) and is_match_media_type(tweet, data['enable_media_type']):
                                 try:
+                                    presentation = await self.guild_settings_service.get_presentation_view(str(channel.guild.id))
+                                    url = re.sub('twitter', presentation.effective.fx_domain_name, tweet.url) if presentation.effective.embed_type == 'fx_twitter' else tweet.url
+                                    view, create_view = None, False
+                                    if bool(tweet.media) and tweet.media[0].type == 'video' and presentation.effective.embed_type == 'built_in' and presentation.effective.built_in_video_link_button:
+                                        create_view = True
+                                        button_label, button_url = 'View Video', tweet.media[0].expanded_url
+                                    elif presentation.effective.embed_type == 'fx_twitter' and presentation.effective.fx_original_url_button:
+                                        create_view = True
+                                        button_label, button_url = 'View Original', tweet.url
+
+                                    if create_view:
+                                        view = discord.ui.View()
+                                        view.add_item(discord.ui.Button(label=button_label, style=discord.ButtonStyle.link, url=button_url))
+
                                     role = channel.guild.get_role(int(data['role_id'])) if data['role_id'] else None
                                     mention = f"{role.mention} " if role is not None else ''
 
@@ -147,26 +148,35 @@ class AccountTracker():
                                         mention = "@everyone "
                                         log.info(f"[DEBUG] @everyone mention triggered for tweet: {tweet.url}")
 
-                                    template = data['customized_msg'] or get_default_message()
+                                    template = data['customized_msg'] or presentation.effective.default_message
                                     try:
                                         msg = build_notification_message(template, mention, tweet, url)
                                     except KeyError as e:
                                         log.warning(f'invalid message template placeholder {e} for {username}, falling back to default message')
-                                        msg = build_notification_message(get_default_message(), mention, tweet, url)
+                                        msg = build_notification_message(presentation.effective.default_message, mention, tweet, url)
 
-                                    if configs.get('emoji_auto_format', False):
+                                    if presentation.effective.emoji_auto_format:
                                         msg = re.sub(r':([a-zA-Z0-9_]+):', lambda m: replace_emoji(m, channel.guild), msg)
 
                                     if not msg:
                                         headline = extract_first_line(text)
                                         msg = f"{mention}{headline}: {url}" if headline else f"{mention}{url}"
 
-                                    if EMBED_TYPE == 'fx_twitter':
+                                    if presentation.effective.embed_type == 'fx_twitter':
                                         await channel.send(content=msg, view=view)
                                     else:
-                                        footer = 'twitter.png' if configs['embed']['built_in']['legacy_logo'] else 'x.png'
+                                        footer = 'twitter.png' if presentation.effective.built_in_legacy_logo else 'x.png'
                                         file = discord.File(f'images/{footer}', filename='footer.png')
-                                        await channel.send(content=msg, file=file, embeds=await gen_embed(tweet), view=view)
+                                        await channel.send(
+                                            content=msg,
+                                            file=file,
+                                            embeds=await gen_embed(
+                                                tweet,
+                                                use_fx_image=presentation.effective.built_in_fx_image,
+                                                use_legacy_logo=presentation.effective.built_in_legacy_logo,
+                                            ),
+                                            view=view,
+                                        )
 
                                 except Exception as e:
                                     if not isinstance(e, discord.errors.Forbidden):
@@ -183,8 +193,9 @@ class AccountTracker():
                 log.error(f"an unexpected error occurred, try again in {configs['tweets_updater_retry_delay']} minutes")
                 await asyncio.sleep(configs['tweets_updater_retry_delay'] * 60)
 
-    async def tasksMonitor(self, users_and_clients: dict[str, str]):
+    async def tasksMonitor(self):
         while True:
+            users_and_clients = await get_enabled_user_client_map(self.db_path)
             taskSet = {task.get_name() for task in asyncio.all_tasks()}
             users = {username for username, _ in users_and_clients.items()}
             aliveTasks = taskSet & users
@@ -220,8 +231,7 @@ class AccountTracker():
                 except Exception as e:
                     log.warning(f'addTask : {e}')
 
-        usernames_and_clients = await get_enabled_user_client_map(self.db_path)
-        self.bot.loop.create_task(self.tasksMonitor(usernames_and_clients)).set_name('TasksMonitor')
+        self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
         log.info('new TasksMonitor has been started')
 
     async def removeTask(self, username: str):
@@ -239,6 +249,5 @@ class AccountTracker():
                 except Exception as e:
                     log.warning(f'removeTask : {e}')
 
-        usernames_and_clients = await get_enabled_user_client_map(self.db_path)
-        self.bot.loop.create_task(self.tasksMonitor(usernames_and_clients)).set_name('TasksMonitor')
+        self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
         log.info('new TasksMonitor has been started')

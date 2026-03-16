@@ -79,6 +79,16 @@ async def get_alert_rule_names(db_path, server_id: str) -> list[str]:
             return [row['rule_name'] async for row in cursor]
 
 
+async def get_alert_rule_count(db_path, server_id: str) -> int:
+    async with connect_readonly(db_path) as db:
+        async with db.execute(
+            'SELECT COUNT(*) FROM alert_rule WHERE server_id = ? AND enabled = 1',
+            (server_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+    return int(row[0] or 0)
+
+
 async def upsert_alert_rule(
     db_path,
     server_id: str,

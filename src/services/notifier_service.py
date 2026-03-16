@@ -5,11 +5,13 @@ from src.adapters.twitter_adapter import create_twitter_session
 from configs.load_configs import configs
 from src.log import setup_logger
 from src.repositories.notifier_repository import (
+    count_dashboard_sources,
     connect_writable,
     disable_notification,
     ensure_channel,
     get_active_channel_ids_for_server,
     get_active_notifications_for_user,
+    get_dashboard_source_message,
     get_channel_ids_for_server,
     get_client_used_for_user,
     get_enabled_notifier_user_id,
@@ -17,11 +19,15 @@ from src.repositories.notifier_repository import (
     get_enabled_usernames_for_channel,
     get_user_by_username,
     insert_user,
+    list_dashboard_sources,
     reset_custom_message as reset_notification_custom_message,
+    set_custom_message as set_notification_custom_message,
     set_user_enabled,
+    update_notification_settings,
     update_user_client,
     upsert_notification,
 )
+from src.services.guild_settings_service import GuildSettingsService
 from src.settings import get_db_path
 from src.utils import get_lock, get_utcnow
 
@@ -64,6 +70,25 @@ class RemoveNotifierResult:
     response_message: str
 
 
+@dataclass(frozen=True)
+class DashboardSourceRecord:
+    username: str
+    client_used: str
+    channel_id: str
+    role_id: str
+    enable_type: str
+    media_type: str
+    has_custom_message: bool
+    rule_count: int
+
+
+@dataclass(frozen=True)
+class DashboardSourceMessageRecord:
+    username: str
+    channel_id: str
+    customized_msg: Optional[str]
+
+
 class NotifierServiceError(Exception):
     pass
 
@@ -80,15 +105,29 @@ class ChannelNotTrackedError(NotifierServiceError):
     pass
 
 
+class PlanLimitExceededError(NotifierServiceError):
+    pass
+
+
 class NotifierService:
     def __init__(self, db_path=None):
         self.db_path = db_path or get_db_path()
+        self.guild_settings_service = GuildSettingsService(self.db_path)
 
     async def add_notifier(self, request: AddNotifierRequest) -> AddNotifierResult:
         async with connect_writable(self.db_path) as db:
             async with db.cursor() as cursor:
                 try:
                     match_user = await get_user_by_username(cursor, request.username)
+                    existing_notifier_user_id = await get_enabled_notifier_user_id(cursor, request.username, request.channel_id)
+
+                    if existing_notifier_user_id is None:
+                        presentation = await self.guild_settings_service.get_presentation_view(request.server_id)
+                        source_count = await count_dashboard_sources(self.db_path, request.server_id)
+                        if source_count >= presentation.features.max_sources:
+                            raise PlanLimitExceededError(
+                                f'plan limit reached: {presentation.features.max_sources} tracked sources max for {presentation.plan}'
+                            )
 
                     if match_user is None or match_user['enabled'] == 0:
                         return await self._create_or_reactivate_notifier(db, cursor, match_user, request)
@@ -181,6 +220,38 @@ class NotifierService:
                     await reset_notification_custom_message(cursor, user_id, channel_id)
                     await db.commit()
 
+    async def get_dashboard_source_message(self, username: str, channel_id: str) -> Optional[DashboardSourceMessageRecord]:
+        customized_msg = await get_dashboard_source_message(self.db_path, username, channel_id)
+        if customized_msg is None:
+            return None
+        return DashboardSourceMessageRecord(
+            username=username,
+            channel_id=channel_id,
+            customized_msg=customized_msg,
+        )
+
+    async def set_dashboard_source_message(self, username: str, channel_id: str, customized_msg: str) -> bool:
+        async with connect_writable(self.db_path) as db:
+            async with db.cursor() as cursor:
+                user_id = await get_enabled_notifier_user_id(cursor, username, channel_id)
+                if user_id is None:
+                    return False
+                async with lock:
+                    await set_notification_custom_message(cursor, user_id, channel_id, customized_msg)
+                    await db.commit()
+        return True
+
+    async def reset_dashboard_source_message(self, username: str, channel_id: str) -> bool:
+        async with connect_writable(self.db_path) as db:
+            async with db.cursor() as cursor:
+                user_id = await get_enabled_notifier_user_id(cursor, username, channel_id)
+                if user_id is None:
+                    return False
+                async with lock:
+                    await reset_notification_custom_message(cursor, user_id, channel_id)
+                    await db.commit()
+        return True
+
     async def disable_remote_notification(self, username: str, client_used: str) -> None:
         app = create_twitter_session(client_used)
         await app.connect()
@@ -201,6 +272,39 @@ class NotifierService:
 
     async def get_enabled_user_client_map(self) -> dict[str, str]:
         return await get_enabled_user_client_map(self.db_path)
+
+    async def list_dashboard_sources(self, server_id: str) -> list[DashboardSourceRecord]:
+        rows = await list_dashboard_sources(self.db_path, server_id)
+        return [
+            DashboardSourceRecord(
+                username=row['username'],
+                client_used=row['client_used'],
+                channel_id=row['channel_id'],
+                role_id=row['role_id'] or '',
+                enable_type=row['enable_type'],
+                media_type=row['enable_media_type'],
+                has_custom_message=bool(row['customized_msg']),
+                rule_count=int(row['rule_count'] or 0),
+            )
+            for row in rows
+        ]
+
+    async def update_dashboard_source(
+        self,
+        username: str,
+        channel_id: str,
+        role_id: str,
+        enable_type: str,
+        media_type: str,
+    ) -> bool:
+        return await update_notification_settings(
+            self.db_path,
+            username=username,
+            channel_id=channel_id,
+            role_id=role_id,
+            enable_type=enable_type,
+            media_type=media_type,
+        )
 
     async def _create_or_reactivate_notifier(self, db, cursor, match_user, request: AddNotifierRequest) -> AddNotifierResult:
         app = create_twitter_session(request.account_used)

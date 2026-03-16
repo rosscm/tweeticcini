@@ -14,50 +14,352 @@
           <h1>Server {{ guild_id }}</h1>
           <p class="lede">Manage guild-scoped alert defaults and source-specific escalation rules.</p>
         </div>
-        <a class="ghost-link" href="/dashboard">Change Guild</a>
+        <div class="header-actions">
+          {% if discord_user %}
+          <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
+          {% endif %}
+          <a class="ghost-link" href="/dashboard">Change Guild</a>
+        </div>
       </header>
 
+      {% if not discord_user %}
       <section class="notice">
-        <strong>Internal prototype:</strong> no Discord OAuth yet. This page is for local/admin testing only.
+        <strong>Local mode:</strong> Discord OAuth is not configured, so guild access checks are bypassed for local testing.
+      </section>
+      {% endif %}
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Bot Defaults</p>
+            <h2>Runtime Baseline</h2>
+            <p class="section-copy">Read-only reference for the current platform-level defaults from `configs.yml`. These are not guild overrides yet.</p>
+          </div>
+        </div>
+        <div class="defaults-grid">
+          <div class="default-block">
+            <h3>Polling</h3>
+            <div><span class="meta-label">Tweet Check</span> {{ bot_defaults.tweets_check_period }}s</div>
+            <div><span class="meta-label">Retry Delay</span> {{ bot_defaults.tweets_updater_retry_delay }}m</div>
+            <div><span class="meta-label">Task Check</span> {{ bot_defaults.tasks_monitor_check_period }}m</div>
+            <div><span class="meta-label">Task Log</span> {{ bot_defaults.tasks_monitor_log_period }}h</div>
+            <div><span class="meta-label">Auth Retries</span> {{ bot_defaults.auth_max_attempts }}</div>
+          </div>
+
+          <div class="default-block">
+            <h3>Automation</h3>
+            <div><span class="meta-label">Auto Change Client</span> {{ 'on' if bot_defaults.auto_change_client else 'off' }}</div>
+            <div><span class="meta-label">Auto Turn Off</span> {{ 'on' if bot_defaults.auto_turn_off_notification else 'off' }}</div>
+            <div><span class="meta-label">Auto Unfollow</span> {{ 'on' if bot_defaults.auto_unfollow else 'off' }}</div>
+            <div><span class="meta-label">Emoji Format</span> {{ 'on' if bot_defaults.emoji_auto_format else 'off' }}</div>
+          </div>
+
+          <div class="default-block">
+            <h3>Presence</h3>
+            <div><span class="meta-label">Activity</span> {{ bot_defaults.activity_type }}</div>
+            <div><span class="meta-label">Text</span> <code>{{ bot_defaults.activity_name }}</code></div>
+          </div>
+
+          <div class="default-block">
+            <h3>Embeds</h3>
+            <div><span class="meta-label">Type</span> {{ bot_defaults.embed_type }}</div>
+            <div><span class="meta-label">FX Image</span> {{ 'on' if bot_defaults.built_in_fx_image else 'off' }}</div>
+            <div><span class="meta-label">Video Button</span> {{ 'on' if bot_defaults.built_in_video_link_button else 'off' }}</div>
+            <div><span class="meta-label">Legacy Logo</span> {{ 'on' if bot_defaults.built_in_legacy_logo else 'off' }}</div>
+            <div><span class="meta-label">FX Domain</span> {{ bot_defaults.fx_domain_name }}</div>
+            <div><span class="meta-label">Original URL</span> {{ 'on' if bot_defaults.fx_original_url_button else 'off' }}</div>
+          </div>
+        </div>
+        <div class="default-message-block">
+          <h3>Default Message</h3>
+          <pre class="message-preview">{{ bot_defaults.default_message }}</pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plan & Presentation</p>
+            <h2>Alert Appearance</h2>
+            <p class="section-copy">Free guilds inherit the platform defaults above. Paid guilds can override how alerts look and render inside their own server.</p>
+          </div>
+        </div>
+
+        <div class="plan-summary">
+          <div class="plan-tile">
+            <span class="meta-label">Current plan</span>
+            <strong class="plan-name">{{ guild_presentation.plan }}</strong>
+          </div>
+          <div class="plan-tile">
+            <span class="meta-label">Source limit</span>
+            <strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong>
+          </div>
+          <div class="plan-tile">
+            <span class="meta-label">Rule limit</span>
+            <strong>{{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }}</strong>
+          </div>
+          <div class="plan-tile">
+            <span class="meta-label">Presentation overrides</span>
+            <strong>{{ 'unlocked' if guild_presentation.features.can_customize_presentation else 'locked' }}</strong>
+          </div>
+          <div class="plan-tile">
+            <span class="meta-label">Trigger keywords</span>
+            <strong>{{ plan_usage.trigger_keyword_count }} / {{ guild_presentation.features.max_trigger_keywords_total }}</strong>
+          </div>
+          <div class="plan-tile">
+            <span class="meta-label">Exclusion keywords</span>
+            <strong>{{ plan_usage.exclude_keyword_count }} / {{ guild_presentation.features.max_exclude_keywords_total }}</strong>
+          </div>
+        </div>
+
+        <form id="plan-form" class="stack">
+          <label for="guild-plan">Guild plan</label>
+          <select id="guild-plan">
+            <option value="free" {{ 'selected' if guild_presentation.plan == 'free' else '' }}>Free</option>
+            <option value="pro" {{ 'selected' if guild_presentation.plan == 'pro' else '' }}>Pro</option>
+          </select>
+          <div class="field-help">Internal testing control for now. Billing is not wired yet, so this manually toggles which dashboard features are unlocked.</div>
+          <div class="actions">
+            <button type="submit">Save Plan</button>
+          </div>
+        </form>
+
+        <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
+          {% if not guild_presentation.features.can_customize_presentation %}
+          <div class="form-banner">
+            Presentation overrides are part of the paid plan. Free guilds inherit the platform message and embed defaults.
+          </div>
+          {% endif %}
+
+          <label for="presentation-default-message">Default message</label>
+          <textarea id="presentation-default-message" rows="4" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>{{ guild_presentation.effective.default_message }}</textarea>
+          <div class="field-help">Fallback message template used when a source does not have its own custom message.</div>
+
+          <label for="presentation-emoji-auto-format">Emoji auto format</label>
+          <select id="presentation-emoji-auto-format" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
+            <option value="true" {{ 'selected' if guild_presentation.effective.emoji_auto_format else '' }}>On</option>
+            <option value="false" {{ 'selected' if not guild_presentation.effective.emoji_auto_format else '' }}>Off</option>
+          </select>
+          <div class="field-help">Automatically expands short emoji codes like <code>:jerry:</code> into server emoji when possible.</div>
+
+          <label for="presentation-embed-type">Embed type</label>
+          <select id="presentation-embed-type" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
+            <option value="built_in" {{ 'selected' if guild_presentation.effective.embed_type == 'built_in' else '' }}>Built-in</option>
+            <option value="fx_twitter" {{ 'selected' if guild_presentation.effective.embed_type == 'fx_twitter' else '' }}>FxTwitter links</option>
+          </select>
+          <div class="field-help">Choose between Discord embeds generated by the bot or FxTwitter-style routed links.</div>
+
+          <div class="checkbox-grid">
+            <label class="checkbox-row"><input id="presentation-built-in-fx-image" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_fx_image else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use combined FX image for multi-image tweets</label>
+            <label class="checkbox-row"><input id="presentation-built-in-video-button" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_video_link_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show video link button on built-in embeds</label>
+            <label class="checkbox-row"><input id="presentation-built-in-legacy-logo" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_legacy_logo else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use legacy Twitter branding in the footer</label>
+            <label class="checkbox-row"><input id="presentation-fx-original-url" type="checkbox" {{ 'checked' if guild_presentation.effective.fx_original_url_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show original tweet link button on FxTwitter mode</label>
+          </div>
+
+          <label for="presentation-fx-domain-name">FX domain</label>
+          <select id="presentation-fx-domain-name" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
+            <option value="fxtwitter" {{ 'selected' if guild_presentation.effective.fx_domain_name == 'fxtwitter' else '' }}>fxtwitter</option>
+            <option value="fixupx" {{ 'selected' if guild_presentation.effective.fx_domain_name == 'fixupx' else '' }}>fixupx</option>
+          </select>
+          <div class="field-help">Only used when embed type is set to FxTwitter links.</div>
+
+          <div class="actions">
+            <button type="submit" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>Save Appearance</button>
+          </div>
+        </form>
       </section>
 
       <div class="grid">
         <section class="card">
           <div class="card-header">
             <div>
+              <p class="eyebrow">Tracked Sources</p>
+              <h2>Sources</h2>
+              <p class="section-copy">Every source currently routed through this server, with its destination and delivery filters.</p>
+            </div>
+          </div>
+
+          <form id="source-form" class="stack">
+            <div class="form-banner">
+              Fill this form and click <strong>Save Source</strong> to add a new tracked source. Or load an existing row below to update its routing and filter settings.
+            </div>
+            <input id="source-edit-mode" type="hidden" value="create">
+            <label for="source-username-edit">Source username</label>
+            <input id="source-username-edit" type="text" placeholder="Twitter/X handle, for example CeladonCA">
+            <div class="field-help">Enter the Twitter/X username to track. This is case-insensitive and should not include the `@` symbol.</div>
+
+            <label for="source-channel-id-edit">Channel ID</label>
+            <input id="source-channel-id-edit" type="text" placeholder="Discord channel ID where alerts should be sent">
+            <div class="field-help">The Discord text channel that should receive alerts for this source.</div>
+
+            <label for="source-role-id-edit">Role ID</label>
+            <input id="source-role-id-edit" type="text" placeholder="Optional Discord role ID to mention">
+            <div class="field-help">Optional. If set, the bot will mention this role when sending alerts for the source.</div>
+
+            <label for="source-enable-type-edit">Tweet filter</label>
+            <select id="source-enable-type-edit">
+              <option value="11">All</option>
+              <option value="10">Tweet + Retweet</option>
+              <option value="01">Tweet + Quote</option>
+              <option value="00">Tweet Only</option>
+            </select>
+            <div class="field-help">Controls which post types should be forwarded for this source.</div>
+
+            <label for="source-media-type-edit">Media filter</label>
+            <select id="source-media-type-edit">
+              <option value="11">All</option>
+              <option value="10">No Media</option>
+              <option value="01">Media Only</option>
+            </select>
+            <div class="field-help">Controls whether alerts should include all posts, only text posts, or only posts with media.</div>
+
+            <label for="source-account-used-edit">Twitter/X session</label>
+            <select id="source-account-used-edit">
+              {% for account_name in available_accounts %}
+              <option value="{{ account_name }}">{{ account_name }}</option>
+              {% endfor %}
+            </select>
+            <div class="field-help">Used when creating a brand new tracked source. Existing sources keep the client they already use.</div>
+
+            <label for="source-custom-message-edit">Custom message</label>
+            <textarea id="source-custom-message-edit" rows="4" placeholder="Optional per-source message template"></textarea>
+            <div class="field-help">Optional. Leave blank to use the guild default message. Supports the same placeholders as the default template: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>.</div>
+
+            <div class="actions">
+              <button type="submit">Save Source</button>
+              <button type="button" class="button-secondary" id="source-form-reset">Clear Form</button>
+              <button type="button" class="button-secondary" id="source-message-reset">Reset Custom Message</button>
+            </div>
+          </form>
+
+          <div class="rule-list-wrap">
+            <table class="rule-table">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Destination</th>
+                  <th>Delivery</th>
+                  <th>Rules</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for source in sources %}
+                <tr class="data-row">
+                  <td>
+                    <div class="entity-title">{{ source.username }}</div>
+                    <div class="entity-meta">via {{ source.client_used }}</div>
+                  </td>
+                  <td>
+                    <div>
+                      <span class="meta-label">Channel</span>
+                      {% if channel_names.get(source.channel_id) %}
+                      <span>#{{ channel_names.get(source.channel_id) }}</span> <code>{{ source.channel_id }}</code>
+                      {% else %}
+                      <code>{{ source.channel_id }}</code>
+                      {% endif %}
+                    </div>
+                    <div>
+                      <span class="meta-label">Role</span>
+                      {% if source.role_id and role_names.get(source.role_id) %}
+                      <span>@{{ role_names.get(source.role_id) }}</span> <code>{{ source.role_id }}</code>
+                      {% elif source.role_id %}
+                      <code>{{ source.role_id }}</code>
+                      {% else %}
+                      <code>none</code>
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="tag-row">
+                      <span class="tag">{{ source.enable_type_label }}</span>
+                      <span class="tag">{{ source.media_type_label }}</span>
+                      <span class="tag {{ 'tag--accent' if source.has_custom_message else '' }}">{{ 'Custom message' if source.has_custom_message else 'Default message' }}</span>
+                    </div>
+                  </td>
+                  <td><span class="count-pill">{{ source.rule_count }}</span></td>
+                  <td>
+                    <div class="action-stack">
+                      <button
+                        type="button"
+                        class="button-secondary edit-source"
+                        data-username="{{ source.username }}"
+                        data-channel-id="{{ source.channel_id }}"
+                        data-role-id="{{ source.role_id }}"
+                        data-enable-type="{{ source.enable_type }}"
+                        data-media-type="{{ source.media_type }}"
+                        data-has-custom-message="{{ 'true' if source.has_custom_message else 'false' }}"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        class="button-secondary delete-source"
+                        data-username="{{ source.username }}"
+                        data-channel-id="{{ source.channel_id }}"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="5" class="empty-cell">No tracked sources found for this guild.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
               <p class="eyebrow">Source Rules</p>
               <h2>Alert Rules</h2>
+              <p class="section-copy">Keyword-based exclusions and escalation rules that shape how individual sources behave.</p>
             </div>
           </div>
 
           <form id="rule-form" class="stack">
+            <div class="form-banner">
+              Fill this form and click <strong>Save Rule</strong> to create or update a rule. Use exclusions to suppress noisy posts, and use escalation rules for high-impact alerts.
+            </div>
             <label for="rule-name">Rule name</label>
             <input id="rule-name" type="text" placeholder="pokemoncenter-queue">
+            <div class="field-help">A unique internal name for this rule within the current guild.</div>
 
             <label for="source-username">Source username</label>
             <input id="source-username" type="text" placeholder="pokemoncenterca">
+            <div class="field-help">Optional. Restrict the rule to a specific Twitter/X username. Leave blank to match all sources in the guild.</div>
 
             <label for="channel-id">Channel ID</label>
             <input id="channel-id" type="text" placeholder="Optional Discord channel ID">
+            <div class="field-help">Optional. Restrict the rule to alerts sent into one Discord channel.</div>
 
             <label for="priority">Priority</label>
             <input id="priority" type="number" value="0">
+            <div class="field-help">Higher priority rules are evaluated first.</div>
 
             <label for="escalation-mode">Escalation mode</label>
             <select id="escalation-mode">
-              <option value="inherit">Inherit guild default</option>
-              <option value="everyone">Force everyone</option>
               <option value="role_only">Role only</option>
+              <option value="everyone">Force everyone</option>
             </select>
+            <div class="field-help">Choose whether a matching rule should force `@everyone` or fall back to normal role-based delivery.</div>
 
             <label for="rule-trigger-keywords">Trigger keywords</label>
             <textarea id="rule-trigger-keywords" rows="3" placeholder="queue live, queue is live"></textarea>
+            <div class="field-help">Comma-separated phrases that must appear in the post before this escalation rule applies.</div>
 
             <label for="rule-exclude-keywords">Exclude keywords</label>
             <textarea id="rule-exclude-keywords" rows="4" placeholder="lorcana, plush, sleeves"></textarea>
+            <div class="field-help">Comma-separated phrases that should suppress alerts when matched.</div>
 
             <div class="actions">
               <button type="submit">Save Rule</button>
+              <button type="button" class="button-secondary" id="rule-form-reset">Clear Form</button>
             </div>
           </form>
 
@@ -67,7 +369,7 @@
                 <tr>
                   <th>Name</th>
                   <th>Source</th>
-                  <th>Escalation</th>
+                  <th>Behavior</th>
                   <th>Priority</th>
                   <th>Keywords</th>
                   <th></th>
@@ -75,16 +377,46 @@
               </thead>
               <tbody id="rule-table-body">
                 {% for rule in rules %}
-                <tr data-rule-name="{{ rule.rule_name }}">
-                  <td>{{ rule.rule_name }}</td>
-                  <td>{{ rule.source_username or 'all sources' }}</td>
-                  <td>{{ rule.escalation_mode }}</td>
-                  <td>{{ rule.priority }}</td>
+                <tr
+                  class="data-row"
+                  data-rule-name="{{ rule.rule_name }}"
+                  data-source-username="{{ rule.source_username or '' }}"
+                  data-channel-id="{{ rule.channel_id or '' }}"
+                  data-priority="{{ rule.priority }}"
+                  data-escalation-mode="{{ rule.escalation_mode }}"
+                  data-trigger-keywords="{{ rule.trigger_keywords | join(', ') }}"
+                  data-exclude-keywords="{{ rule.exclude_keywords | join(', ') }}"
+                >
                   <td>
-                    <div><strong>Triggers:</strong> {{ rule.trigger_keywords | join(', ') or 'none' }}</div>
-                    <div><strong>Excludes:</strong> {{ rule.exclude_keywords | join(', ') or 'none' }}</div>
+                    <div class="entity-title">{{ rule.rule_name }}</div>
+                    {% if rule.channel_id %}
+                    <div class="entity-meta">
+                      channel
+                      {% if channel_names.get(rule.channel_id) %}
+                      #{{ channel_names.get(rule.channel_id) }} <code>{{ rule.channel_id }}</code>
+                      {% else %}
+                      <code>{{ rule.channel_id }}</code>
+                      {% endif %}
+                    </div>
+                    {% endif %}
                   </td>
-                  <td><button type="button" class="button-secondary delete-rule" data-rule-name="{{ rule.rule_name }}">Delete</button></td>
+                  <td>{{ rule.source_username or 'all sources' }}</td>
+                  <td><span class="tag">{{ rule.escalation_mode }}</span></td>
+                  <td><span class="count-pill">{{ rule.priority }}</span></td>
+                  <td>
+                    <div><span class="meta-label">Triggers</span> {{ rule.trigger_keywords | join(', ') or 'none' }}</div>
+                    <div><span class="meta-label">Excludes</span> {{ rule.exclude_keywords | join(', ') or 'none' }}</div>
+                  </td>
+                  <td>
+                    <div class="action-stack">
+                      <button type="button" class="button-secondary edit-rule" data-rule-name="{{ rule.rule_name }}">Edit</button>
+                      <button type="button" class="button-secondary delete-rule" data-rule-name="{{ rule.rule_name }}">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="empty-cell">No alert rules have been configured for this guild yet.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -157,6 +489,193 @@
         } catch (error) {
           setStatus(`Failed to save rule: ${error.message}`, true);
         }
+      });
+
+      document.getElementById('plan-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        try {
+          await jsonRequest(`/guilds/${guildId}/plan`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              plan: document.getElementById('guild-plan').value,
+            }),
+          });
+          window.location.reload();
+        } catch (error) {
+          setStatus(`Failed to save plan: ${error.message}`, true);
+        }
+      });
+
+      document.getElementById('presentation-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        if (document.getElementById('presentation-form').classList.contains('is-locked')) {
+          setStatus('Unlock a paid plan to customize alert presentation.', true);
+          return;
+        }
+
+        try {
+          await jsonRequest(`/guilds/${guildId}/presentation`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              default_message: document.getElementById('presentation-default-message').value,
+              emoji_auto_format: document.getElementById('presentation-emoji-auto-format').value === 'true',
+              embed_type: document.getElementById('presentation-embed-type').value,
+              built_in_fx_image: document.getElementById('presentation-built-in-fx-image').checked,
+              built_in_video_link_button: document.getElementById('presentation-built-in-video-button').checked,
+              built_in_legacy_logo: document.getElementById('presentation-built-in-legacy-logo').checked,
+              fx_domain_name: document.getElementById('presentation-fx-domain-name').value,
+              fx_original_url_button: document.getElementById('presentation-fx-original-url').checked,
+            }),
+          });
+          window.location.reload();
+        } catch (error) {
+          setStatus(`Failed to save appearance: ${error.message}`, true);
+        }
+      });
+
+      document.getElementById('source-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const username = document.getElementById('source-username-edit').value.trim();
+        const channelId = document.getElementById('source-channel-id-edit').value.trim();
+        if (!username || !channelId) {
+          setStatus('Source username and channel ID are required.', true);
+          return;
+        }
+
+        try {
+          const mode = document.getElementById('source-edit-mode').value;
+          const payload = {
+            role_id: document.getElementById('source-role-id-edit').value.trim(),
+            enable_type: document.getElementById('source-enable-type-edit').value,
+            media_type: document.getElementById('source-media-type-edit').value,
+          };
+          const customMessage = document.getElementById('source-custom-message-edit').value;
+          if (mode === 'edit') {
+            await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}`, {
+              method: 'PUT',
+              body: JSON.stringify(payload),
+            });
+            if (customMessage.trim()) {
+              await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                  customized_msg: customMessage,
+                }),
+              });
+            } else {
+              await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+                method: 'DELETE',
+              });
+            }
+          } else {
+            await jsonRequest(`/guilds/${guildId}/sources`, {
+              method: 'POST',
+              body: JSON.stringify({
+                username,
+                channel_id: channelId,
+                account_used: document.getElementById('source-account-used-edit').value,
+                ...payload,
+              }),
+            });
+            if (customMessage.trim()) {
+              await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                  customized_msg: customMessage,
+                }),
+              });
+            }
+          }
+          window.location.reload();
+        } catch (error) {
+          setStatus(`Failed to save source: ${error.message}`, true);
+        }
+      });
+
+      document.querySelectorAll('.edit-source').forEach(function (button) {
+        button.addEventListener('click', async function () {
+          document.getElementById('source-edit-mode').value = 'edit';
+          document.getElementById('source-username-edit').value = button.dataset.username;
+          document.getElementById('source-channel-id-edit').value = button.dataset.channelId;
+          document.getElementById('source-role-id-edit').value = button.dataset.roleId || '';
+          document.getElementById('source-enable-type-edit').value = button.dataset.enableType;
+          document.getElementById('source-media-type-edit').value = button.dataset.mediaType;
+          try {
+            const messageData = await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(button.dataset.username)}/${encodeURIComponent(button.dataset.channelId)}/message`);
+            document.getElementById('source-custom-message-edit').value = messageData.customized_msg || '';
+          } catch (error) {
+            document.getElementById('source-custom-message-edit').value = '';
+          }
+          setStatus(`Loaded ${button.dataset.username} for editing. Twitter/X session is only used for new sources.`);
+        });
+      });
+
+      document.getElementById('source-form-reset').addEventListener('click', function () {
+        document.getElementById('source-edit-mode').value = 'create';
+        document.getElementById('source-username-edit').value = '';
+        document.getElementById('source-channel-id-edit').value = '';
+        document.getElementById('source-role-id-edit').value = '';
+        document.getElementById('source-enable-type-edit').value = '11';
+        document.getElementById('source-media-type-edit').value = '11';
+        document.getElementById('source-custom-message-edit').value = '';
+        setStatus('Ready to add a new tracked source. Fill in the fields and click Save Source.');
+      });
+
+      document.getElementById('source-message-reset').addEventListener('click', async function () {
+        const username = document.getElementById('source-username-edit').value.trim();
+        const channelId = document.getElementById('source-channel-id-edit').value.trim();
+        if (!username || !channelId) {
+          document.getElementById('source-custom-message-edit').value = '';
+          setStatus('Cleared the unsaved custom message field.');
+          return;
+        }
+        try {
+          await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+            method: 'DELETE',
+          });
+          document.getElementById('source-custom-message-edit').value = '';
+          setStatus(`Reset the custom message for ${username}.`);
+        } catch (error) {
+          setStatus(`Failed to reset custom message: ${error.message}`, true);
+        }
+      });
+
+      document.getElementById('rule-form-reset').addEventListener('click', function () {
+        document.getElementById('rule-name').value = '';
+        document.getElementById('source-username').value = '';
+        document.getElementById('channel-id').value = '';
+        document.getElementById('priority').value = 0;
+        document.getElementById('escalation-mode').value = 'role_only';
+        document.getElementById('rule-trigger-keywords').value = '';
+        document.getElementById('rule-exclude-keywords').value = '';
+        setStatus('Ready to add a new alert rule.');
+      });
+
+      document.querySelectorAll('.edit-rule').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const row = button.closest('tr');
+          document.getElementById('rule-name').value = row.dataset.ruleName || '';
+          document.getElementById('source-username').value = row.dataset.sourceUsername || '';
+          document.getElementById('channel-id').value = row.dataset.channelId || '';
+          document.getElementById('priority').value = row.dataset.priority || 0;
+          document.getElementById('escalation-mode').value = row.dataset.escalationMode || 'role_only';
+          document.getElementById('rule-trigger-keywords').value = row.dataset.triggerKeywords || '';
+          document.getElementById('rule-exclude-keywords').value = row.dataset.excludeKeywords || '';
+          setStatus(`Loaded rule ${row.dataset.ruleName} for editing.`);
+        });
+      });
+
+      document.querySelectorAll('.delete-source').forEach(function (button) {
+        button.addEventListener('click', async function () {
+          try {
+            await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(button.dataset.username)}/${encodeURIComponent(button.dataset.channelId)}`, {
+              method: 'DELETE',
+            });
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to remove source: ${error.message}`, true);
+          }
+        });
       });
 
       document.querySelectorAll('.delete-rule').forEach(function (button) {

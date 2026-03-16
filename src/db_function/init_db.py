@@ -2,9 +2,8 @@ import os
 
 import aiosqlite
 
-from src.db_function.guild_settings import get_legacy_alert_settings, get_legacy_exclude_keywords, get_legacy_trigger_keywords
+from src.db_function.guild_settings import get_legacy_exclude_keywords, get_legacy_trigger_keywords
 from src.log import setup_logger
-from src.repositories.guild_settings_repository import migrate_legacy_guild_settings
 from src.repositories.alert_rule_repository import migrate_legacy_alert_rules_for_existing_guilds
 from src.settings import DB_FILENAME, get_data_path
 
@@ -38,9 +37,15 @@ async def ensure_db_schema() -> str:
             );
             CREATE TABLE IF NOT EXISTS guild_settings (
                 server_id TEXT PRIMARY KEY,
-                force_everyone_default INTEGER DEFAULT NULL,
-                keywords_triggering_everyone TEXT DEFAULT NULL,
-                keywords_excluded TEXT DEFAULT NULL
+                plan TEXT DEFAULT 'free',
+                default_message_override TEXT DEFAULT NULL,
+                emoji_auto_format_override INTEGER DEFAULT NULL,
+                embed_type_override TEXT DEFAULT NULL,
+                built_in_fx_image_override INTEGER DEFAULT NULL,
+                built_in_video_link_button_override INTEGER DEFAULT NULL,
+                built_in_legacy_logo_override INTEGER DEFAULT NULL,
+                fx_domain_name_override TEXT DEFAULT NULL,
+                fx_original_url_button_override INTEGER DEFAULT NULL
             );
             CREATE TABLE IF NOT EXISTS app_meta (
                 key TEXT PRIMARY KEY,
@@ -69,29 +74,28 @@ async def ensure_db_schema() -> str:
             await db.execute('ALTER TABLE notification ADD COLUMN force_everyone INTEGER DEFAULT 0')
             log.info('added missing notification.force_everyone column')
 
+        async with db.execute("PRAGMA table_info(guild_settings)") as cursor:
+            guild_columns = {row[1] async for row in cursor}
+
+        guild_column_definitions = {
+            'plan': "TEXT DEFAULT 'free'",
+            'default_message_override': 'TEXT DEFAULT NULL',
+            'emoji_auto_format_override': 'INTEGER DEFAULT NULL',
+            'embed_type_override': 'TEXT DEFAULT NULL',
+            'built_in_fx_image_override': 'INTEGER DEFAULT NULL',
+            'built_in_video_link_button_override': 'INTEGER DEFAULT NULL',
+            'built_in_legacy_logo_override': 'INTEGER DEFAULT NULL',
+            'fx_domain_name_override': 'TEXT DEFAULT NULL',
+            'fx_original_url_button_override': 'INTEGER DEFAULT NULL',
+        }
+        for column_name, definition in guild_column_definitions.items():
+            if column_name not in guild_columns:
+                await db.execute(f'ALTER TABLE guild_settings ADD COLUMN {column_name} {definition}')
+                log.info(f'added missing guild_settings.{column_name} column')
+
         await db.commit()
 
     async with aiosqlite.connect(db_path) as db:
-        async with db.execute(
-            "SELECT value FROM app_meta WHERE key = 'legacy_alert_settings_migrated'"
-        ) as cursor:
-            settings_row = await cursor.fetchone()
-
-        if settings_row is None:
-            legacy_settings = get_legacy_alert_settings()
-            migrated_servers = await migrate_legacy_guild_settings(
-                db_path,
-                force_everyone_default=legacy_settings.force_everyone_default,
-                keywords_triggering_everyone=[],
-                keywords_excluded=[],
-            )
-            await db.execute(
-                "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('legacy_alert_settings_migrated', '1')"
-            )
-            await db.commit()
-            if migrated_servers:
-                log.info(f'migrated legacy force_everyone defaults into guild settings for {migrated_servers} server(s)')
-
         async with db.execute(
             "SELECT value FROM app_meta WHERE key = 'legacy_alert_rules_migrated'"
         ) as cursor:
