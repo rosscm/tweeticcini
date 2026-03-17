@@ -30,6 +30,7 @@ class GuildPlanFeatures:
     max_trigger_keywords_total: int
     max_exclude_keywords_total: int
     can_customize_presentation: bool
+    can_use_everyone_escalation: bool
 
 
 PLAN_FEATURES = {
@@ -39,6 +40,7 @@ PLAN_FEATURES = {
         max_trigger_keywords_total=5,
         max_exclude_keywords_total=20,
         can_customize_presentation=False,
+        can_use_everyone_escalation=False,
     ),
     PLAN_PRO: GuildPlanFeatures(
         max_sources=25,
@@ -46,6 +48,7 @@ PLAN_FEATURES = {
         max_trigger_keywords_total=150,
         max_exclude_keywords_total=500,
         can_customize_presentation=True,
+        can_use_everyone_escalation=True,
     ),
 }
 
@@ -67,6 +70,8 @@ class GuildEntitlementView:
     subscribed_plan: Optional[str]
     manual_plan_override: Optional[str]
     billing_provider: Optional[str]
+    external_customer_id: Optional[str]
+    external_subscription_id: Optional[str]
     current_period_end: Optional[str]
     trial_ends_at: Optional[str]
     is_test: bool
@@ -162,6 +167,8 @@ class GuildSettingsService:
                 subscribed_plan=row['subscribed_plan'],
                 manual_plan_override=row['manual_plan_override'],
                 billing_provider=row['billing_provider'],
+                external_customer_id=row['external_customer_id'],
+                external_subscription_id=row['external_subscription_id'],
                 current_period_end=row['current_period_end'],
                 trial_ends_at=row['trial_ends_at'],
                 is_test=bool(row['is_test']),
@@ -175,6 +182,8 @@ class GuildSettingsService:
                 subscribed_plan=row['subscribed_plan'],
                 manual_plan_override=row['manual_plan_override'],
                 billing_provider=row['billing_provider'],
+                external_customer_id=row['external_customer_id'],
+                external_subscription_id=row['external_subscription_id'],
                 current_period_end=row['current_period_end'],
                 trial_ends_at=row['trial_ends_at'],
                 is_test=bool(row['is_test']),
@@ -189,6 +198,8 @@ class GuildSettingsService:
             subscribed_plan=row['subscribed_plan'] if row is not None else None,
             manual_plan_override=row['manual_plan_override'] if row is not None else None,
             billing_provider=row['billing_provider'] if row is not None else None,
+            external_customer_id=row['external_customer_id'] if row is not None else None,
+            external_subscription_id=row['external_subscription_id'] if row is not None else None,
             current_period_end=row['current_period_end'] if row is not None else None,
             trial_ends_at=row['trial_ends_at'] if row is not None else None,
             is_test=bool(row['is_test']) if row is not None else True,
@@ -216,8 +227,8 @@ class GuildSettingsService:
             manual_plan_override=current['manual_plan_override'] if current is not None else None,
             entitlement_status=normalized_status,
             billing_provider=billing_provider,
-            external_customer_id=external_customer_id,
-            external_subscription_id=external_subscription_id,
+            external_customer_id=external_customer_id if external_customer_id is not None else (current['external_customer_id'] if current is not None else None),
+            external_subscription_id=external_subscription_id if external_subscription_id is not None else (current['external_subscription_id'] if current is not None else None),
             current_period_end=current_period_end,
             trial_ends_at=trial_ends_at,
             is_test=int(is_test),

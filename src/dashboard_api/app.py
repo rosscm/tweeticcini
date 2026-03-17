@@ -22,6 +22,7 @@ from src.repositories.runtime_metrics_repository import (
     list_runtime_client_statuses,
 )
 from src.services.alert_rule_service import AlertRuleRecord, AlertRuleService
+from src.services.billing_service import BillingConfigurationError, BillingService
 from src.services.guild_settings_service import GuildSettingsService, GuildPresentationView
 from src.services.notifier_service import (
     AddNotifierRequest,
@@ -100,6 +101,10 @@ class UpdateGuildEntitlementRequest(BaseModel):
     current_period_end: Optional[str] = None
     trial_ends_at: Optional[str] = None
     is_test: bool = True
+
+
+class CreateCheckoutSessionRequest(BaseModel):
+    plan: str = 'pro'
 
 
 class UpdateGuildPresentationRequest(BaseModel):
@@ -183,6 +188,8 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
             'subscribed_plan': view.entitlement.subscribed_plan,
             'manual_plan_override': view.entitlement.manual_plan_override,
             'billing_provider': view.entitlement.billing_provider,
+            'external_customer_id': view.entitlement.external_customer_id,
+            'external_subscription_id': view.entitlement.external_subscription_id,
             'current_period_end': view.entitlement.current_period_end,
             'trial_ends_at': view.entitlement.trial_ends_at,
             'is_test': view.entitlement.is_test,
@@ -193,6 +200,7 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
             'max_trigger_keywords_total': view.features.max_trigger_keywords_total,
             'max_exclude_keywords_total': view.features.max_exclude_keywords_total,
             'can_customize_presentation': view.features.can_customize_presentation,
+            'can_use_everyone_escalation': view.features.can_use_everyone_escalation,
         },
         'has_overrides': view.has_overrides,
         'effective': {
@@ -265,6 +273,15 @@ def _get_session_guilds(request: Request) -> list[dict[str, object]]:
     if not isinstance(guilds, list):
         return []
     return guilds
+
+
+def _get_session_guild_name(request: Request, guild_id: str) -> Optional[str]:
+    for guild in _get_session_guilds(request):
+        if str(guild.get('id')) == guild_id:
+            name = guild.get('name')
+            if name:
+                return str(name)
+    return None
 
 
 def _require_guild_access(request: Request, guild_id: str) -> None:
@@ -472,6 +489,7 @@ GUILD_SECTIONS = {
     'sources': 'Sources',
     'rules': 'Rules',
     'appearance': 'Appearance',
+    'billing': 'Billing',
     'platform': 'Platform',
 }
 
@@ -492,6 +510,7 @@ app.mount('/dashboard/static', StaticFiles(directory=str(BASE_DIR / 'static')), 
 alert_rule_service = AlertRuleService()
 notifier_service = NotifierService()
 guild_settings_service = GuildSettingsService()
+billing_service = BillingService()
 
 
 @app.get('/', include_in_schema=False)
@@ -600,6 +619,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     usage = _serialize_plan_usage(sources, rules)
     resource_names = await _fetch_guild_resource_names(guild_id)
     available_accounts = list(get_accounts().keys())
+    billing_context = billing_service.get_context()
     log_health = _read_recent_log_health()
     client_statuses = await list_runtime_client_statuses(notifier_service.db_path)
     source_status_map = await get_runtime_source_status_map(notifier_service.db_path, guild_id)
@@ -625,8 +645,9 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         request=request,
         name='guild.html',
         context={
-            'title': f'Guild {guild_id}',
+            'title': _get_session_guild_name(request, guild_id) or f'Guild {guild_id}',
             'guild_id': guild_id,
+            'guild_name': _get_session_guild_name(request, guild_id) or guild_id,
             'discord_user': _get_session_user(request),
             'bot_defaults': _serialize_bot_defaults(),
             'guild_presentation': _serialize_guild_presentation(guild_presentation),
@@ -639,6 +660,13 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'source_options': _serialize_source_options(sources),
             'guild_sections': GUILD_SECTIONS,
             'active_section': active_section,
+            'billing_context': {
+                'publishable_configured': billing_context.publishable_configured,
+                'secret_configured': billing_context.secret_configured,
+                'webhook_configured': billing_context.webhook_configured,
+                'portal_configured': billing_context.portal_configured,
+                'available_price_plans': billing_context.available_price_plans,
+            },
             'status_banner': _build_status_banner(available_accounts, usage, guild_presentation, log_health, client_statuses),
             'overview': {
                 'escalation_rule_count': escalation_rule_count,
@@ -682,6 +710,11 @@ async def dashboard_guild_rules(request: Request, guild_id: str):
 @app.get('/dashboard/guilds/{guild_id}/appearance', response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_guild_appearance(request: Request, guild_id: str):
     return await _render_guild_dashboard(request, guild_id, 'appearance')
+
+
+@app.get('/dashboard/guilds/{guild_id}/billing', response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_guild_billing(request: Request, guild_id: str):
+    return await _render_guild_dashboard(request, guild_id, 'billing')
 
 
 @app.get('/dashboard/guilds/{guild_id}/platform', response_class=HTMLResponse, include_in_schema=False)
@@ -784,6 +817,101 @@ async def update_guild_entitlement(
             is_test=entitlement_request.is_test,
         )
     )
+
+
+@app.post('/guilds/{guild_id}/billing/checkout')
+async def create_guild_checkout_session(
+    request: Request,
+    guild_id: str,
+    checkout_request: CreateCheckoutSessionRequest,
+) -> dict[str, str]:
+    _require_guild_access(request, guild_id)
+    try:
+        checkout_url = billing_service.create_checkout_session(
+            plan=checkout_request.plan,
+            guild_id=guild_id,
+            guild_name=_get_session_guild_name(request, guild_id) or guild_id,
+            discord_user_id=str((_get_session_user(request) or {}).get('id') or ''),
+            success_url=str(request.url_for('dashboard_guild_billing', guild_id=guild_id)) + '?checkout=success',
+            cancel_url=str(request.url_for('dashboard_guild_billing', guild_id=guild_id)) + '?checkout=canceled',
+        )
+    except BillingConfigurationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {'url': checkout_url}
+
+
+@app.post('/guilds/{guild_id}/billing/portal')
+async def create_guild_portal_session(request: Request, guild_id: str) -> dict[str, str]:
+    _require_guild_access(request, guild_id)
+    entitlement = (await guild_settings_service.get_presentation_view(guild_id)).entitlement
+    if not entitlement.external_customer_id:
+        raise HTTPException(status_code=400, detail='no Stripe customer is linked to this guild yet')
+    try:
+        portal_url = billing_service.create_billing_portal_session(
+            customer_id=entitlement.external_customer_id,
+            return_url=str(request.url_for('dashboard_guild_billing', guild_id=guild_id)),
+        )
+    except BillingConfigurationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {'url': portal_url}
+
+
+@app.post('/billing/webhook')
+async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
+    payload = await request.body()
+    signature = request.headers.get('stripe-signature')
+    try:
+        event = billing_service.construct_webhook_event(payload, signature)
+    except BillingConfigurationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=400, detail=f'invalid Stripe webhook: {error}') from error
+
+    event_type = event.get('type')
+    data_object = event.get('data', {}).get('object', {})
+
+    if event_type == 'checkout.session.completed':
+        metadata = data_object.get('metadata', {}) or {}
+        guild_id = metadata.get('guild_id') or data_object.get('client_reference_id')
+        if guild_id:
+            await guild_settings_service.set_subscription_entitlement(
+                server_id=str(guild_id),
+                subscribed_plan=metadata.get('plan') or 'pro',
+                entitlement_status='active',
+                billing_provider='stripe',
+                external_customer_id=data_object.get('customer'),
+                external_subscription_id=data_object.get('subscription'),
+                is_test=False,
+            )
+
+    if event_type in {'customer.subscription.updated', 'customer.subscription.deleted'}:
+        metadata = data_object.get('metadata', {}) or {}
+        guild_id = metadata.get('guild_id')
+        if guild_id:
+            status = data_object.get('status') or 'none'
+            mapped_status = (
+                'active' if status == 'active'
+                else 'trialing' if status == 'trialing'
+                else 'canceled' if status in {'canceled', 'unpaid', 'incomplete_expired'}
+                else 'past_due' if status == 'past_due'
+                else 'none'
+            )
+            current_period_end = None
+            period_end_timestamp = data_object.get('current_period_end')
+            if period_end_timestamp:
+                current_period_end = datetime.fromtimestamp(period_end_timestamp).isoformat(sep=' ', timespec='seconds')
+            await guild_settings_service.set_subscription_entitlement(
+                server_id=str(guild_id),
+                subscribed_plan=(metadata.get('plan') or 'pro') if mapped_status in {'active', 'trialing', 'past_due'} else None,
+                entitlement_status=mapped_status,
+                billing_provider='stripe',
+                external_customer_id=data_object.get('customer'),
+                external_subscription_id=data_object.get('id'),
+                current_period_end=current_period_end,
+                is_test=False,
+            )
+
+    return {'received': True}
 
 
 @app.put('/guilds/{guild_id}/presentation')

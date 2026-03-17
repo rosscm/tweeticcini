@@ -16,7 +16,14 @@ async def ensure_db_schema() -> str:
         os.mkdir(data_path)
 
     db_path = data_path / DB_FILENAME
+    legacy_root_db = DB_FILENAME
     db_created = not os.path.exists(db_path)
+
+    if os.path.exists(legacy_root_db) and os.path.abspath(legacy_root_db) != os.path.abspath(db_path):
+        log.warning(
+            f'found a second database file at {legacy_root_db}; active database is {db_path}. '
+            'Consider archiving the stray file to avoid editing the wrong copy.'
+        )
 
     async with aiosqlite.connect(db_path) as db:
         await db.executescript("""

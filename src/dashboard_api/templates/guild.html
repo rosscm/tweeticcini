@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">Guild Dashboard</p>
           <div class="page-title-row">
-            <h1>Server {{ guild_id }}</h1>
+            <h1>{{ guild_name }}</h1>
             <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
           </div>
           <p class="lede">Manage tracked sources, alert behavior, and presentation settings for this Discord server.</p>
@@ -135,6 +135,7 @@
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage tracked sources</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules">Edit alert rules</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust presentation</a></div>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Manage billing</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/platform">Review platform settings</a></div>
           </div>
         </div>
@@ -215,9 +216,9 @@
       <section class="card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Plan & Presentation</p>
+            <p class="eyebrow">Presentation</p>
             <h2>Alert Appearance</h2>
-            <p class="section-copy">Free guilds inherit the platform defaults above. Paid guilds can override how alerts look and render inside their own server.</p>
+            <p class="section-copy">Control how alerts look inside this server. Billing and subscription management live on the dedicated Billing page.</p>
           </div>
         </div>
 
@@ -249,97 +250,7 @@
           </div>
         </div>
 
-        {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
-        <section class="notice notice--warning">
-          <strong>Manual override active:</strong> this guild is currently using a support/testing override, so the effective plan may not match the simulated subscription state below.
-        </section>
-        {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
-        <section class="notice notice--success">
-          <strong>Trial active:</strong> this guild is currently trialing the <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong> plan{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
-        </section>
-        {% elif guild_presentation.entitlement.entitlement_status == 'past_due' %}
-        <section class="notice notice--warning">
-          <strong>Billing attention needed:</strong> this guild is marked <strong>past due</strong>. Keep access messaging clear here, because this is where you can test downgrade and warning states before real billing is wired in.
-        </section>
-        {% elif guild_presentation.entitlement.entitlement_status == 'canceled' %}
-        <section class="notice notice--warning">
-          <strong>Subscription canceled:</strong> this guild no longer has an active subscription-backed entitlement, so it should fall back to default plan behavior unless an internal override is present.
-        </section>
-        {% elif guild_presentation.entitlement.entitlement_status == 'active' %}
-        <section class="notice notice--success">
-          <strong>Subscription active:</strong> this guild has an active entitlement for <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong>{% if guild_presentation.entitlement.current_period_end %}, currently paid through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
-        </section>
-        {% endif %}
-
         <div class="workspace-grid workspace-grid--appearance">
-          <div class="workspace-panel">
-            <h3 class="panel-title">Entitlement</h3>
-            <div class="field-help">
-              Effective plan: <strong>{{ guild_presentation.entitlement.effective_plan }}</strong>.
-              Source: <strong>{{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</strong>.
-              Status: <strong>{{ guild_presentation.entitlement.entitlement_status }}</strong>.
-            </div>
-            {% if guild_presentation.entitlement.subscribed_plan %}
-            <div class="field-help">Subscribed plan: <strong>{{ guild_presentation.entitlement.subscribed_plan }}</strong>{% if guild_presentation.entitlement.current_period_end %}, renews through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.</div>
-            {% endif %}
-            <form id="plan-form" class="stack">
-              <div class="form-banner">
-                Internal override tool for testing and support. In production this should be driven by billing/subscription state, not by guild admins directly.
-              </div>
-              <label for="guild-plan">Manual plan override</label>
-              <select id="guild-plan">
-                <option value="">No override</option>
-                <option value="free" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'free' else '' }}>Free</option>
-                <option value="pro" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'pro' else '' }}>Pro</option>
-              </select>
-              <div class="field-help">Use this only for internal testing or temporary support overrides.</div>
-              <div class="actions">
-                <button type="submit">Save Override</button>
-                <button type="button" class="button-secondary" id="clear-plan-override">Clear Override</button>
-              </div>
-            </form>
-
-            <div class="panel-divider"></div>
-
-            <h3 class="panel-title">Subscription Simulation</h3>
-            <form id="entitlement-form" class="stack">
-              <div class="form-banner">
-                Internal entitlement testing surface. Use this to simulate billing-backed access states before Stripe is wired in.
-              </div>
-              <label for="entitlement-status">Entitlement status</label>
-              <select id="entitlement-status">
-                <option value="none" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'none' else '' }}>none</option>
-                <option value="trialing" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'trialing' else '' }}>trialing</option>
-                <option value="active" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'active' else '' }}>active</option>
-                <option value="past_due" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'past_due' else '' }}>past_due</option>
-                <option value="canceled" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'canceled' else '' }}>canceled</option>
-              </select>
-
-              <label for="entitlement-plan">Subscribed plan</label>
-              <select id="entitlement-plan">
-                <option value="">No subscribed plan</option>
-                <option value="free" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'free' else '' }}>Free</option>
-                <option value="pro" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'pro' else '' }}>Pro</option>
-              </select>
-
-              <label for="entitlement-provider">Billing provider</label>
-              <input id="entitlement-provider" type="text" value="{{ guild_presentation.entitlement.billing_provider or '' }}" placeholder="stripe">
-              <div class="field-help">Optional for now, but useful when we start wiring real billing records.</div>
-
-              <label for="entitlement-current-period-end">Current period end</label>
-              <input id="entitlement-current-period-end" type="text" value="{{ guild_presentation.entitlement.current_period_end or '' }}" placeholder="2026-04-16 00:00:00+00:00">
-
-              <label for="entitlement-trial-ends-at">Trial ends at</label>
-              <input id="entitlement-trial-ends-at" type="text" value="{{ guild_presentation.entitlement.trial_ends_at or '' }}" placeholder="2026-04-01 00:00:00+00:00">
-
-              <label class="checkbox-row"><input id="entitlement-is-test" type="checkbox" {{ 'checked' if guild_presentation.entitlement.is_test else '' }}> Mark entitlement as test data</label>
-
-              <div class="actions">
-                <button type="submit">Save Entitlement</button>
-              </div>
-            </form>
-          </div>
-
           <div class="workspace-panel workspace-panel--wide">
             <h3 class="panel-title">Appearance Overrides</h3>
             <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
@@ -387,6 +298,146 @@
 
               <div class="actions">
                 <button type="submit" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>Save Appearance</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if active_section == 'billing' %}
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Billing</p>
+            <h2>Subscription & Entitlements</h2>
+            <p class="section-copy">Manage the commercial state for this guild. This is where real Stripe access will live, alongside internal testing tools while billing is still being wired in.</p>
+          </div>
+        </div>
+
+        {% if request.query_params.get('checkout') == 'success' %}
+        <section class="notice notice--success">
+          <strong>Checkout started successfully:</strong> Stripe returned to the Billing page. Once the webhook is configured and delivered, this guild's entitlement will update automatically.
+        </section>
+        {% elif request.query_params.get('checkout') == 'canceled' %}
+        <section class="notice notice--plain">
+          <strong>Checkout canceled:</strong> no billing changes were applied.
+        </section>
+        {% endif %}
+
+        {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
+        <section class="notice notice--warning">
+          <strong>Manual override active:</strong> this guild is currently using a support/testing override, so the effective plan may not match the subscription state below.
+        </section>
+        {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
+        <section class="notice notice--success">
+          <strong>Trial active:</strong> this guild is currently trialing the <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong> plan{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
+        </section>
+        {% elif guild_presentation.entitlement.entitlement_status == 'past_due' %}
+        <section class="notice notice--warning">
+          <strong>Billing attention needed:</strong> this guild is marked <strong>past due</strong>.
+        </section>
+        {% elif guild_presentation.entitlement.entitlement_status == 'canceled' %}
+        <section class="notice notice--warning">
+          <strong>Subscription canceled:</strong> this guild no longer has an active subscription-backed entitlement, so it will fall back to default plan behavior unless an internal override is present.
+        </section>
+        {% elif guild_presentation.entitlement.entitlement_status == 'active' %}
+        <section class="notice notice--success">
+          <strong>Subscription active:</strong> this guild has an active entitlement for <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong>{% if guild_presentation.entitlement.current_period_end %}, currently paid through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
+        </section>
+        {% endif %}
+
+        <div class="workspace-grid workspace-grid--appearance">
+          <div class="workspace-panel">
+            <h3 class="panel-title">Current Entitlement</h3>
+            <div class="field-help">
+              Effective plan: <strong>{{ guild_presentation.entitlement.effective_plan }}</strong>.
+              Source: <strong>{{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</strong>.
+              Status: <strong>{{ guild_presentation.entitlement.entitlement_status }}</strong>.
+            </div>
+            {% if guild_presentation.entitlement.subscribed_plan %}
+            <div class="field-help">Subscribed plan: <strong>{{ guild_presentation.entitlement.subscribed_plan }}</strong>.</div>
+            {% endif %}
+            {% if guild_presentation.entitlement.billing_provider %}
+            <div class="field-help">Billing provider: <strong>{{ guild_presentation.entitlement.billing_provider }}</strong>.</div>
+            {% endif %}
+            {% if guild_presentation.entitlement.external_customer_id %}
+            <div class="field-help">Customer ID: <code>{{ guild_presentation.entitlement.external_customer_id }}</code></div>
+            {% endif %}
+            {% if guild_presentation.entitlement.external_subscription_id %}
+            <div class="field-help">Subscription ID: <code>{{ guild_presentation.entitlement.external_subscription_id }}</code></div>
+            {% endif %}
+            <div class="actions">
+              <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Pro Checkout</button>
+              <button type="button" class="button-secondary" id="open-billing-portal" {{ 'disabled' if not guild_presentation.entitlement.external_customer_id }}>Open Customer Portal</button>
+            </div>
+            <div class="field-help">
+              Stripe config:
+              secret {{ 'configured' if billing_context.secret_configured else 'missing' }},
+              webhook {{ 'configured' if billing_context.webhook_configured else 'missing' }},
+              prices {{ billing_context.available_price_plans | join(', ') or 'none' }}.
+            </div>
+            {% if not billing_context.secret_configured or 'pro' not in billing_context.available_price_plans %}
+            <div class="field-help">
+              Add <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_PRICE_ID_PRO</code> to enable live Checkout creation from this page.
+            </div>
+            {% endif %}
+
+            <div class="panel-divider"></div>
+
+            <h3 class="panel-title">Manual Override</h3>
+            <form id="plan-form" class="stack">
+              <div class="form-banner">
+                Internal override tool for testing and support. In production this should be driven by billing/subscription state, not by guild admins directly.
+              </div>
+              <label for="guild-plan">Manual plan override</label>
+              <select id="guild-plan">
+                <option value="">No override</option>
+                <option value="free" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'free' else '' }}>Free</option>
+                <option value="pro" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'pro' else '' }}>Pro</option>
+              </select>
+              <div class="actions">
+                <button type="submit">Save Override</button>
+                <button type="button" class="button-secondary" id="clear-plan-override">Clear Override</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="workspace-panel workspace-panel--wide">
+            <h3 class="panel-title">Subscription Simulation</h3>
+            <form id="entitlement-form" class="stack">
+              <div class="form-banner">
+                Internal entitlement testing surface. Use this to simulate billing-backed access states before Stripe is fully wired in.
+              </div>
+              <label for="entitlement-status">Entitlement status</label>
+              <select id="entitlement-status">
+                <option value="none" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'none' else '' }}>none</option>
+                <option value="trialing" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'trialing' else '' }}>trialing</option>
+                <option value="active" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'active' else '' }}>active</option>
+                <option value="past_due" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'past_due' else '' }}>past_due</option>
+                <option value="canceled" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'canceled' else '' }}>canceled</option>
+              </select>
+
+              <label for="entitlement-plan">Subscribed plan</label>
+              <select id="entitlement-plan">
+                <option value="">No subscribed plan</option>
+                <option value="free" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'free' else '' }}>Free</option>
+                <option value="pro" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'pro' else '' }}>Pro</option>
+              </select>
+
+              <label for="entitlement-provider">Billing provider</label>
+              <input id="entitlement-provider" type="text" value="{{ guild_presentation.entitlement.billing_provider or '' }}" placeholder="stripe">
+
+              <label for="entitlement-current-period-end">Current period end</label>
+              <input id="entitlement-current-period-end" type="text" value="{{ guild_presentation.entitlement.current_period_end or '' }}" placeholder="2026-04-16 00:00:00+00:00">
+
+              <label for="entitlement-trial-ends-at">Trial ends at</label>
+              <input id="entitlement-trial-ends-at" type="text" value="{{ guild_presentation.entitlement.trial_ends_at or '' }}" placeholder="2026-04-01 00:00:00+00:00">
+
+              <label class="checkbox-row"><input id="entitlement-is-test" type="checkbox" {{ 'checked' if guild_presentation.entitlement.is_test else '' }}> Mark entitlement as test data</label>
+
+              <div class="actions">
+                <button type="submit">Save Entitlement</button>
               </div>
             </form>
           </div>
@@ -597,6 +648,12 @@
           </section>
           {% endif %}
 
+          {% if not guild_presentation.features.can_use_everyone_escalation %}
+          <section class="notice notice--plain">
+            <strong>Premium rule type:</strong> `@everyone` escalation is available on the paid plan. Free guilds can still create `role only` rules.
+          </section>
+          {% endif %}
+
           <div class="workspace-grid">
             <div class="workspace-panel">
               <h3 class="panel-title">Rule Form</h3>
@@ -634,7 +691,7 @@
                 <label for="escalation-mode">Escalation mode</label>
                 <select id="escalation-mode">
                   <option value="role_only">Role only</option>
-                  <option value="everyone">Force everyone</option>
+                  <option value="everyone" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}>Force everyone{{ ' (Pro)' if not guild_presentation.features.can_use_everyone_escalation else '' }}</option>
                 </select>
                 <div class="field-help">Choose whether a matching rule should force `@everyone` or fall back to normal role-based delivery.</div>
 
@@ -839,6 +896,35 @@
             window.location.reload();
           } catch (error) {
             setStatus(`Failed to save entitlement: ${error.message}`, true);
+          }
+        });
+      }
+
+      const startCheckout = document.getElementById('start-checkout');
+      if (startCheckout) {
+        startCheckout.addEventListener('click', async function () {
+          try {
+            const result = await jsonRequest(`/guilds/${guildId}/billing/checkout`, {
+              method: 'POST',
+              body: JSON.stringify({ plan: 'pro' }),
+            });
+            window.location.href = result.url;
+          } catch (error) {
+            setStatus(`Failed to start checkout: ${error.message}`, true);
+          }
+        });
+      }
+
+      const openBillingPortal = document.getElementById('open-billing-portal');
+      if (openBillingPortal) {
+        openBillingPortal.addEventListener('click', async function () {
+          try {
+            const result = await jsonRequest(`/guilds/${guildId}/billing/portal`, {
+              method: 'POST',
+            });
+            window.location.href = result.url;
+          } catch (error) {
+            setStatus(`Failed to open billing portal: ${error.message}`, true);
           }
         });
       }

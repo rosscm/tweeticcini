@@ -107,6 +107,9 @@ class AlertRuleService:
             if source_username.lower() not in tracked_source_usernames:
                 raise ValueError(f'cannot create a rule for untracked source `{source_username}`')
 
+        if escalation_mode == 'everyone' and not presentation.features.can_use_everyone_escalation:
+            raise ValueError('`@everyone` escalation requires a paid plan')
+
         existing_names = await self.get_rule_names(server_id)
         comparison_rule_name = existing_rule_name or rule_name
         if rule_name != comparison_rule_name and rule_name in existing_names:

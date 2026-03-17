@@ -91,6 +91,14 @@ Supported variables for message formatting:
 BOT_TOKEN=YourDiscordBotToken
 TWITTER_TOKEN=ClientAlias:AuthToken
 DATA_PATH=./data
+DISCORD_CLIENT_ID=YourDiscordClientId
+DISCORD_CLIENT_SECRET=YourDiscordClientSecret
+DISCORD_REDIRECT_URI=http://localhost:8000/dashboard/callback
+DASHBOARD_SESSION_SECRET=YourLongRandomSessionSecret
+STRIPE_PUBLISHABLE_KEY=pk_test_replace_me
+STRIPE_SECRET_KEY=sk_test_replace_me
+STRIPE_WEBHOOK_SECRET=whsec_replace_me
+STRIPE_PRICE_ID_PRO=price_replace_me
 ```
 
 Multiple Twitter accounts can be defined by separating entries with commas.
@@ -114,14 +122,14 @@ Important production parameters:
 
 > Avoid setting polling intervals too low to prevent rate limiting.
 
-## 🖥 Dashboard Prototype
+## 🖥 Dashboard
 
-An internal dashboard prototype is available for guild-scoped alert configuration.
+The dashboard supports guild-scoped source management, alert rules, appearance overrides, billing scaffolding, and Discord OAuth login.
 
 Run it locally with:
 
 ```bash
-uvicorn src.dashboard_api.app:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn src.dashboard_api.app:app --host 0.0.0.0 --port 8000
 ```
 
 Then open:
@@ -129,17 +137,43 @@ Then open:
 - `http://localhost:8000/dashboard`
 
 Current dashboard scope:
-- guild alert defaults
+- guild overview and runtime health
+- tracked source management
 - source-specific alert rules
-
-Current limitation:
-- no Discord OAuth yet; this is an internal/admin-only prototype
+- appearance overrides
+- billing and entitlement testing
+- Discord OAuth server selection
 
 One-time legacy keyword migration for already-configured servers can be run locally with:
 
 ```bash
 python3 scripts/import_legacy_alert_rules.py
 ```
+
+### Stripe Billing Setup
+
+The billing page can create Stripe Checkout sessions, open the Stripe customer portal, and accept Stripe webhooks once these env vars are configured:
+
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_ID_PRO`
+
+Recommended webhook events:
+
+- `checkout.session.completed`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+Webhook endpoint:
+
+- `POST /billing/webhook`
+
+## 🌐 GitHub Pages
+
+A minimal public-facing site for billing/onboarding lives in [docs/index.html](/Users/rossc10/projects/tweeticcini/docs/index.html) with companion privacy and terms pages in [docs/privacy.html](/Users/rossc10/projects/tweeticcini/docs/privacy.html) and [docs/terms.html](/Users/rossc10/projects/tweeticcini/docs/terms.html).
+
+To publish it with GitHub Pages, configure the repository Pages source to deploy from the `docs/` folder on your chosen branch.
 
 # 🚀 Production Deployment
 
