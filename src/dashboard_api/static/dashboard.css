@@ -337,6 +337,39 @@ h2 {
   border: 1px solid var(--line);
 }
 
+.internal-tools {
+  margin-top: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.internal-tools summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 18px 20px;
+  font-weight: 700;
+}
+
+.internal-tools summary::-webkit-details-marker {
+  display: none;
+}
+
+.internal-tools summary::after {
+  content: "Show";
+  float: right;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.internal-tools[open] summary::after {
+  content: "Hide";
+}
+
+.internal-tools__body {
+  padding: 0 20px 20px;
+}
+
 .default-block h3,
 .default-message-block h3 {
   margin: 0 0 14px;
@@ -525,6 +558,10 @@ h2 {
   line-height: 1.45;
 }
 
+.field-help--body {
+  margin-top: 2px;
+}
+
 .field-error {
   margin-top: -4px;
   color: #ff9f9f;
@@ -677,6 +714,11 @@ button:hover,
 .notice {
   padding: 16px 18px;
   margin-bottom: 24px;
+}
+
+.notice--compact {
+  margin-top: 14px;
+  margin-bottom: 0;
 }
 
 .rule-list-wrap {

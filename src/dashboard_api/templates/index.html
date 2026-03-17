@@ -26,6 +26,9 @@
         <div class="notice">
           Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong>.
           <a class="ghost-link" href="/dashboard/logout">Sign Out</a>
+          {% if public_site_url %}
+          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Visit Site</a>
+          {% endif %}
         </div>
         {% if manageable_guilds %}
         <div class="stack">
@@ -45,6 +48,9 @@
         <div class="stack">
           <a class="oauth-button" href="{{ discord_login_url }}">Sign In With Discord</a>
           <p class="section-copy">You’ll see the Discord servers where you have administrator or manage-server permissions.</p>
+          {% if public_site_url %}
+          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
+          {% endif %}
         </div>
         {% endif %}
         {% else %}

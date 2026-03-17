@@ -3,6 +3,7 @@ import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -17,6 +18,7 @@ from starlette.templating import Jinja2Templates
 from configs.load_configs import configs
 from src.db_function.init_db import ensure_db_schema
 from src.log import get_log_path
+from src.notification.account_tracker import build_headline_notification_message, build_notification_message
 from src.repositories.runtime_metrics_repository import (
     get_runtime_source_status_map,
     list_runtime_client_statuses,
@@ -87,6 +89,13 @@ class CreateDashboardSourceRequest(BaseModel):
 
 class UpdateDashboardSourceMessageRequest(BaseModel):
     customized_msg: str
+
+
+class SendDashboardSourceTestRequest(BaseModel):
+    username: str
+    channel_id: str
+    role_id: str = ''
+    customized_msg: str = ''
 
 
 class UpdateGuildPlanRequest(BaseModel):
@@ -241,6 +250,13 @@ def _get_discord_oauth_config() -> Optional[dict[str, str]]:
     }
 
 
+def _get_public_site_url() -> Optional[str]:
+    site_url = os.getenv('PUBLIC_SITE_URL')
+    if not site_url:
+        return None
+    return site_url.strip() or None
+
+
 def _build_discord_login_url(state: str) -> Optional[str]:
     oauth = _get_discord_oauth_config()
     if oauth is None:
@@ -353,6 +369,67 @@ async def _update_bot_server_nickname(guild_id: str, nick: Optional[str]) -> Non
             if response.status >= 400:
                 detail = await response.text()
                 raise HTTPException(status_code=502, detail=f'failed to update bot display name: {detail}')
+
+
+def _build_test_tweet(username: str, sample_text: str, url: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        author=SimpleNamespace(name=username, username=username),
+        is_retweet=False,
+        is_quoted=False,
+        url=url,
+        text=sample_text,
+    )
+
+
+def _build_test_alert_message(
+    username: str,
+    mention: str,
+    customized_msg: str,
+    default_message: str,
+    sample_text: str,
+    url: str,
+) -> str:
+    tweet = _build_test_tweet(username, sample_text, url)
+    uses_server_message_override = default_message.strip() != configs['default_message'].strip()
+
+    if customized_msg.strip():
+        try:
+            return build_notification_message(customized_msg, mention, tweet, url)
+        except KeyError:
+            return build_headline_notification_message(mention, sample_text, url)
+
+    if uses_server_message_override:
+        try:
+            return build_notification_message(default_message, mention, tweet, url)
+        except KeyError:
+            return build_headline_notification_message(mention, sample_text, url)
+
+    return build_headline_notification_message(mention, sample_text, url)
+
+
+async def _send_test_alert_message(channel_id: str, content: str) -> None:
+    bot_token = os.getenv('BOT_TOKEN')
+    if not bot_token:
+        raise HTTPException(status_code=503, detail='bot token is not configured')
+
+    headers = {
+        'Authorization': f'Bot {bot_token}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'content': content,
+        'allowed_mentions': {
+            'parse': [],
+        },
+    }
+    async with aiohttp.ClientSession(headers=headers) as session:
+        async with session.post(
+            f'https://discord.com/api/v10/channels/{channel_id}/messages',
+            json=payload,
+        ) as response:
+            if response.status >= 400:
+                detail = await response.text()
+                raise HTTPException(status_code=502, detail=f'failed to send test alert: {detail}')
 
 
 def _serialize_named_options(resource_map: dict[str, str]) -> list[dict[str, str]]:
@@ -549,6 +626,7 @@ async def dashboard_home(request: Request):
         name='index.html',
         context={
             'title': 'Tweeticcini Dashboard',
+            'public_site_url': _get_public_site_url(),
             'oauth_enabled': _get_discord_oauth_config() is not None,
             'discord_login_url': _build_discord_login_url(state),
             'discord_user': _get_session_user(request),
@@ -710,6 +788,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             },
             'sources': sources_payload,
             'rules': [_serialize_rule(rule).model_dump() for rule in rules],
+            'public_site_url': _get_public_site_url(),
         },
     )
 
@@ -806,6 +885,42 @@ async def create_guild_source(request: Request, guild_id: str, source_request: C
         if source.username.lower() == source_request.username.lower() and source.channel_id == source_request.channel_id:
             return _serialize_source(source)
     raise RuntimeError(f'failed to load source {source_request.username} in channel {source_request.channel_id} after create')
+
+
+@app.post('/guilds/{guild_id}/sources/test-alert')
+async def send_guild_source_test_alert(
+    request: Request,
+    guild_id: str,
+    test_request: SendDashboardSourceTestRequest,
+) -> dict[str, str]:
+    _require_guild_access(request, guild_id)
+    if not os.getenv('BOT_TOKEN'):
+        raise HTTPException(status_code=503, detail='bot token is not configured')
+    resource_names = await _fetch_guild_resource_names(guild_id)
+    channel_name = resource_names['channels'].get(test_request.channel_id)
+    if not channel_name:
+        raise HTTPException(status_code=400, detail='select a valid server channel for the test alert')
+
+    presentation = await guild_settings_service.get_presentation_view(guild_id)
+    if test_request.customized_msg.strip() and not presentation.features.can_customize_source_messages:
+        raise HTTPException(status_code=400, detail='custom account messages require the Pro plan')
+    mention = f'<@&{test_request.role_id}> ' if test_request.role_id else ''
+    sample_text = 'Queue is live at Pokemon Center'
+    sample_url = f'https://x.com/{test_request.username}/status/1999999999999999999'
+    message = _build_test_alert_message(
+        username=test_request.username,
+        mention=mention,
+        customized_msg=test_request.customized_msg,
+        default_message=presentation.effective.default_message,
+        sample_text=sample_text,
+        url=sample_url,
+    )
+    await _send_test_alert_message(test_request.channel_id, message)
+    return {
+        'channel_id': test_request.channel_id,
+        'channel_name': channel_name,
+        'message': message,
+    }
 
 
 @app.get('/guilds/{guild_id}/presentation')

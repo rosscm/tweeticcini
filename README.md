@@ -107,6 +107,12 @@ Example:
 
 `TWITTER_TOKEN=Account1:token1,Account2:token2`
 
+Local vs production reminders:
+- local dashboard OAuth should use `http://localhost:8000/dashboard/callback`
+- production OAuth should use your real dashboard domain callback URL
+- Stripe test keys and live keys must never be mixed with the wrong `price_...` or webhook secret
+- the production bot and dashboard should share the same `DATA_PATH` target so billing, dashboard, and runtime changes land in one database
+
 ### Key Runtime Settings (configs.yml)
 
 Important production parameters:
@@ -168,6 +174,37 @@ Recommended webhook events:
 Webhook endpoint:
 
 - `POST /billing/webhook`
+
+For local testing, Stripe must reach your machine through a public tunnel such as Cloudflare Tunnel or ngrok. For production, point Stripe directly at your real dashboard domain.
+
+## ✅ Production Checklist
+
+Before switching from local/testing to a live deployment, verify:
+
+- public site is published and shows product, pricing, support email, privacy, and terms
+- Discord OAuth redirect URI is set to the live dashboard callback URL
+- `DASHBOARD_SESSION_SECRET` is set to a strong random value
+- bot and dashboard both use the intended persistent `DATA_PATH`
+- Stripe keys are all live-mode values
+- `STRIPE_PRICE_ID_PRO` is the live recurring Pro price
+- Stripe webhook points to your live `POST /billing/webhook` endpoint
+- webhook events include:
+  - `checkout.session.completed`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+- `BOT_TOKEN` and `TWITTER_TOKEN` values are present on the live host
+- dashboard login works through Discord OAuth on the live domain
+- checkout creates a Stripe session from the live Billing page
+- webhook delivery updates the server entitlement without a manual override
+- test alerts can be sent from the dashboard into a real Discord channel
+
+Suggested first live rollout:
+
+1. deploy the dashboard on a stable public URL
+2. set the live Discord OAuth redirect URI
+3. set live Stripe env vars and webhook
+4. verify one server can subscribe and resolve to `pro`
+5. only then invite broader users
 
 ## 🌐 GitHub Pages
 
