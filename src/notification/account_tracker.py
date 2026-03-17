@@ -15,6 +15,12 @@ from src.repositories.notifier_repository import (
     get_user_by_username,
     update_user_latest_tweet,
 )
+from src.repositories.runtime_metrics_repository import (
+    record_client_poll_error,
+    record_client_poll_success,
+    record_source_delivery_error,
+    record_source_delivery_success,
+)
 from src.services.guild_settings_service import GuildSettingsService
 from src.log import setup_logger
 from src.services.alert_rule_service import AlertRuleService
@@ -177,8 +183,26 @@ class AccountTracker():
                                             ),
                                             view=view,
                                         )
+                                    await record_source_delivery_success(
+                                        self.db_path,
+                                        str(channel.guild.id),
+                                        username,
+                                        str(channel.id),
+                                        tweet.url,
+                                        alert_decision.matched_rule_name,
+                                        datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                                    )
 
                                 except Exception as e:
+                                    if channel is not None:
+                                        await record_source_delivery_error(
+                                            self.db_path,
+                                            str(channel.guild.id),
+                                            username,
+                                            str(channel.id),
+                                            str(e),
+                                            datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                                        )
                                     if not isinstance(e, discord.errors.Forbidden):
                                         log.error(f'an error occurred at {channel.mention} while sending notification: {e}')
 
@@ -187,8 +211,20 @@ class AccountTracker():
         while True:
             try:
                 self.tweets[updater_name] = await app.get_tweet_notifications()
+                await record_client_poll_success(
+                    self.db_path,
+                    updater_name,
+                    len(self.tweets[updater_name]),
+                    datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                )
                 await asyncio.sleep(configs['tweets_check_period'])
             except Exception as e:
+                await record_client_poll_error(
+                    self.db_path,
+                    updater_name,
+                    str(e),
+                    datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                )
                 log.error(f'{e} (task : tweets updater {updater_name})')
                 log.error(f"an unexpected error occurred, try again in {configs['tweets_updater_retry_delay']} minutes")
                 await asyncio.sleep(configs['tweets_updater_retry_delay'] * 60)

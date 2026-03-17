@@ -11,8 +11,11 @@
       <header class="page-header">
         <div>
           <p class="eyebrow">Guild Dashboard</p>
-          <h1>Server {{ guild_id }}</h1>
-          <p class="lede">Manage guild-scoped alert defaults and source-specific escalation rules.</p>
+          <div class="page-title-row">
+            <h1>Server {{ guild_id }}</h1>
+            <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
+          </div>
+          <p class="lede">Manage tracked sources, alert behavior, and presentation settings for this Discord server.</p>
         </div>
         <div class="header-actions">
           {% if discord_user %}
@@ -22,20 +25,151 @@
         </div>
       </header>
 
+      <nav class="guild-subnav">
+        {% for section_id, section_label in guild_sections.items() %}
+        <a
+          class="subnav-link {{ 'subnav-link--active' if active_section == section_id else '' }}"
+          href="/dashboard/guilds/{{ guild_id }}/{{ section_id }}"
+        >
+          {{ section_label }}
+        </a>
+        {% endfor %}
+      </nav>
+
       {% if not discord_user %}
       <section class="notice">
         <strong>Local mode:</strong> Discord OAuth is not configured, so guild access checks are bypassed for local testing.
       </section>
       {% endif %}
 
+      <section class="card status-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Activity Status</p>
+            <h2>Live Dashboard Status</h2>
+          </div>
+        </div>
+        <p id="status-message" class="status-message status-message--{{ status_banner.level }}">{{ status_banner.message }}</p>
+        {% if status_banner.details %}
+        <div class="status-detail-list">
+          {% for detail in status_banner.details %}
+          <span class="tag tag--soft">{{ detail }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
+
+      {% if active_section == 'overview' %}
       <section class="card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Bot Defaults</p>
-            <h2>Runtime Baseline</h2>
-            <p class="section-copy">Read-only reference for the current platform-level defaults from `configs.yml`. These are not guild overrides yet.</p>
+            <p class="eyebrow">Overview</p>
+            <h2>Control Center</h2>
+            <p class="section-copy">A quick read on this server's plan, monitoring footprint, and dashboard readiness before you dive into sources, rules, or presentation.</p>
           </div>
         </div>
+
+        <div class="plan-summary">
+          <div class="plan-tile">
+            <span class="meta-label">Current plan</span>
+            <strong class="plan-name">{{ guild_presentation.plan }}</strong>
+            <div class="plan-tile-copy">via {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</div>
+          </div>
+          <div class="plan-tile">
+            <span class="meta-label">Tracked sources</span>
+            <strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong>
+          </div>
+          <div class="plan-tile">
+            <span class="meta-label">Alert rules</span>
+            <strong>{{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }}</strong>
+          </div>
+          <div class="plan-tile">
+            <span class="meta-label">Presentation</span>
+            <strong>{{ 'customizable' if guild_presentation.features.can_customize_presentation else 'default only' }}</strong>
+          </div>
+        </div>
+
+        {% if plan_usage.source_count >= guild_presentation.features.max_sources or plan_usage.rule_count >= guild_presentation.features.max_rules %}
+        <section class="notice notice--warning">
+          <strong>Capacity note:</strong>
+          {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
+          This guild is at its tracked source limit.
+          {% endif %}
+          {% if plan_usage.source_count >= guild_presentation.features.max_sources and plan_usage.rule_count >= guild_presentation.features.max_rules %}
+          and
+          {% endif %}
+          {% if plan_usage.rule_count >= guild_presentation.features.max_rules %}
+          This guild is at its alert rule limit.
+          {% endif %}
+        </section>
+        {% endif %}
+
+        <div class="overview-grid">
+          <div class="default-block">
+            <h3>Alert Behavior</h3>
+            <div><span class="meta-label">Escalation rules</span> {{ overview.escalation_rule_count }}</div>
+            <div><span class="meta-label">Scoped rules</span> {{ overview.scoped_rule_count }}</div>
+            <div><span class="meta-label">Custom source messages</span> {{ overview.custom_message_count }}</div>
+            <div><span class="meta-label">Trigger keywords</span> {{ plan_usage.trigger_keyword_count }}</div>
+            <div><span class="meta-label">Exclusion keywords</span> {{ plan_usage.exclude_keyword_count }}</div>
+          </div>
+
+          <div class="default-block">
+            <h3>Monitoring</h3>
+            {% if overview.source_names %}
+            <div class="overview-list">
+              {% for source_name in overview.source_names %}
+              <span class="tag">{{ source_name }}</span>
+              {% endfor %}
+            </div>
+            {% if plan_usage.source_count > overview.source_names | length %}
+            <div class="overview-note">Plus {{ plan_usage.source_count - (overview.source_names | length) }} more tracked sources.</div>
+            {% endif %}
+            {% else %}
+            <div class="overview-note">No tracked sources yet. Add your first account from the Sources page.</div>
+            {% endif %}
+          </div>
+
+          <div class="default-block">
+            <h3>Quick Actions</h3>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage tracked sources</a></div>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules">Edit alert rules</a></div>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust presentation</a></div>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/platform">Review platform settings</a></div>
+          </div>
+        </div>
+
+        <div class="overview-health">
+          <div class="default-block">
+            <h3>Dashboard Readiness</h3>
+            <div><span class="meta-label">Discord OAuth</span> {{ 'connected' if overview.health.oauth_enabled else 'disabled' }}</div>
+            <div><span class="meta-label">Channel and role lookup</span> {{ 'available' if overview.health.discord_lookup_enabled else 'bot token missing' }}</div>
+            <div><span class="meta-label">Twitter sessions</span> {{ overview.health.healthy_twitter_session_count }} / {{ overview.health.twitter_session_count }} healthy</div>
+            <div><span class="meta-label">Active embed mode</span> {{ overview.health.active_embed_mode }}</div>
+            <div><span class="meta-label">Poll interval</span> {{ overview.health.tweet_check_period }}s</div>
+            <div><span class="meta-label">Last bot online log</span> {{ overview.health.last_online_at or 'not seen recently' }}</div>
+            <div><span class="meta-label">Updater errors</span> {{ overview.health.updater_error_count }}</div>
+            <div><span class="meta-label">Delivery errors</span> {{ overview.health.delivery_error_count }}</div>
+            <div><span class="meta-label">Task warnings</span> {{ overview.health.dead_task_warning_count }}</div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if active_section == 'platform' %}
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Platform Settings</p>
+            <h2>Platform Baseline</h2>
+            <p class="section-copy">Read-only reference for shared bot-level settings from `configs.yml`. These are platform defaults and operational controls, not day-to-day guild settings.</p>
+          </div>
+        </div>
+
+        <section class="notice notice--plain">
+          <strong>Advanced reference:</strong> this page is meant for visibility into shared bot behavior. Source routing, alert rules, and presentation are still managed from the guild-facing pages.
+        </section>
+
         <div class="defaults-grid">
           <div class="default-block">
             <h3>Polling</h3>
@@ -75,7 +209,9 @@
           <pre class="message-preview">{{ bot_defaults.default_message }}</pre>
         </div>
       </section>
+      {% endif %}
 
+      {% if active_section == 'appearance' %}
       <section class="card">
         <div class="card-header">
           <div>
@@ -89,6 +225,7 @@
           <div class="plan-tile">
             <span class="meta-label">Current plan</span>
             <strong class="plan-name">{{ guild_presentation.plan }}</strong>
+            <div class="plan-tile-copy">via {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</div>
           </div>
           <div class="plan-tile">
             <span class="meta-label">Source limit</span>
@@ -112,64 +249,152 @@
           </div>
         </div>
 
-        <form id="plan-form" class="stack">
-          <label for="guild-plan">Guild plan</label>
-          <select id="guild-plan">
-            <option value="free" {{ 'selected' if guild_presentation.plan == 'free' else '' }}>Free</option>
-            <option value="pro" {{ 'selected' if guild_presentation.plan == 'pro' else '' }}>Pro</option>
-          </select>
-          <div class="field-help">Internal testing control for now. Billing is not wired yet, so this manually toggles which dashboard features are unlocked.</div>
-          <div class="actions">
-            <button type="submit">Save Plan</button>
+        {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
+        <section class="notice notice--warning">
+          <strong>Manual override active:</strong> this guild is currently using a support/testing override, so the effective plan may not match the simulated subscription state below.
+        </section>
+        {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
+        <section class="notice notice--success">
+          <strong>Trial active:</strong> this guild is currently trialing the <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong> plan{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
+        </section>
+        {% elif guild_presentation.entitlement.entitlement_status == 'past_due' %}
+        <section class="notice notice--warning">
+          <strong>Billing attention needed:</strong> this guild is marked <strong>past due</strong>. Keep access messaging clear here, because this is where you can test downgrade and warning states before real billing is wired in.
+        </section>
+        {% elif guild_presentation.entitlement.entitlement_status == 'canceled' %}
+        <section class="notice notice--warning">
+          <strong>Subscription canceled:</strong> this guild no longer has an active subscription-backed entitlement, so it should fall back to default plan behavior unless an internal override is present.
+        </section>
+        {% elif guild_presentation.entitlement.entitlement_status == 'active' %}
+        <section class="notice notice--success">
+          <strong>Subscription active:</strong> this guild has an active entitlement for <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong>{% if guild_presentation.entitlement.current_period_end %}, currently paid through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
+        </section>
+        {% endif %}
+
+        <div class="workspace-grid workspace-grid--appearance">
+          <div class="workspace-panel">
+            <h3 class="panel-title">Entitlement</h3>
+            <div class="field-help">
+              Effective plan: <strong>{{ guild_presentation.entitlement.effective_plan }}</strong>.
+              Source: <strong>{{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</strong>.
+              Status: <strong>{{ guild_presentation.entitlement.entitlement_status }}</strong>.
+            </div>
+            {% if guild_presentation.entitlement.subscribed_plan %}
+            <div class="field-help">Subscribed plan: <strong>{{ guild_presentation.entitlement.subscribed_plan }}</strong>{% if guild_presentation.entitlement.current_period_end %}, renews through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.</div>
+            {% endif %}
+            <form id="plan-form" class="stack">
+              <div class="form-banner">
+                Internal override tool for testing and support. In production this should be driven by billing/subscription state, not by guild admins directly.
+              </div>
+              <label for="guild-plan">Manual plan override</label>
+              <select id="guild-plan">
+                <option value="">No override</option>
+                <option value="free" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'free' else '' }}>Free</option>
+                <option value="pro" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'pro' else '' }}>Pro</option>
+              </select>
+              <div class="field-help">Use this only for internal testing or temporary support overrides.</div>
+              <div class="actions">
+                <button type="submit">Save Override</button>
+                <button type="button" class="button-secondary" id="clear-plan-override">Clear Override</button>
+              </div>
+            </form>
+
+            <div class="panel-divider"></div>
+
+            <h3 class="panel-title">Subscription Simulation</h3>
+            <form id="entitlement-form" class="stack">
+              <div class="form-banner">
+                Internal entitlement testing surface. Use this to simulate billing-backed access states before Stripe is wired in.
+              </div>
+              <label for="entitlement-status">Entitlement status</label>
+              <select id="entitlement-status">
+                <option value="none" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'none' else '' }}>none</option>
+                <option value="trialing" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'trialing' else '' }}>trialing</option>
+                <option value="active" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'active' else '' }}>active</option>
+                <option value="past_due" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'past_due' else '' }}>past_due</option>
+                <option value="canceled" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'canceled' else '' }}>canceled</option>
+              </select>
+
+              <label for="entitlement-plan">Subscribed plan</label>
+              <select id="entitlement-plan">
+                <option value="">No subscribed plan</option>
+                <option value="free" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'free' else '' }}>Free</option>
+                <option value="pro" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'pro' else '' }}>Pro</option>
+              </select>
+
+              <label for="entitlement-provider">Billing provider</label>
+              <input id="entitlement-provider" type="text" value="{{ guild_presentation.entitlement.billing_provider or '' }}" placeholder="stripe">
+              <div class="field-help">Optional for now, but useful when we start wiring real billing records.</div>
+
+              <label for="entitlement-current-period-end">Current period end</label>
+              <input id="entitlement-current-period-end" type="text" value="{{ guild_presentation.entitlement.current_period_end or '' }}" placeholder="2026-04-16 00:00:00+00:00">
+
+              <label for="entitlement-trial-ends-at">Trial ends at</label>
+              <input id="entitlement-trial-ends-at" type="text" value="{{ guild_presentation.entitlement.trial_ends_at or '' }}" placeholder="2026-04-01 00:00:00+00:00">
+
+              <label class="checkbox-row"><input id="entitlement-is-test" type="checkbox" {{ 'checked' if guild_presentation.entitlement.is_test else '' }}> Mark entitlement as test data</label>
+
+              <div class="actions">
+                <button type="submit">Save Entitlement</button>
+              </div>
+            </form>
           </div>
-        </form>
 
-        <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
-          {% if not guild_presentation.features.can_customize_presentation %}
-          <div class="form-banner">
-            Presentation overrides are part of the paid plan. Free guilds inherit the platform message and embed defaults.
+          <div class="workspace-panel workspace-panel--wide">
+            <h3 class="panel-title">Appearance Overrides</h3>
+            <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
+              {% if not guild_presentation.features.can_customize_presentation %}
+              <div class="form-banner">
+                Presentation overrides are unavailable on this guild's current entitlement. Free or inactive billing states inherit the platform message and embed defaults.
+              </div>
+              {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
+              <div class="form-banner">
+                Trial access is active. This is a good place to verify how premium appearance controls will feel during an onboarding period.
+              </div>
+              {% endif %}
+
+              <label for="presentation-default-message">Default message</label>
+              <textarea id="presentation-default-message" rows="4" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>{{ guild_presentation.effective.default_message }}</textarea>
+              <div class="field-help">Fallback message template used when a source does not have its own custom message.</div>
+
+              <label for="presentation-emoji-auto-format">Emoji auto format</label>
+              <select id="presentation-emoji-auto-format" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
+                <option value="true" {{ 'selected' if guild_presentation.effective.emoji_auto_format else '' }}>On</option>
+                <option value="false" {{ 'selected' if not guild_presentation.effective.emoji_auto_format else '' }}>Off</option>
+              </select>
+              <div class="field-help">Automatically expands short emoji codes like <code>:jerry:</code> into server emoji when possible.</div>
+
+              <label for="presentation-embed-type">Embed type</label>
+              <select id="presentation-embed-type" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
+                <option value="built_in" {{ 'selected' if guild_presentation.effective.embed_type == 'built_in' else '' }}>Built-in</option>
+                <option value="fx_twitter" {{ 'selected' if guild_presentation.effective.embed_type == 'fx_twitter' else '' }}>FxTwitter links</option>
+              </select>
+              <div class="field-help">Choose between Discord embeds generated by the bot or FxTwitter-style routed links.</div>
+
+              <div class="checkbox-grid">
+                <label class="checkbox-row"><input id="presentation-built-in-fx-image" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_fx_image else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use combined FX image for multi-image tweets</label>
+                <label class="checkbox-row"><input id="presentation-built-in-video-button" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_video_link_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show video link button on built-in embeds</label>
+                <label class="checkbox-row"><input id="presentation-built-in-legacy-logo" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_legacy_logo else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use legacy Twitter branding in the footer</label>
+                <label class="checkbox-row"><input id="presentation-fx-original-url" type="checkbox" {{ 'checked' if guild_presentation.effective.fx_original_url_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show original tweet link button on FxTwitter mode</label>
+              </div>
+
+              <label for="presentation-fx-domain-name">FX domain</label>
+              <select id="presentation-fx-domain-name" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
+                <option value="fxtwitter" {{ 'selected' if guild_presentation.effective.fx_domain_name == 'fxtwitter' else '' }}>fxtwitter</option>
+                <option value="fixupx" {{ 'selected' if guild_presentation.effective.fx_domain_name == 'fixupx' else '' }}>fixupx</option>
+              </select>
+              <div class="field-help">Only used when embed type is set to FxTwitter links.</div>
+
+              <div class="actions">
+                <button type="submit" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>Save Appearance</button>
+              </div>
+            </form>
           </div>
-          {% endif %}
-
-          <label for="presentation-default-message">Default message</label>
-          <textarea id="presentation-default-message" rows="4" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>{{ guild_presentation.effective.default_message }}</textarea>
-          <div class="field-help">Fallback message template used when a source does not have its own custom message.</div>
-
-          <label for="presentation-emoji-auto-format">Emoji auto format</label>
-          <select id="presentation-emoji-auto-format" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
-            <option value="true" {{ 'selected' if guild_presentation.effective.emoji_auto_format else '' }}>On</option>
-            <option value="false" {{ 'selected' if not guild_presentation.effective.emoji_auto_format else '' }}>Off</option>
-          </select>
-          <div class="field-help">Automatically expands short emoji codes like <code>:jerry:</code> into server emoji when possible.</div>
-
-          <label for="presentation-embed-type">Embed type</label>
-          <select id="presentation-embed-type" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
-            <option value="built_in" {{ 'selected' if guild_presentation.effective.embed_type == 'built_in' else '' }}>Built-in</option>
-            <option value="fx_twitter" {{ 'selected' if guild_presentation.effective.embed_type == 'fx_twitter' else '' }}>FxTwitter links</option>
-          </select>
-          <div class="field-help">Choose between Discord embeds generated by the bot or FxTwitter-style routed links.</div>
-
-          <div class="checkbox-grid">
-            <label class="checkbox-row"><input id="presentation-built-in-fx-image" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_fx_image else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use combined FX image for multi-image tweets</label>
-            <label class="checkbox-row"><input id="presentation-built-in-video-button" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_video_link_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show video link button on built-in embeds</label>
-            <label class="checkbox-row"><input id="presentation-built-in-legacy-logo" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_legacy_logo else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use legacy Twitter branding in the footer</label>
-            <label class="checkbox-row"><input id="presentation-fx-original-url" type="checkbox" {{ 'checked' if guild_presentation.effective.fx_original_url_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show original tweet link button on FxTwitter mode</label>
-          </div>
-
-          <label for="presentation-fx-domain-name">FX domain</label>
-          <select id="presentation-fx-domain-name" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
-            <option value="fxtwitter" {{ 'selected' if guild_presentation.effective.fx_domain_name == 'fxtwitter' else '' }}>fxtwitter</option>
-            <option value="fixupx" {{ 'selected' if guild_presentation.effective.fx_domain_name == 'fixupx' else '' }}>fixupx</option>
-          </select>
-          <div class="field-help">Only used when embed type is set to FxTwitter links.</div>
-
-          <div class="actions">
-            <button type="submit" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>Save Appearance</button>
-          </div>
-        </form>
+        </div>
       </section>
+      {% endif %}
 
-      <div class="grid">
+      {% if active_section == 'sources' %}
         <section class="card">
           <div class="card-header">
             <div>
@@ -179,61 +404,86 @@
             </div>
           </div>
 
-          <form id="source-form" class="stack">
-            <div class="form-banner">
-              Fill this form and click <strong>Save Source</strong> to add a new tracked source. Or load an existing row below to update its routing and filter settings.
+          {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
+          <section class="notice notice--warning">
+            <strong>Source limit reached:</strong> This guild is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} tracked sources on the {{ guild_presentation.plan }} plan.
+          </section>
+          {% endif %}
+
+          <div class="workspace-grid">
+            <div class="workspace-panel">
+              <h3 class="panel-title">Source Form</h3>
+              <form id="source-form" class="stack">
+                <div class="form-banner">
+                  Fill this form and click <strong>Save Source</strong> to add a new tracked source. Or load an existing row below to update its routing and filter settings.
+                </div>
+                <input id="source-edit-mode" type="hidden" value="create">
+                <label for="source-username-edit">Source username</label>
+                <input id="source-username-edit" type="text" placeholder="Twitter/X handle, for example CeladonCA">
+                <div class="field-help">Enter the Twitter/X username to track. This is case-insensitive and should not include the `@` symbol.</div>
+
+                <label for="source-channel-id-edit">Channel ID</label>
+                <select id="source-channel-id-edit">
+                  <option value="">Select a channel</option>
+                  {% for channel in channel_options %}
+                  <option value="{{ channel.id }}">#{{ channel.name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="field-help">The Discord text channel that should receive alerts for this source.</div>
+
+                <label for="source-role-id-edit">Role</label>
+                <select id="source-role-id-edit">
+                  <option value="">No role mention</option>
+                  {% for role in role_options %}
+                  <option value="{{ role.id }}">@{{ role.name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="field-help">Optional. If set, the bot will mention this role when sending alerts for the source.</div>
+
+                <label for="source-enable-type-edit">Tweet filter</label>
+                <select id="source-enable-type-edit">
+                  <option value="11">All</option>
+                  <option value="10">Tweet + Retweet</option>
+                  <option value="01">Tweet + Quote</option>
+                  <option value="00">Tweet Only</option>
+                </select>
+                <div class="field-help">Controls which post types should be forwarded for this source.</div>
+
+                <label for="source-media-type-edit">Media filter</label>
+                <select id="source-media-type-edit">
+                  <option value="11">All</option>
+                  <option value="10">No Media</option>
+                  <option value="01">Media Only</option>
+                </select>
+                <div class="field-help">Controls whether alerts should include all posts, only text posts, or only posts with media.</div>
+
+                <label for="source-account-used-edit">Twitter/X session</label>
+                <select id="source-account-used-edit">
+                  {% for account_name in available_accounts %}
+                  <option value="{{ account_name }}">{{ account_name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="field-help">Used when creating a brand new tracked source. Existing sources keep the client they already use.</div>
+
+                <label for="source-custom-message-edit">Custom message</label>
+                <textarea id="source-custom-message-edit" rows="4" placeholder="Optional per-source message template"></textarea>
+                <div class="field-help">Optional. Leave blank to use the guild default message. Supports the same placeholders as the default template: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>.</div>
+
+                <div class="actions">
+                  <button type="submit">Save Source</button>
+                  <button type="button" class="button-secondary" id="source-form-reset">Clear Form</button>
+                  <button type="button" class="button-secondary" id="source-message-reset">Reset Custom Message</button>
+                </div>
+              </form>
             </div>
-            <input id="source-edit-mode" type="hidden" value="create">
-            <label for="source-username-edit">Source username</label>
-            <input id="source-username-edit" type="text" placeholder="Twitter/X handle, for example CeladonCA">
-            <div class="field-help">Enter the Twitter/X username to track. This is case-insensitive and should not include the `@` symbol.</div>
 
-            <label for="source-channel-id-edit">Channel ID</label>
-            <input id="source-channel-id-edit" type="text" placeholder="Discord channel ID where alerts should be sent">
-            <div class="field-help">The Discord text channel that should receive alerts for this source.</div>
-
-            <label for="source-role-id-edit">Role ID</label>
-            <input id="source-role-id-edit" type="text" placeholder="Optional Discord role ID to mention">
-            <div class="field-help">Optional. If set, the bot will mention this role when sending alerts for the source.</div>
-
-            <label for="source-enable-type-edit">Tweet filter</label>
-            <select id="source-enable-type-edit">
-              <option value="11">All</option>
-              <option value="10">Tweet + Retweet</option>
-              <option value="01">Tweet + Quote</option>
-              <option value="00">Tweet Only</option>
-            </select>
-            <div class="field-help">Controls which post types should be forwarded for this source.</div>
-
-            <label for="source-media-type-edit">Media filter</label>
-            <select id="source-media-type-edit">
-              <option value="11">All</option>
-              <option value="10">No Media</option>
-              <option value="01">Media Only</option>
-            </select>
-            <div class="field-help">Controls whether alerts should include all posts, only text posts, or only posts with media.</div>
-
-            <label for="source-account-used-edit">Twitter/X session</label>
-            <select id="source-account-used-edit">
-              {% for account_name in available_accounts %}
-              <option value="{{ account_name }}">{{ account_name }}</option>
-              {% endfor %}
-            </select>
-            <div class="field-help">Used when creating a brand new tracked source. Existing sources keep the client they already use.</div>
-
-            <label for="source-custom-message-edit">Custom message</label>
-            <textarea id="source-custom-message-edit" rows="4" placeholder="Optional per-source message template"></textarea>
-            <div class="field-help">Optional. Leave blank to use the guild default message. Supports the same placeholders as the default template: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>.</div>
-
-            <div class="actions">
-              <button type="submit">Save Source</button>
-              <button type="button" class="button-secondary" id="source-form-reset">Clear Form</button>
-              <button type="button" class="button-secondary" id="source-message-reset">Reset Custom Message</button>
-            </div>
-          </form>
-
-          <div class="rule-list-wrap">
-            <table class="rule-table">
+            <div class="workspace-panel workspace-panel--wide">
+              <div class="panel-head-row">
+                <h3 class="panel-title">Current Sources</h3>
+                <span class="count-pill">{{ plan_usage.source_count }}</span>
+              </div>
+              <div class="rule-list-wrap">
+                <table class="rule-table">
               <thead>
                 <tr>
                   <th>Source</th>
@@ -254,7 +504,7 @@
                     <div>
                       <span class="meta-label">Channel</span>
                       {% if channel_names.get(source.channel_id) %}
-                      <span>#{{ channel_names.get(source.channel_id) }}</span> <code>{{ source.channel_id }}</code>
+                      <span>#{{ channel_names.get(source.channel_id) }}</span>
                       {% else %}
                       <code>{{ source.channel_id }}</code>
                       {% endif %}
@@ -262,7 +512,7 @@
                     <div>
                       <span class="meta-label">Role</span>
                       {% if source.role_id and role_names.get(source.role_id) %}
-                      <span>@{{ role_names.get(source.role_id) }}</span> <code>{{ source.role_id }}</code>
+                      <span>@{{ role_names.get(source.role_id) }}</span>
                       {% elif source.role_id %}
                       <code>{{ source.role_id }}</code>
                       {% else %}
@@ -275,7 +525,19 @@
                       <span class="tag">{{ source.enable_type_label }}</span>
                       <span class="tag">{{ source.media_type_label }}</span>
                       <span class="tag {{ 'tag--accent' if source.has_custom_message else '' }}">{{ 'Custom message' if source.has_custom_message else 'Default message' }}</span>
+                      <span class="tag {{ 'tag--warning' if source.runtime_state == 'warning' else '' }}">{{ 'Needs attention' if source.runtime_state == 'warning' else ('Healthy' if source.runtime_state == 'healthy' else 'No runtime data') }}</span>
                     </div>
+                    <div class="entity-meta">
+                      Last delivery {{ source.last_delivery_success_at or 'not recorded yet' }}
+                      {% if source.last_matched_rule_name %}
+                      via {{ source.last_matched_rule_name }}
+                      {% endif %}
+                    </div>
+                    {% if source.last_delivery_error_at %}
+                    <div class="entity-meta entity-meta--warning">
+                      Last error {{ source.last_delivery_error_at }}: {{ source.last_error_message }}
+                    </div>
+                    {% endif %}
                   </td>
                   <td><span class="count-pill">{{ source.rule_count }}</span></td>
                   <td>
@@ -309,10 +571,14 @@
                 </tr>
                 {% endfor %}
               </tbody>
-            </table>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
+      {% endif %}
 
+      {% if active_section == 'rules' %}
         <section class="card">
           <div class="card-header">
             <div>
@@ -322,49 +588,78 @@
             </div>
           </div>
 
-          <form id="rule-form" class="stack">
-            <div class="form-banner">
-              Fill this form and click <strong>Save Rule</strong> to create or update a rule. Use exclusions to suppress noisy posts, and use escalation rules for high-impact alerts.
+          {% if plan_usage.rule_count >= guild_presentation.features.max_rules or plan_usage.trigger_keyword_count >= guild_presentation.features.max_trigger_keywords_total or plan_usage.exclude_keyword_count >= guild_presentation.features.max_exclude_keywords_total %}
+          <section class="notice notice--warning">
+            <strong>Rule capacity:</strong>
+            Rules {{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }},
+            trigger keywords {{ plan_usage.trigger_keyword_count }} / {{ guild_presentation.features.max_trigger_keywords_total }},
+            exclusion keywords {{ plan_usage.exclude_keyword_count }} / {{ guild_presentation.features.max_exclude_keywords_total }}.
+          </section>
+          {% endif %}
+
+          <div class="workspace-grid">
+            <div class="workspace-panel">
+              <h3 class="panel-title">Rule Form</h3>
+              <form id="rule-form" class="stack">
+                <div class="form-banner">
+                  Fill this form and click <strong>Save Rule</strong> to create or update a rule. Use exclusions to suppress noisy posts, and use escalation rules for high-impact alerts.
+                </div>
+                <input id="existing-rule-name" type="hidden" value="">
+                <label for="rule-name">Rule name</label>
+                <input id="rule-name" type="text" placeholder="pokemoncenter-queue">
+                <div class="field-help">A unique internal name for this rule within the current guild.</div>
+
+                <label for="source-username">Source username</label>
+                <select id="source-username">
+                  <option value="">All tracked sources</option>
+                  {% for source_name in source_options %}
+                  <option value="{{ source_name }}">{{ source_name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="field-help">Choose a tracked source for this rule, or leave it on all tracked sources.</div>
+
+                <label for="channel-id">Channel</label>
+                <select id="channel-id">
+                  <option value="">All channels</option>
+                  {% for channel in channel_options %}
+                  <option value="{{ channel.id }}">#{{ channel.name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="field-help">Optional. Restrict the rule to alerts sent into one Discord channel.</div>
+
+                <label for="priority">Priority</label>
+                <input id="priority" type="number" min="-100" max="100" step="1" value="0">
+                <div class="field-help">Higher priority rules are evaluated first. Allowed range: -100 to 100.</div>
+
+                <label for="escalation-mode">Escalation mode</label>
+                <select id="escalation-mode">
+                  <option value="role_only">Role only</option>
+                  <option value="everyone">Force everyone</option>
+                </select>
+                <div class="field-help">Choose whether a matching rule should force `@everyone` or fall back to normal role-based delivery.</div>
+
+                <label for="rule-trigger-keywords">Trigger keywords</label>
+                <textarea id="rule-trigger-keywords" rows="3" placeholder="queue live, queue is live"></textarea>
+                <div class="field-help">Comma-separated phrases that must appear in the post before this escalation rule applies.</div>
+
+                <label for="rule-exclude-keywords">Exclude keywords</label>
+                <textarea id="rule-exclude-keywords" rows="4" placeholder="lorcana, plush, sleeves"></textarea>
+                <div class="field-help">Comma-separated phrases that should suppress alerts when matched.</div>
+
+                <div class="actions">
+                  <button type="submit">Save Rule</button>
+                  <button type="button" class="button-secondary" id="rule-form-reset">Clear Form</button>
+                </div>
+              </form>
             </div>
-            <label for="rule-name">Rule name</label>
-            <input id="rule-name" type="text" placeholder="pokemoncenter-queue">
-            <div class="field-help">A unique internal name for this rule within the current guild.</div>
 
-            <label for="source-username">Source username</label>
-            <input id="source-username" type="text" placeholder="pokemoncenterca">
-            <div class="field-help">Optional. Restrict the rule to a specific Twitter/X username. Leave blank to match all sources in the guild.</div>
-
-            <label for="channel-id">Channel ID</label>
-            <input id="channel-id" type="text" placeholder="Optional Discord channel ID">
-            <div class="field-help">Optional. Restrict the rule to alerts sent into one Discord channel.</div>
-
-            <label for="priority">Priority</label>
-            <input id="priority" type="number" value="0">
-            <div class="field-help">Higher priority rules are evaluated first.</div>
-
-            <label for="escalation-mode">Escalation mode</label>
-            <select id="escalation-mode">
-              <option value="role_only">Role only</option>
-              <option value="everyone">Force everyone</option>
-            </select>
-            <div class="field-help">Choose whether a matching rule should force `@everyone` or fall back to normal role-based delivery.</div>
-
-            <label for="rule-trigger-keywords">Trigger keywords</label>
-            <textarea id="rule-trigger-keywords" rows="3" placeholder="queue live, queue is live"></textarea>
-            <div class="field-help">Comma-separated phrases that must appear in the post before this escalation rule applies.</div>
-
-            <label for="rule-exclude-keywords">Exclude keywords</label>
-            <textarea id="rule-exclude-keywords" rows="4" placeholder="lorcana, plush, sleeves"></textarea>
-            <div class="field-help">Comma-separated phrases that should suppress alerts when matched.</div>
-
-            <div class="actions">
-              <button type="submit">Save Rule</button>
-              <button type="button" class="button-secondary" id="rule-form-reset">Clear Form</button>
-            </div>
-          </form>
-
-          <div class="rule-list-wrap">
-            <table class="rule-table">
+            <div class="workspace-panel workspace-panel--wide">
+              <div class="panel-head-row">
+                <h3 class="panel-title">Current Rules</h3>
+                <span class="count-pill">{{ plan_usage.rule_count }}</span>
+              </div>
+              <div class="rule-list-wrap">
+                <table class="rule-table">
               <thead>
                 <tr>
                   <th>Name</th>
@@ -393,7 +688,7 @@
                     <div class="entity-meta">
                       channel
                       {% if channel_names.get(rule.channel_id) %}
-                      #{{ channel_names.get(rule.channel_id) }} <code>{{ rule.channel_id }}</code>
+                      #{{ channel_names.get(rule.channel_id) }}
                       {% else %}
                       <code>{{ rule.channel_id }}</code>
                       {% endif %}
@@ -420,20 +715,12 @@
                 </tr>
                 {% endfor %}
               </tbody>
-            </table>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
-      </div>
-
-      <section class="card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Activity</p>
-            <h2>Status</h2>
-          </div>
-        </div>
-        <p id="status-message" class="status-message">Ready.</p>
-      </section>
+      {% endif %}
     </main>
 
     <script>
@@ -446,7 +733,8 @@
       function setStatus(message, isError = false) {
         const node = document.getElementById('status-message');
         node.textContent = message;
-        node.classList.toggle('status-message--error', isError);
+        node.classList.remove('status-message--success', 'status-message--warning', 'status-message--error');
+        node.classList.add(isError ? 'status-message--error' : 'status-message--success');
       }
 
       async function jsonRequest(url, options = {}) {
@@ -464,136 +752,192 @@
         return response.json();
       }
 
-      document.getElementById('rule-form').addEventListener('submit', async function (event) {
-        event.preventDefault();
-        const ruleName = document.getElementById('rule-name').value.trim();
-        if (!ruleName) {
-          setStatus('Rule name is required.', true);
-          return;
-        }
+      const ruleForm = document.getElementById('rule-form');
+      if (ruleForm) {
+        ruleForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          const ruleName = document.getElementById('rule-name').value.trim();
+          if (!ruleName) {
+            setStatus('Rule name is required.', true);
+            return;
+          }
 
-        try {
-          const payload = {
-            source_username: document.getElementById('source-username').value.trim() || null,
-            channel_id: document.getElementById('channel-id').value.trim() || null,
-            priority: Number(document.getElementById('priority').value || 0),
-            escalation_mode: document.getElementById('escalation-mode').value,
-            trigger_keywords: parseKeywords(document.getElementById('rule-trigger-keywords').value),
-            exclude_keywords: parseKeywords(document.getElementById('rule-exclude-keywords').value),
-          };
-          await jsonRequest(`/guilds/${guildId}/rules/${encodeURIComponent(ruleName)}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-          });
-          window.location.reload();
-        } catch (error) {
-          setStatus(`Failed to save rule: ${error.message}`, true);
-        }
-      });
-
-      document.getElementById('plan-form').addEventListener('submit', async function (event) {
-        event.preventDefault();
-        try {
-          await jsonRequest(`/guilds/${guildId}/plan`, {
-            method: 'PUT',
-            body: JSON.stringify({
-              plan: document.getElementById('guild-plan').value,
-            }),
-          });
-          window.location.reload();
-        } catch (error) {
-          setStatus(`Failed to save plan: ${error.message}`, true);
-        }
-      });
-
-      document.getElementById('presentation-form').addEventListener('submit', async function (event) {
-        event.preventDefault();
-        if (document.getElementById('presentation-form').classList.contains('is-locked')) {
-          setStatus('Unlock a paid plan to customize alert presentation.', true);
-          return;
-        }
-
-        try {
-          await jsonRequest(`/guilds/${guildId}/presentation`, {
-            method: 'PUT',
-            body: JSON.stringify({
-              default_message: document.getElementById('presentation-default-message').value,
-              emoji_auto_format: document.getElementById('presentation-emoji-auto-format').value === 'true',
-              embed_type: document.getElementById('presentation-embed-type').value,
-              built_in_fx_image: document.getElementById('presentation-built-in-fx-image').checked,
-              built_in_video_link_button: document.getElementById('presentation-built-in-video-button').checked,
-              built_in_legacy_logo: document.getElementById('presentation-built-in-legacy-logo').checked,
-              fx_domain_name: document.getElementById('presentation-fx-domain-name').value,
-              fx_original_url_button: document.getElementById('presentation-fx-original-url').checked,
-            }),
-          });
-          window.location.reload();
-        } catch (error) {
-          setStatus(`Failed to save appearance: ${error.message}`, true);
-        }
-      });
-
-      document.getElementById('source-form').addEventListener('submit', async function (event) {
-        event.preventDefault();
-        const username = document.getElementById('source-username-edit').value.trim();
-        const channelId = document.getElementById('source-channel-id-edit').value.trim();
-        if (!username || !channelId) {
-          setStatus('Source username and channel ID are required.', true);
-          return;
-        }
-
-        try {
-          const mode = document.getElementById('source-edit-mode').value;
-          const payload = {
-            role_id: document.getElementById('source-role-id-edit').value.trim(),
-            enable_type: document.getElementById('source-enable-type-edit').value,
-            media_type: document.getElementById('source-media-type-edit').value,
-          };
-          const customMessage = document.getElementById('source-custom-message-edit').value;
-          if (mode === 'edit') {
-            await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}`, {
+          try {
+            const payload = {
+              existing_rule_name: document.getElementById('existing-rule-name').value.trim() || null,
+              source_username: document.getElementById('source-username').value.trim() || null,
+              channel_id: document.getElementById('channel-id').value.trim() || null,
+              priority: Number(document.getElementById('priority').value || 0),
+              escalation_mode: document.getElementById('escalation-mode').value,
+              trigger_keywords: parseKeywords(document.getElementById('rule-trigger-keywords').value),
+              exclude_keywords: parseKeywords(document.getElementById('rule-exclude-keywords').value),
+            };
+            await jsonRequest(`/guilds/${guildId}/rules/${encodeURIComponent(ruleName)}`, {
               method: 'PUT',
               body: JSON.stringify(payload),
             });
-            if (customMessage.trim()) {
-              await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                  customized_msg: customMessage,
-                }),
-              });
-            } else {
-              await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
-                method: 'DELETE',
-              });
-            }
-          } else {
-            await jsonRequest(`/guilds/${guildId}/sources`, {
-              method: 'POST',
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to save rule: ${error.message}`, true);
+          }
+        });
+      }
+
+      const planForm = document.getElementById('plan-form');
+      if (planForm) {
+        planForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          try {
+            await jsonRequest(`/guilds/${guildId}/plan`, {
+              method: 'PUT',
               body: JSON.stringify({
-                username,
-                channel_id: channelId,
-                account_used: document.getElementById('source-account-used-edit').value,
-                ...payload,
+                plan: document.getElementById('guild-plan').value || null,
+                clear_override: false,
               }),
             });
-            if (customMessage.trim()) {
-              await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to save plan: ${error.message}`, true);
+          }
+        });
+      }
+
+      const clearPlanOverride = document.getElementById('clear-plan-override');
+      if (clearPlanOverride) {
+        clearPlanOverride.addEventListener('click', async function () {
+          try {
+            await jsonRequest(`/guilds/${guildId}/plan`, {
+              method: 'PUT',
+              body: JSON.stringify({
+                plan: null,
+                clear_override: true,
+              }),
+            });
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to clear override: ${error.message}`, true);
+          }
+        });
+      }
+
+      const entitlementForm = document.getElementById('entitlement-form');
+      if (entitlementForm) {
+        entitlementForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          try {
+            await jsonRequest(`/guilds/${guildId}/entitlement`, {
+              method: 'PUT',
+              body: JSON.stringify({
+                subscribed_plan: document.getElementById('entitlement-plan').value || null,
+                entitlement_status: document.getElementById('entitlement-status').value,
+                billing_provider: document.getElementById('entitlement-provider').value.trim() || null,
+                current_period_end: document.getElementById('entitlement-current-period-end').value.trim() || null,
+                trial_ends_at: document.getElementById('entitlement-trial-ends-at').value.trim() || null,
+                is_test: document.getElementById('entitlement-is-test').checked,
+              }),
+            });
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to save entitlement: ${error.message}`, true);
+          }
+        });
+      }
+
+      const presentationForm = document.getElementById('presentation-form');
+      if (presentationForm) {
+        presentationForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          if (presentationForm.classList.contains('is-locked')) {
+            setStatus('Unlock a paid plan to customize alert presentation.', true);
+            return;
+          }
+
+          try {
+            await jsonRequest(`/guilds/${guildId}/presentation`, {
+              method: 'PUT',
+              body: JSON.stringify({
+                default_message: document.getElementById('presentation-default-message').value,
+                emoji_auto_format: document.getElementById('presentation-emoji-auto-format').value === 'true',
+                embed_type: document.getElementById('presentation-embed-type').value,
+                built_in_fx_image: document.getElementById('presentation-built-in-fx-image').checked,
+                built_in_video_link_button: document.getElementById('presentation-built-in-video-button').checked,
+                built_in_legacy_logo: document.getElementById('presentation-built-in-legacy-logo').checked,
+                fx_domain_name: document.getElementById('presentation-fx-domain-name').value,
+                fx_original_url_button: document.getElementById('presentation-fx-original-url').checked,
+              }),
+            });
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to save appearance: ${error.message}`, true);
+          }
+        });
+      }
+
+      const sourceForm = document.getElementById('source-form');
+      if (sourceForm) {
+        sourceForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          const username = document.getElementById('source-username-edit').value.trim();
+          const channelId = document.getElementById('source-channel-id-edit').value.trim();
+          if (!username || !channelId) {
+            setStatus('Source username and channel ID are required.', true);
+            return;
+          }
+
+          try {
+            const mode = document.getElementById('source-edit-mode').value;
+            const payload = {
+              role_id: document.getElementById('source-role-id-edit').value.trim(),
+              enable_type: document.getElementById('source-enable-type-edit').value,
+              media_type: document.getElementById('source-media-type-edit').value,
+            };
+            const customMessage = document.getElementById('source-custom-message-edit').value;
+            if (mode === 'edit') {
+              await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}`, {
                 method: 'PUT',
+                body: JSON.stringify(payload),
+              });
+              if (customMessage.trim()) {
+                await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+                  method: 'PUT',
+                  body: JSON.stringify({
+                    customized_msg: customMessage,
+                  }),
+                });
+              } else {
+                await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+                  method: 'DELETE',
+                });
+              }
+            } else {
+              await jsonRequest(`/guilds/${guildId}/sources`, {
+                method: 'POST',
                 body: JSON.stringify({
-                  customized_msg: customMessage,
+                  username,
+                  channel_id: channelId,
+                  account_used: document.getElementById('source-account-used-edit').value,
+                  ...payload,
                 }),
               });
+              if (customMessage.trim()) {
+                await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+                  method: 'PUT',
+                  body: JSON.stringify({
+                    customized_msg: customMessage,
+                  }),
+                });
+              }
             }
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to save source: ${error.message}`, true);
           }
-          window.location.reload();
-        } catch (error) {
-          setStatus(`Failed to save source: ${error.message}`, true);
-        }
-      });
+        });
+      }
 
       document.querySelectorAll('.edit-source').forEach(function (button) {
         button.addEventListener('click', async function () {
+          if (!sourceForm) return;
           document.getElementById('source-edit-mode').value = 'edit';
           document.getElementById('source-username-edit').value = button.dataset.username;
           document.getElementById('source-channel-id-edit').value = button.dataset.channelId;
@@ -610,50 +954,62 @@
         });
       });
 
-      document.getElementById('source-form-reset').addEventListener('click', function () {
-        document.getElementById('source-edit-mode').value = 'create';
-        document.getElementById('source-username-edit').value = '';
-        document.getElementById('source-channel-id-edit').value = '';
-        document.getElementById('source-role-id-edit').value = '';
-        document.getElementById('source-enable-type-edit').value = '11';
-        document.getElementById('source-media-type-edit').value = '11';
-        document.getElementById('source-custom-message-edit').value = '';
-        setStatus('Ready to add a new tracked source. Fill in the fields and click Save Source.');
-      });
-
-      document.getElementById('source-message-reset').addEventListener('click', async function () {
-        const username = document.getElementById('source-username-edit').value.trim();
-        const channelId = document.getElementById('source-channel-id-edit').value.trim();
-        if (!username || !channelId) {
+      const sourceFormReset = document.getElementById('source-form-reset');
+      if (sourceFormReset) {
+        sourceFormReset.addEventListener('click', function () {
+          document.getElementById('source-edit-mode').value = 'create';
+          document.getElementById('source-username-edit').value = '';
+          document.getElementById('source-channel-id-edit').value = '';
+          document.getElementById('source-role-id-edit').value = '';
+          document.getElementById('source-enable-type-edit').value = '11';
+          document.getElementById('source-media-type-edit').value = '11';
           document.getElementById('source-custom-message-edit').value = '';
-          setStatus('Cleared the unsaved custom message field.');
-          return;
-        }
-        try {
-          await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
-            method: 'DELETE',
-          });
-          document.getElementById('source-custom-message-edit').value = '';
-          setStatus(`Reset the custom message for ${username}.`);
-        } catch (error) {
-          setStatus(`Failed to reset custom message: ${error.message}`, true);
-        }
-      });
+          setStatus('Ready to add a new tracked source. Fill in the fields and click Save Source.');
+        });
+      }
 
-      document.getElementById('rule-form-reset').addEventListener('click', function () {
-        document.getElementById('rule-name').value = '';
-        document.getElementById('source-username').value = '';
-        document.getElementById('channel-id').value = '';
-        document.getElementById('priority').value = 0;
-        document.getElementById('escalation-mode').value = 'role_only';
-        document.getElementById('rule-trigger-keywords').value = '';
-        document.getElementById('rule-exclude-keywords').value = '';
-        setStatus('Ready to add a new alert rule.');
-      });
+      const sourceMessageReset = document.getElementById('source-message-reset');
+      if (sourceMessageReset) {
+        sourceMessageReset.addEventListener('click', async function () {
+          const username = document.getElementById('source-username-edit').value.trim();
+          const channelId = document.getElementById('source-channel-id-edit').value.trim();
+          if (!username || !channelId) {
+            document.getElementById('source-custom-message-edit').value = '';
+            setStatus('Cleared the unsaved custom message field.');
+            return;
+          }
+          try {
+            await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
+              method: 'DELETE',
+            });
+            document.getElementById('source-custom-message-edit').value = '';
+            setStatus(`Reset the custom message for ${username}.`);
+          } catch (error) {
+            setStatus(`Failed to reset custom message: ${error.message}`, true);
+          }
+        });
+      }
+
+      const ruleFormReset = document.getElementById('rule-form-reset');
+      if (ruleFormReset) {
+        ruleFormReset.addEventListener('click', function () {
+          document.getElementById('existing-rule-name').value = '';
+          document.getElementById('rule-name').value = '';
+          document.getElementById('source-username').value = '';
+          document.getElementById('channel-id').value = '';
+          document.getElementById('priority').value = 0;
+          document.getElementById('escalation-mode').value = 'role_only';
+          document.getElementById('rule-trigger-keywords').value = '';
+          document.getElementById('rule-exclude-keywords').value = '';
+          setStatus('Ready to add a new alert rule.');
+        });
+      }
 
       document.querySelectorAll('.edit-rule').forEach(function (button) {
         button.addEventListener('click', function () {
+          if (!ruleForm) return;
           const row = button.closest('tr');
+          document.getElementById('existing-rule-name').value = row.dataset.ruleName || '';
           document.getElementById('rule-name').value = row.dataset.ruleName || '';
           document.getElementById('source-username').value = row.dataset.sourceUsername || '';
           document.getElementById('channel-id').value = row.dataset.channelId || '';

@@ -1,6 +1,7 @@
 import os
 import secrets
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlencode
@@ -15,6 +16,11 @@ from starlette.templating import Jinja2Templates
 
 from configs.load_configs import configs
 from src.db_function.init_db import ensure_db_schema
+from src.log import get_log_path
+from src.repositories.runtime_metrics_repository import (
+    get_runtime_source_status_map,
+    list_runtime_client_statuses,
+)
 from src.services.alert_rule_service import AlertRuleRecord, AlertRuleService
 from src.services.guild_settings_service import GuildSettingsService, GuildPresentationView
 from src.services.notifier_service import (
@@ -41,9 +47,10 @@ class AlertRuleResponse(BaseModel):
 
 
 class UpsertAlertRuleRequest(BaseModel):
+    existing_rule_name: Optional[str] = None
     source_username: Optional[str] = None
     channel_id: Optional[str] = None
-    priority: int = 0
+    priority: int = Field(default=0, ge=-100, le=100)
     trigger_keywords: list[str] = Field(default_factory=list)
     exclude_keywords: list[str] = Field(default_factory=list)
     escalation_mode: str = 'role_only'
@@ -82,7 +89,17 @@ class UpdateDashboardSourceMessageRequest(BaseModel):
 
 
 class UpdateGuildPlanRequest(BaseModel):
-    plan: str = 'free'
+    plan: Optional[str] = None
+    clear_override: bool = False
+
+
+class UpdateGuildEntitlementRequest(BaseModel):
+    subscribed_plan: Optional[str] = None
+    entitlement_status: str = 'none'
+    billing_provider: Optional[str] = None
+    current_period_end: Optional[str] = None
+    trial_ends_at: Optional[str] = None
+    is_test: bool = True
 
 
 class UpdateGuildPresentationRequest(BaseModel):
@@ -159,6 +176,17 @@ def _serialize_bot_defaults() -> dict[str, object]:
 def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, object]:
     return {
         'plan': view.plan,
+        'entitlement': {
+            'effective_plan': view.entitlement.effective_plan,
+            'plan_source': view.entitlement.plan_source,
+            'entitlement_status': view.entitlement.entitlement_status,
+            'subscribed_plan': view.entitlement.subscribed_plan,
+            'manual_plan_override': view.entitlement.manual_plan_override,
+            'billing_provider': view.entitlement.billing_provider,
+            'current_period_end': view.entitlement.current_period_end,
+            'trial_ends_at': view.entitlement.trial_ends_at,
+            'is_test': view.entitlement.is_test,
+        },
         'features': {
             'max_sources': view.features.max_sources,
             'max_rules': view.features.max_rules,
@@ -288,6 +316,148 @@ async def _fetch_guild_resource_names(guild_id: str) -> dict[str, dict[str, str]
     return {'channels': channels, 'roles': roles}
 
 
+def _serialize_named_options(resource_map: dict[str, str]) -> list[dict[str, str]]:
+    return [
+        {'id': resource_id, 'name': resource_name}
+        for resource_id, resource_name in sorted(resource_map.items(), key=lambda item: item[1].lower())
+    ]
+
+
+def _serialize_source_options(sources: list[DashboardSourceRecord]) -> list[str]:
+    return sorted({source.username for source in sources}, key=str.lower)
+
+
+def _read_recent_log_health() -> dict[str, object]:
+    log_path = get_log_path()
+    if not log_path.exists():
+        return {
+            'bot_online_recently': False,
+            'updater_error_count': 0,
+            'delivery_error_count': 0,
+            'dead_task_warning_count': 0,
+            'last_online_at': None,
+        }
+
+    try:
+        lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()[-400:]
+    except OSError:
+        return {
+            'bot_online_recently': False,
+            'updater_error_count': 0,
+            'delivery_error_count': 0,
+            'dead_task_warning_count': 0,
+            'last_online_at': None,
+        }
+
+    now = datetime.now()
+    online_cutoff = now - timedelta(hours=24)
+    last_online_at = None
+    updater_error_count = 0
+    delivery_error_count = 0
+    dead_task_warning_count = 0
+
+    for line in lines:
+        timestamp_text = line[:19]
+        try:
+            timestamp = datetime.strptime(timestamp_text, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            timestamp = None
+
+        if ' is online' in line and timestamp is not None:
+            last_online_at = timestamp
+        if 'ERROR' in line and 'tweets updater' in line:
+            updater_error_count += 1
+        if 'while sending notification' in line:
+            delivery_error_count += 1
+        if 'dead tasks :' in line or 'tweets updater' in line and 'dead' in line:
+            dead_task_warning_count += 1
+
+    return {
+        'bot_online_recently': bool(last_online_at and last_online_at >= online_cutoff),
+        'updater_error_count': updater_error_count,
+        'delivery_error_count': delivery_error_count,
+        'dead_task_warning_count': dead_task_warning_count,
+        'last_online_at': None if last_online_at is None else last_online_at.strftime('%Y-%m-%d %H:%M'),
+    }
+
+
+def _build_status_banner(
+    available_accounts: list[str],
+    usage: dict[str, int],
+    guild_presentation: GuildPresentationView,
+    log_health: dict[str, object],
+    client_statuses: list[dict[str, object]],
+) -> dict[str, object]:
+    source_limit = guild_presentation.features.max_sources
+    rule_limit = guild_presentation.features.max_rules
+    source_count = usage['source_count']
+    rule_count = usage['rule_count']
+
+    if not available_accounts:
+        return {
+            'level': 'error',
+            'message': 'No Twitter/X sessions are configured, so this guild cannot poll tracked sources yet.',
+            'details': ['Add at least one Twitter/X session in the bot environment to enable polling.'],
+        }
+
+    healthy_clients = [row for row in client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']]
+    warning_clients = [row for row in client_statuses if row['last_poll_error_at']]
+
+    if not log_health['bot_online_recently']:
+        return {
+            'level': 'warning',
+            'message': 'The dashboard is available, but the bot has not logged itself online in the last 24 hours.',
+            'details': [
+                f'{source_count} tracked sources are configured for this guild.',
+                f'{len(available_accounts)} Twitter/X session(s) are currently configured.',
+            ],
+        }
+
+    if warning_clients:
+        return {
+            'level': 'warning',
+            'message': 'At least one Twitter/X session has a recent poll error, so alert freshness may be degraded until that session recovers.',
+            'details': [
+                f"Healthy sessions: {len(healthy_clients)} / {len(available_accounts)}",
+                f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
+                f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
+            ],
+        }
+
+    if log_health['updater_error_count'] or log_health['delivery_error_count'] or log_health['dead_task_warning_count']:
+        return {
+            'level': 'warning',
+            'message': 'The bot appears online, but recent logs show updater, delivery, or task health warnings that are worth reviewing.',
+            'details': [
+                f"Updater errors: {log_health['updater_error_count']}",
+                f"Delivery errors: {log_health['delivery_error_count']}",
+                f"Task warnings: {log_health['dead_task_warning_count']}",
+            ],
+        }
+
+    if source_count >= source_limit or rule_count >= rule_limit:
+        return {
+            'level': 'warning',
+            'message': 'This guild is healthy, but it is currently at or near one of its plan limits.',
+            'details': [
+                f'Sources: {source_count} / {source_limit}',
+                f'Rules: {rule_count} / {rule_limit}',
+                f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
+            ],
+        }
+
+    return {
+        'level': 'success',
+        'message': 'The bot looks healthy for this guild: sessions are polling, the bot has logged online recently, and no recent dashboard-visible warnings were detected.',
+        'details': [
+            f'Healthy sessions: {len(healthy_clients)} / {len(available_accounts)}',
+            f'Sources: {source_count} / {source_limit}',
+            f'Rules: {rule_count} / {rule_limit}',
+            f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
+        ],
+    }
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await ensure_db_schema()
@@ -296,6 +466,14 @@ async def lifespan(_app: FastAPI):
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / 'templates'))
+
+GUILD_SECTIONS = {
+    'overview': 'Overview',
+    'sources': 'Sources',
+    'rules': 'Rules',
+    'appearance': 'Appearance',
+    'platform': 'Platform',
+}
 
 
 app = FastAPI(
@@ -411,12 +589,38 @@ async def dashboard_logout(request: Request) -> RedirectResponse:
 
 @app.get('/dashboard/guilds/{guild_id}', response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_guild(request: Request, guild_id: str):
+    return RedirectResponse(url=f'/dashboard/guilds/{guild_id}/overview')
+
+
+async def _render_guild_dashboard(request: Request, guild_id: str, active_section: str) -> HTMLResponse:
     _require_guild_access(request, guild_id)
     rules = await alert_rule_service.list_rules(guild_id)
     sources = await notifier_service.list_dashboard_sources(guild_id)
     guild_presentation = await guild_settings_service.get_presentation_view(guild_id)
     usage = _serialize_plan_usage(sources, rules)
     resource_names = await _fetch_guild_resource_names(guild_id)
+    available_accounts = list(get_accounts().keys())
+    log_health = _read_recent_log_health()
+    client_statuses = await list_runtime_client_statuses(notifier_service.db_path)
+    source_status_map = await get_runtime_source_status_map(notifier_service.db_path, guild_id)
+    escalation_rule_count = sum(1 for rule in rules if rule.escalation_mode == 'everyone')
+    scoped_rule_count = sum(1 for rule in rules if rule.source_username or rule.channel_id)
+    sources_payload = []
+    for source in sources:
+        payload = _serialize_source(source).model_dump()
+        status = source_status_map.get((payload['username'].lower(), payload['channel_id']))
+        if status is None:
+            payload['runtime_state'] = 'idle'
+            payload['last_delivery_success_at'] = None
+            payload['last_delivery_error_at'] = None
+            payload['last_error_message'] = None
+            payload['last_matched_rule_name'] = None
+            payload['success_count'] = 0
+            payload['error_count'] = 0
+        else:
+            payload.update(status)
+            payload['runtime_state'] = 'warning' if status['last_delivery_error_at'] else 'healthy'
+        sources_payload.append(payload)
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -427,18 +631,82 @@ async def dashboard_guild(request: Request, guild_id: str):
             'bot_defaults': _serialize_bot_defaults(),
             'guild_presentation': _serialize_guild_presentation(guild_presentation),
             'plan_usage': usage,
-            'available_accounts': list(get_accounts().keys()),
+            'available_accounts': available_accounts,
             'channel_names': resource_names['channels'],
             'role_names': resource_names['roles'],
-            'sources': [_serialize_source(source).model_dump() for source in sources],
+            'channel_options': _serialize_named_options(resource_names['channels']),
+            'role_options': _serialize_named_options(resource_names['roles']),
+            'source_options': _serialize_source_options(sources),
+            'guild_sections': GUILD_SECTIONS,
+            'active_section': active_section,
+            'status_banner': _build_status_banner(available_accounts, usage, guild_presentation, log_health, client_statuses),
+            'overview': {
+                'escalation_rule_count': escalation_rule_count,
+                'scoped_rule_count': scoped_rule_count,
+                'custom_message_count': sum(1 for source in sources if source.has_custom_message),
+                'source_names': [source.username for source in sources[:6]],
+                'health': {
+                    'oauth_enabled': _get_discord_oauth_config() is not None,
+                    'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
+                    'twitter_session_count': len(available_accounts),
+                    'healthy_twitter_session_count': sum(1 for row in client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']),
+                    'active_embed_mode': guild_presentation.effective.embed_type,
+                    'tweet_check_period': configs.get('tweets_check_period'),
+                    'last_online_at': log_health['last_online_at'],
+                    'updater_error_count': log_health['updater_error_count'],
+                    'delivery_error_count': log_health['delivery_error_count'],
+                    'dead_task_warning_count': log_health['dead_task_warning_count'],
+                },
+            },
+            'sources': sources_payload,
             'rules': [_serialize_rule(rule).model_dump() for rule in rules],
         },
     )
 
 
+@app.get('/dashboard/guilds/{guild_id}/overview', response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_guild_overview(request: Request, guild_id: str):
+    return await _render_guild_dashboard(request, guild_id, 'overview')
+
+
+@app.get('/dashboard/guilds/{guild_id}/sources', response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_guild_sources(request: Request, guild_id: str):
+    return await _render_guild_dashboard(request, guild_id, 'sources')
+
+
+@app.get('/dashboard/guilds/{guild_id}/rules', response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_guild_rules(request: Request, guild_id: str):
+    return await _render_guild_dashboard(request, guild_id, 'rules')
+
+
+@app.get('/dashboard/guilds/{guild_id}/appearance', response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_guild_appearance(request: Request, guild_id: str):
+    return await _render_guild_dashboard(request, guild_id, 'appearance')
+
+
+@app.get('/dashboard/guilds/{guild_id}/platform', response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_guild_platform(request: Request, guild_id: str):
+    return await _render_guild_dashboard(request, guild_id, 'platform')
+
+
+@app.get('/dashboard/guilds/{guild_id}/defaults', include_in_schema=False)
+async def dashboard_guild_defaults_redirect(guild_id: str):
+    return RedirectResponse(url=f'/dashboard/guilds/{guild_id}/platform')
+
+
 @app.get('/health')
-async def healthcheck() -> dict[str, str]:
-    return {'status': 'ok'}
+async def healthcheck() -> dict[str, object]:
+    log_health = _read_recent_log_health()
+    client_statuses = await list_runtime_client_statuses(notifier_service.db_path)
+    return {
+        'status': 'ok',
+        'oauth_enabled': _get_discord_oauth_config() is not None,
+        'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
+        'twitter_session_count': len(get_accounts()),
+        'healthy_twitter_session_count': sum(1 for row in client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']),
+        'runtime_client_statuses': client_statuses,
+        'log_health': log_health,
+    }
 
 
 @app.get('/guilds/{guild_id}/rules', response_model=list[AlertRuleResponse])
@@ -494,7 +762,28 @@ async def get_guild_presentation(request: Request, guild_id: str) -> dict[str, o
 @app.put('/guilds/{guild_id}/plan')
 async def update_guild_plan(request: Request, guild_id: str, plan_request: UpdateGuildPlanRequest) -> dict[str, object]:
     _require_guild_access(request, guild_id)
-    return _serialize_guild_presentation(await guild_settings_service.set_plan(guild_id, plan_request.plan))
+    override_plan = None if plan_request.clear_override else plan_request.plan
+    return _serialize_guild_presentation(await guild_settings_service.set_plan_override(guild_id, override_plan))
+
+
+@app.put('/guilds/{guild_id}/entitlement')
+async def update_guild_entitlement(
+    request: Request,
+    guild_id: str,
+    entitlement_request: UpdateGuildEntitlementRequest,
+) -> dict[str, object]:
+    _require_guild_access(request, guild_id)
+    return _serialize_guild_presentation(
+        await guild_settings_service.set_subscription_entitlement(
+            server_id=guild_id,
+            subscribed_plan=entitlement_request.subscribed_plan,
+            entitlement_status=entitlement_request.entitlement_status,
+            billing_provider=entitlement_request.billing_provider,
+            current_period_end=entitlement_request.current_period_end,
+            trial_ends_at=entitlement_request.trial_ends_at,
+            is_test=entitlement_request.is_test,
+        )
+    )
 
 
 @app.put('/guilds/{guild_id}/presentation')
@@ -614,6 +903,7 @@ async def upsert_guild_rule(request: Request, guild_id: str, rule_name: str, rul
         await alert_rule_service.upsert_rule(
             server_id=guild_id,
             rule_name=rule_name,
+            existing_rule_name=rule_request.existing_rule_name,
             source_username=rule_request.source_username,
             channel_id=rule_request.channel_id,
             priority=rule_request.priority,

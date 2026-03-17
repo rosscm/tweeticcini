@@ -15,6 +15,7 @@ from src.repositories.alert_rule_repository import (
     upsert_alert_rule,
 )
 from src.services.guild_settings_service import GuildSettingsService
+from src.services.notifier_service import NotifierService
 from src.settings import get_db_path
 
 
@@ -50,6 +51,7 @@ class AlertRuleService:
     def __init__(self, db_path=None):
         self.db_path = db_path or get_db_path()
         self.guild_settings_service = GuildSettingsService(self.db_path)
+        self.notifier_service = NotifierService(self.db_path)
 
     async def resolve_alert_decision(
         self,
@@ -90,6 +92,7 @@ class AlertRuleService:
         self,
         server_id: str,
         rule_name: str,
+        existing_rule_name: Optional[str],
         source_username: Optional[str],
         channel_id: Optional[str],
         priority: int,
@@ -98,8 +101,18 @@ class AlertRuleService:
         escalation_mode: str,
     ) -> None:
         presentation = await self.guild_settings_service.get_presentation_view(server_id)
+        if source_username:
+            tracked_sources = await self.notifier_service.list_dashboard_sources(server_id)
+            tracked_source_usernames = {source.username.lower() for source in tracked_sources}
+            if source_username.lower() not in tracked_source_usernames:
+                raise ValueError(f'cannot create a rule for untracked source `{source_username}`')
+
         existing_names = await self.get_rule_names(server_id)
-        if rule_name not in existing_names:
+        comparison_rule_name = existing_rule_name or rule_name
+        if rule_name != comparison_rule_name and rule_name in existing_names:
+            raise ValueError(f'a rule named `{rule_name}` already exists in this guild')
+
+        if comparison_rule_name not in existing_names:
             current_count = await get_alert_rule_count(self.db_path, server_id)
             if current_count >= presentation.features.max_rules:
                 raise ValueError(f'plan limit reached: {presentation.features.max_rules} alert rules max for {presentation.plan}')
@@ -108,7 +121,7 @@ class AlertRuleService:
         trigger_total = len(trigger_keywords)
         exclude_total = len(exclude_keywords)
         for existing_rule in existing_rules:
-            if existing_rule.rule_name == rule_name:
+            if existing_rule.rule_name == comparison_rule_name:
                 continue
             trigger_total += len(existing_rule.trigger_keywords)
             exclude_total += len(existing_rule.exclude_keywords)
@@ -126,6 +139,7 @@ class AlertRuleService:
             self.db_path,
             server_id=server_id,
             rule_name=rule_name,
+            existing_rule_name=existing_rule_name,
             source_username=source_username,
             channel_id=channel_id,
             priority=priority,

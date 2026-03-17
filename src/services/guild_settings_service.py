@@ -5,16 +5,22 @@ from src.db_function.guild_settings import (
     EffectiveGuildPresentationSettings,
     get_default_guild_presentation_settings,
 )
+from src.repositories.guild_entitlement_repository import (
+    get_guild_entitlement_row,
+    upsert_guild_entitlement,
+)
 from src.repositories.guild_settings_repository import (
     get_guild_settings_row,
     upsert_guild_settings,
 )
 from src.settings import get_db_path
+from src.utils import get_utcnow
 
 
 PLAN_FREE = 'free'
 PLAN_PRO = 'pro'
 SUPPORTED_PLANS = {PLAN_FREE, PLAN_PRO}
+SUPPORTED_ENTITLEMENT_STATUSES = {'none', 'trialing', 'active', 'past_due', 'canceled'}
 
 
 @dataclass(frozen=True)
@@ -50,6 +56,20 @@ class GuildPresentationView:
     features: GuildPlanFeatures
     effective: EffectiveGuildPresentationSettings
     has_overrides: bool
+    entitlement: 'GuildEntitlementView'
+
+
+@dataclass(frozen=True)
+class GuildEntitlementView:
+    effective_plan: str
+    plan_source: str
+    entitlement_status: str
+    subscribed_plan: Optional[str]
+    manual_plan_override: Optional[str]
+    billing_provider: Optional[str]
+    current_period_end: Optional[str]
+    trial_ends_at: Optional[str]
+    is_test: bool
 
 
 class GuildSettingsService:
@@ -58,7 +78,8 @@ class GuildSettingsService:
 
     async def get_presentation_view(self, server_id: str) -> GuildPresentationView:
         row = await get_guild_settings_row(self.db_path, server_id)
-        plan = self._normalize_plan(row['plan'] if row is not None else None)
+        entitlement = await self.get_entitlement_view(server_id)
+        plan = entitlement.effective_plan
         defaults = get_default_guild_presentation_settings()
 
         if row is None:
@@ -67,6 +88,7 @@ class GuildSettingsService:
                 features=PLAN_FEATURES[plan],
                 effective=defaults,
                 has_overrides=False,
+                entitlement=entitlement,
             )
 
         effective = EffectiveGuildPresentationSettings(
@@ -85,23 +107,121 @@ class GuildSettingsService:
             features=PLAN_FEATURES[plan],
             effective=effective,
             has_overrides=self._row_has_presentation_overrides(row),
+            entitlement=entitlement,
         )
+
+    async def set_plan_override(self, server_id: str, plan: Optional[str]) -> GuildPresentationView:
+        normalized_override = None if plan is None else self._normalize_plan(plan)
+        entitlement = await get_guild_entitlement_row(self.db_path, server_id)
+        legacy_row = await get_guild_settings_row(self.db_path, server_id)
+        await upsert_guild_entitlement(
+            self.db_path,
+            server_id=server_id,
+            subscribed_plan=entitlement['subscribed_plan'] if entitlement is not None else None,
+            manual_plan_override=normalized_override,
+            entitlement_status=entitlement['entitlement_status'] if entitlement is not None else 'none',
+            billing_provider=entitlement['billing_provider'] if entitlement is not None else None,
+            external_customer_id=entitlement['external_customer_id'] if entitlement is not None else None,
+            external_subscription_id=entitlement['external_subscription_id'] if entitlement is not None else None,
+            current_period_end=entitlement['current_period_end'] if entitlement is not None else None,
+            trial_ends_at=entitlement['trial_ends_at'] if entitlement is not None else None,
+            is_test=entitlement['is_test'] if entitlement is not None else 1,
+            updated_at=get_utcnow(),
+        )
+
+        # Keep legacy plan in sync during the transition so older codepaths and local data stay coherent.
+        if legacy_row is not None or normalized_override is not None:
+            await upsert_guild_settings(
+                self.db_path,
+                server_id=server_id,
+                plan=normalized_override or PLAN_FREE,
+                default_message_override=legacy_row['default_message_override'] if legacy_row is not None else None,
+                emoji_auto_format_override=legacy_row['emoji_auto_format_override'] if legacy_row is not None else None,
+                embed_type_override=legacy_row['embed_type_override'] if legacy_row is not None else None,
+                built_in_fx_image_override=legacy_row['built_in_fx_image_override'] if legacy_row is not None else None,
+                built_in_video_link_button_override=legacy_row['built_in_video_link_button_override'] if legacy_row is not None else None,
+                built_in_legacy_logo_override=legacy_row['built_in_legacy_logo_override'] if legacy_row is not None else None,
+                fx_domain_name_override=legacy_row['fx_domain_name_override'] if legacy_row is not None else None,
+                fx_original_url_button_override=legacy_row['fx_original_url_button_override'] if legacy_row is not None else None,
+            )
+        return await self.get_presentation_view(server_id)
 
     async def set_plan(self, server_id: str, plan: str) -> GuildPresentationView:
         normalized_plan = self._normalize_plan(plan)
-        row = await get_guild_settings_row(self.db_path, server_id)
-        await upsert_guild_settings(
+        return await self.set_plan_override(server_id, normalized_plan)
+
+    async def get_entitlement_view(self, server_id: str) -> GuildEntitlementView:
+        row = await get_guild_entitlement_row(self.db_path, server_id)
+        legacy_row = await get_guild_settings_row(self.db_path, server_id)
+
+        if row is not None and row['manual_plan_override'] in SUPPORTED_PLANS:
+            return GuildEntitlementView(
+                effective_plan=row['manual_plan_override'],
+                plan_source='manual_override',
+                entitlement_status=row['entitlement_status'] or 'none',
+                subscribed_plan=row['subscribed_plan'],
+                manual_plan_override=row['manual_plan_override'],
+                billing_provider=row['billing_provider'],
+                current_period_end=row['current_period_end'],
+                trial_ends_at=row['trial_ends_at'],
+                is_test=bool(row['is_test']),
+            )
+
+        if row is not None and row['subscribed_plan'] in SUPPORTED_PLANS and (row['entitlement_status'] in {'active', 'trialing'}):
+            return GuildEntitlementView(
+                effective_plan=row['subscribed_plan'],
+                plan_source='subscription',
+                entitlement_status=row['entitlement_status'],
+                subscribed_plan=row['subscribed_plan'],
+                manual_plan_override=row['manual_plan_override'],
+                billing_provider=row['billing_provider'],
+                current_period_end=row['current_period_end'],
+                trial_ends_at=row['trial_ends_at'],
+                is_test=bool(row['is_test']),
+            )
+
+        legacy_plan = self._normalize_plan(legacy_row['plan'] if legacy_row is not None else None)
+        plan_source = 'legacy' if legacy_row is not None and legacy_row['plan'] in SUPPORTED_PLANS else 'default'
+        return GuildEntitlementView(
+            effective_plan=legacy_plan,
+            plan_source=plan_source,
+            entitlement_status=row['entitlement_status'] if row is not None and row['entitlement_status'] else 'none',
+            subscribed_plan=row['subscribed_plan'] if row is not None else None,
+            manual_plan_override=row['manual_plan_override'] if row is not None else None,
+            billing_provider=row['billing_provider'] if row is not None else None,
+            current_period_end=row['current_period_end'] if row is not None else None,
+            trial_ends_at=row['trial_ends_at'] if row is not None else None,
+            is_test=bool(row['is_test']) if row is not None else True,
+        )
+
+    async def set_subscription_entitlement(
+        self,
+        server_id: str,
+        subscribed_plan: Optional[str],
+        entitlement_status: str,
+        billing_provider: Optional[str] = None,
+        external_customer_id: Optional[str] = None,
+        external_subscription_id: Optional[str] = None,
+        current_period_end: Optional[str] = None,
+        trial_ends_at: Optional[str] = None,
+        is_test: bool = False,
+    ) -> GuildPresentationView:
+        normalized_plan = None if subscribed_plan is None else self._normalize_plan(subscribed_plan)
+        normalized_status = self._normalize_entitlement_status(entitlement_status)
+        current = await get_guild_entitlement_row(self.db_path, server_id)
+        await upsert_guild_entitlement(
             self.db_path,
             server_id=server_id,
-            plan=normalized_plan,
-            default_message_override=row['default_message_override'] if row is not None else None,
-            emoji_auto_format_override=row['emoji_auto_format_override'] if row is not None else None,
-            embed_type_override=row['embed_type_override'] if row is not None else None,
-            built_in_fx_image_override=row['built_in_fx_image_override'] if row is not None else None,
-            built_in_video_link_button_override=row['built_in_video_link_button_override'] if row is not None else None,
-            built_in_legacy_logo_override=row['built_in_legacy_logo_override'] if row is not None else None,
-            fx_domain_name_override=row['fx_domain_name_override'] if row is not None else None,
-            fx_original_url_button_override=row['fx_original_url_button_override'] if row is not None else None,
+            subscribed_plan=normalized_plan,
+            manual_plan_override=current['manual_plan_override'] if current is not None else None,
+            entitlement_status=normalized_status,
+            billing_provider=billing_provider,
+            external_customer_id=external_customer_id,
+            external_subscription_id=external_subscription_id,
+            current_period_end=current_period_end,
+            trial_ends_at=trial_ends_at,
+            is_test=int(is_test),
+            updated_at=get_utcnow(),
         )
         return await self.get_presentation_view(server_id)
 
@@ -146,6 +266,12 @@ class GuildSettingsService:
         if plan in SUPPORTED_PLANS:
             return plan
         return PLAN_FREE
+
+    @staticmethod
+    def _normalize_entitlement_status(status: Optional[str]) -> str:
+        if status in SUPPORTED_ENTITLEMENT_STATUSES:
+            return str(status)
+        return 'none'
 
     @staticmethod
     def _row_has_presentation_overrides(row) -> bool:

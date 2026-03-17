@@ -47,6 +47,19 @@ async def ensure_db_schema() -> str:
                 fx_domain_name_override TEXT DEFAULT NULL,
                 fx_original_url_button_override INTEGER DEFAULT NULL
             );
+            CREATE TABLE IF NOT EXISTS guild_entitlement (
+                server_id TEXT PRIMARY KEY,
+                subscribed_plan TEXT DEFAULT NULL,
+                manual_plan_override TEXT DEFAULT NULL,
+                entitlement_status TEXT DEFAULT 'none',
+                billing_provider TEXT DEFAULT NULL,
+                external_customer_id TEXT DEFAULT NULL,
+                external_subscription_id TEXT DEFAULT NULL,
+                current_period_end TEXT DEFAULT NULL,
+                trial_ends_at TEXT DEFAULT NULL,
+                is_test INTEGER DEFAULT 1,
+                updated_at TEXT DEFAULT NULL
+            );
             CREATE TABLE IF NOT EXISTS app_meta (
                 key TEXT PRIMARY KEY,
                 value TEXT DEFAULT NULL
@@ -65,6 +78,26 @@ async def ensure_db_schema() -> str:
             );
             CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_rule_server_name
             ON alert_rule (server_id, rule_name);
+            CREATE TABLE IF NOT EXISTS runtime_client_status (
+                client_used TEXT PRIMARY KEY,
+                last_poll_success_at TEXT DEFAULT NULL,
+                last_notification_count INTEGER DEFAULT 0,
+                last_poll_error_at TEXT DEFAULT NULL,
+                last_error_message TEXT DEFAULT NULL
+            );
+            CREATE TABLE IF NOT EXISTS runtime_source_status (
+                server_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                channel_id TEXT NOT NULL,
+                last_delivery_success_at TEXT DEFAULT NULL,
+                last_delivery_error_at TEXT DEFAULT NULL,
+                last_error_message TEXT DEFAULT NULL,
+                last_matched_rule_name TEXT DEFAULT NULL,
+                last_delivery_url TEXT DEFAULT NULL,
+                success_count INTEGER DEFAULT 0,
+                error_count INTEGER DEFAULT 0,
+                PRIMARY KEY(server_id, username, channel_id)
+            );
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:

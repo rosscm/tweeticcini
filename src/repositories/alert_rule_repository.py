@@ -93,6 +93,7 @@ async def upsert_alert_rule(
     db_path,
     server_id: str,
     rule_name: str,
+    existing_rule_name: Optional[str],
     source_username: Optional[str],
     channel_id: Optional[str],
     priority: int,
@@ -101,38 +102,66 @@ async def upsert_alert_rule(
     force_everyone: Optional[int],
 ) -> None:
     async with connect_writable(db_path) as db:
-        await db.execute(
-            '''
-            INSERT INTO alert_rule (
-                server_id,
-                rule_name,
-                source_username,
-                channel_id,
-                priority,
-                trigger_keywords,
-                exclude_keywords,
-                force_everyone
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(server_id, rule_name) DO UPDATE SET
-                source_username = excluded.source_username,
-                channel_id = excluded.channel_id,
-                priority = excluded.priority,
-                trigger_keywords = excluded.trigger_keywords,
-                exclude_keywords = excluded.exclude_keywords,
-                force_everyone = excluded.force_everyone,
-                enabled = 1
-            ''',
-            (
-                server_id,
-                rule_name,
-                source_username,
-                channel_id,
-                priority,
-                serialize_keywords(trigger_keywords),
-                serialize_keywords(exclude_keywords),
-                force_everyone,
-            ),
-        )
+        if existing_rule_name and existing_rule_name != rule_name:
+            await db.execute(
+                '''
+                UPDATE alert_rule
+                SET
+                    rule_name = ?,
+                    source_username = ?,
+                    channel_id = ?,
+                    priority = ?,
+                    trigger_keywords = ?,
+                    exclude_keywords = ?,
+                    force_everyone = ?,
+                    enabled = 1
+                WHERE server_id = ? AND rule_name = ?
+                ''',
+                (
+                    rule_name,
+                    source_username,
+                    channel_id,
+                    priority,
+                    serialize_keywords(trigger_keywords),
+                    serialize_keywords(exclude_keywords),
+                    force_everyone,
+                    server_id,
+                    existing_rule_name,
+                ),
+            )
+        else:
+            await db.execute(
+                '''
+                INSERT INTO alert_rule (
+                    server_id,
+                    rule_name,
+                    source_username,
+                    channel_id,
+                    priority,
+                    trigger_keywords,
+                    exclude_keywords,
+                    force_everyone
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(server_id, rule_name) DO UPDATE SET
+                    source_username = excluded.source_username,
+                    channel_id = excluded.channel_id,
+                    priority = excluded.priority,
+                    trigger_keywords = excluded.trigger_keywords,
+                    exclude_keywords = excluded.exclude_keywords,
+                    force_everyone = excluded.force_everyone,
+                    enabled = 1
+                ''',
+                (
+                    server_id,
+                    rule_name,
+                    source_username,
+                    channel_id,
+                    priority,
+                    serialize_keywords(trigger_keywords),
+                    serialize_keywords(exclude_keywords),
+                    force_everyone,
+                ),
+            )
         await db.commit()
 
 
