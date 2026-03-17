@@ -4,41 +4,101 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/dashboard/static/favicon-32.png">
     <link rel="stylesheet" href="/dashboard/static/dashboard.css">
   </head>
   <body>
     <main class="shell">
-      <header class="page-header">
-        <div>
-          <p class="eyebrow">Guild Dashboard</p>
-          <div class="page-title-row">
-            <h1>{{ guild_name }}</h1>
-            <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
-          </div>
-          <p class="lede">Manage tracked sources, alert behavior, and presentation settings for this Discord server.</p>
-        </div>
-        <div class="header-actions">
-          {% if discord_user %}
-          <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
-          {% endif %}
-          <a class="ghost-link" href="/dashboard">Change Guild</a>
-        </div>
-      </header>
+      <div class="dashboard-layout">
+        <aside class="dashboard-sidebar">
+          <section class="card sidebar-brand">
+            <div class="brand-mark">
+              <img class="brand-icon" src="/dashboard/static/tweeticcini-icon.png" alt="Tweeticcini icon">
+              <div>
+                <p class="eyebrow">Tweeticcini</p>
+                <div class="brand-name">Server Dashboard</div>
+              </div>
+            </div>
+            <div class="page-title-row">
+              <h1>{{ guild_name }}</h1>
+              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
+            </div>
+            <p class="lede lede--wide">Manage tracked accounts, alert behavior, and presentation settings for this Discord server with Tweeticcini.</p>
+          </section>
 
-      <nav class="guild-subnav">
-        {% for section_id, section_label in guild_sections.items() %}
-        <a
-          class="subnav-link {{ 'subnav-link--active' if active_section == section_id else '' }}"
-          href="/dashboard/guilds/{{ guild_id }}/{{ section_id }}"
-        >
-          {{ section_label }}
-        </a>
-        {% endfor %}
-      </nav>
+          <nav class="guild-subnav guild-subnav--sidebar">
+            {% for section_id, section_label in guild_sections.items() %}
+            <a
+              class="subnav-link subnav-link--sidebar {{ 'subnav-link--active' if active_section == section_id else '' }}"
+              href="/dashboard/guilds/{{ guild_id }}/{{ section_id }}"
+            >
+              <span class="subnav-icon" aria-hidden="true">
+                {% if section_id == 'overview' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 10.5 12 3l9 7.5"></path>
+                  <path d="M5.5 9.5V20h13V9.5"></path>
+                </svg>
+                {% elif section_id == 'sources' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18.5 5.5a5.5 5.5 0 0 1-5.7 5.8A5.5 5.5 0 0 1 6 18.2"></path>
+                  <path d="M5.5 7.5c1.3.7 2.5.9 3.6.8A5.5 5.5 0 0 0 18.5 5.5"></path>
+                  <path d="M7 18.5c4 .4 8-1.4 10.2-5"></path>
+                </svg>
+                {% elif section_id == 'rules' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3 3 19h18L12 3Z"></path>
+                  <path d="M12 9v4.5"></path>
+                  <path d="M12 17h.01"></path>
+                </svg>
+                {% elif section_id == 'appearance' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 4.5a7.5 7.5 0 1 0 0 15c1 0 1.6-.5 1.6-1.3 0-.7-.4-1.2-.4-1.8 0-1.1 1-2 2.3-2H17A4 4 0 0 0 21 10c0-3-3.8-5.5-9-5.5Z"></path>
+                  <path d="M7.5 11h.01"></path>
+                  <path d="M9.5 8h.01"></path>
+                  <path d="M13.5 8h.01"></path>
+                </svg>
+                {% elif section_id == 'billing' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="6" width="18" height="12" rx="2"></rect>
+                  <path d="M3 10.5h18"></path>
+                  <path d="M7 15h3"></path>
+                </svg>
+                {% elif section_id == 'platform' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v3"></path>
+                  <path d="M12 18v3"></path>
+                  <path d="m4.9 4.9 2.1 2.1"></path>
+                  <path d="m17 17 2.1 2.1"></path>
+                  <path d="M3 12h3"></path>
+                  <path d="M18 12h3"></path>
+                  <path d="m4.9 19.1 2.1-2.1"></path>
+                  <path d="M17 7l2.1-2.1"></path>
+                  <circle cx="12" cy="12" r="4"></circle>
+                </svg>
+                {% else %}
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="12" r="2"></circle>
+                </svg>
+                {% endif %}
+              </span>
+              {{ section_label }}
+            </a>
+            {% endfor %}
+          </nav>
+
+          <section class="card sidebar-utility">
+            {% if discord_user %}
+            <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
+            {% endif %}
+            <a class="ghost-link" href="/dashboard">Change Guild</a>
+          </section>
+        </aside>
+
+        <div class="dashboard-main">
 
       {% if not discord_user %}
       <section class="notice">
-        <strong>Local mode:</strong> Discord OAuth is not configured, so guild access checks are bypassed for local testing.
+            <strong>Local mode:</strong> Discord OAuth is not configured, so server access checks are bypassed for local testing.
       </section>
       {% endif %}
 
@@ -76,7 +136,7 @@
             <div class="plan-tile-copy">via {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</div>
           </div>
           <div class="plan-tile">
-            <span class="meta-label">Tracked sources</span>
+            <span class="meta-label">Tracked accounts</span>
             <strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong>
           </div>
           <div class="plan-tile">
@@ -93,13 +153,13 @@
         <section class="notice notice--warning">
           <strong>Capacity note:</strong>
           {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
-          This guild is at its tracked source limit.
+          This server is at its tracked account limit.
           {% endif %}
           {% if plan_usage.source_count >= guild_presentation.features.max_sources and plan_usage.rule_count >= guild_presentation.features.max_rules %}
           and
           {% endif %}
           {% if plan_usage.rule_count >= guild_presentation.features.max_rules %}
-          This guild is at its alert rule limit.
+          This server is at its alert rule limit.
           {% endif %}
         </section>
         {% endif %}
@@ -123,16 +183,16 @@
               {% endfor %}
             </div>
             {% if plan_usage.source_count > overview.source_names | length %}
-            <div class="overview-note">Plus {{ plan_usage.source_count - (overview.source_names | length) }} more tracked sources.</div>
+            <div class="overview-note">Plus {{ plan_usage.source_count - (overview.source_names | length) }} more tracked accounts.</div>
             {% endif %}
             {% else %}
-            <div class="overview-note">No tracked sources yet. Add your first account from the Sources page.</div>
+            <div class="overview-note">No tracked accounts yet. Add your first account from the Accounts page.</div>
             {% endif %}
           </div>
 
           <div class="default-block">
             <h3>Quick Actions</h3>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage tracked sources</a></div>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage tracked accounts</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules">Edit alert rules</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust presentation</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Manage billing</a></div>
@@ -163,12 +223,12 @@
           <div>
             <p class="eyebrow">Platform Settings</p>
             <h2>Platform Baseline</h2>
-            <p class="section-copy">Read-only reference for shared bot-level settings from `configs.yml`. These are platform defaults and operational controls, not day-to-day guild settings.</p>
+            <p class="section-copy">Read-only reference for shared bot-level settings from `configs.yml`. These are platform defaults and operational controls, not day-to-day server settings.</p>
           </div>
         </div>
 
         <section class="notice notice--plain">
-          <strong>Advanced reference:</strong> this page is meant for visibility into shared bot behavior. Source routing, alert rules, and presentation are still managed from the guild-facing pages.
+          <strong>Advanced reference:</strong> this page is meant for visibility into shared bot behavior. Source routing, alert rules, and presentation are still managed from the server-facing pages.
         </section>
 
         <div class="defaults-grid">
@@ -207,7 +267,9 @@
         </div>
         <div class="default-message-block">
           <h3>Default Message</h3>
+          <div class="field-help">Tweeticcini normally uses the first meaningful line from the tweet as the delivered message. The template below is the platform fallback format used when a custom default message is explicitly applied.</div>
           <pre class="message-preview">{{ bot_defaults.default_message }}</pre>
+          <div class="field-help">Headline-style example: <code>Queue is live at Pokemon Center: https://x.com/...</code></div>
         </div>
       </section>
       {% endif %}
@@ -218,7 +280,7 @@
           <div>
             <p class="eyebrow">Presentation</p>
             <h2>Alert Appearance</h2>
-            <p class="section-copy">Control how alerts look inside this server. Billing and subscription management live on the dedicated Billing page.</p>
+            <p class="section-copy section-copy--wide">Control how alerts look inside this server. Billing and subscription management live on the dedicated Billing page.</p>
           </div>
         </div>
 
@@ -256,7 +318,7 @@
             <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
               {% if not guild_presentation.features.can_customize_presentation %}
               <div class="form-banner">
-                Presentation overrides are unavailable on this guild's current entitlement. Free or inactive billing states inherit the platform message and embed defaults.
+                Presentation overrides are unavailable on this server's current entitlement. Free or inactive billing states inherit the platform message and embed defaults.
               </div>
               {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
               <div class="form-banner">
@@ -266,7 +328,11 @@
 
               <label for="presentation-default-message">Default message</label>
               <textarea id="presentation-default-message" rows="4" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>{{ guild_presentation.effective.default_message }}</textarea>
-              <div class="field-help">Fallback message template used when a source does not have its own custom message.</div>
+              <div class="field-help">By default, Tweeticcini uses the tweet headline as the delivered message. Set a default message here only if you want this server to override that baseline.</div>
+
+              <label for="presentation-bot-display-name">Bot display name</label>
+              <input id="presentation-bot-display-name" type="text" value="{{ guild_presentation.effective.bot_display_name }}" placeholder="E.g., Stock Pinger" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
+              <div class="field-help">Optional. Sets the bot nickname in this Discord server only. Leave blank to use the global bot name.</div>
 
               <label for="presentation-emoji-auto-format">Emoji auto format</label>
               <select id="presentation-emoji-auto-format" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
@@ -311,13 +377,13 @@
           <div>
             <p class="eyebrow">Billing</p>
             <h2>Subscription & Entitlements</h2>
-            <p class="section-copy">Manage the commercial state for this guild. This is where real Stripe access will live, alongside internal testing tools while billing is still being wired in.</p>
+            <p class="section-copy section-copy--wide">Manage the commercial state for this server. This is where Stripe access lives, alongside internal testing tools while billing is still being refined.</p>
           </div>
         </div>
 
         {% if request.query_params.get('checkout') == 'success' %}
         <section class="notice notice--success">
-          <strong>Checkout started successfully:</strong> Stripe returned to the Billing page. Once the webhook is configured and delivered, this guild's entitlement will update automatically.
+          <strong>Checkout started successfully:</strong> Stripe returned to the Billing page. Once the webhook is configured and delivered, this server's entitlement will update automatically.
         </section>
         {% elif request.query_params.get('checkout') == 'canceled' %}
         <section class="notice notice--plain">
@@ -327,23 +393,23 @@
 
         {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
         <section class="notice notice--warning">
-          <strong>Manual override active:</strong> this guild is currently using a support/testing override, so the effective plan may not match the subscription state below.
+          <strong>Manual override active:</strong> this server is currently using a support/testing override, so the effective plan may not match the subscription state below.
         </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
         <section class="notice notice--success">
-          <strong>Trial active:</strong> this guild is currently trialing the <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong> plan{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
+          <strong>Trial active:</strong> this server is currently trialing the <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong> plan{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
         </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'past_due' %}
         <section class="notice notice--warning">
-          <strong>Billing attention needed:</strong> this guild is marked <strong>past due</strong>.
+          <strong>Billing attention needed:</strong> this server is marked <strong>past due</strong>.
         </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'canceled' %}
         <section class="notice notice--warning">
-          <strong>Subscription canceled:</strong> this guild no longer has an active subscription-backed entitlement, so it will fall back to default plan behavior unless an internal override is present.
+          <strong>Subscription canceled:</strong> this server no longer has an active subscription-backed entitlement, so it will fall back to default plan behavior unless an internal override is present.
         </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'active' %}
         <section class="notice notice--success">
-          <strong>Subscription active:</strong> this guild has an active entitlement for <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong>{% if guild_presentation.entitlement.current_period_end %}, currently paid through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
+          <strong>Subscription active:</strong> this server has an active entitlement for <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong>{% if guild_presentation.entitlement.current_period_end %}, currently paid through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
         </section>
         {% endif %}
 
@@ -388,7 +454,7 @@
             <h3 class="panel-title">Manual Override</h3>
             <form id="plan-form" class="stack">
               <div class="form-banner">
-                Internal override tool for testing and support. In production this should be driven by billing/subscription state, not by guild admins directly.
+                Internal override tool for testing and support. In production this should be driven by billing/subscription state, not by server admins directly.
               </div>
               <label for="guild-plan">Manual plan override</label>
               <select id="guild-plan">
@@ -449,28 +515,28 @@
         <section class="card">
           <div class="card-header">
             <div>
-              <p class="eyebrow">Tracked Sources</p>
-              <h2>Sources</h2>
-              <p class="section-copy">Every source currently routed through this server, with its destination and delivery filters.</p>
+              <p class="eyebrow">Tracked Accounts</p>
+              <h2>Accounts</h2>
+              <p class="section-copy section-copy--wide">Every Twitter/X account currently routed through this server, with its destination and delivery filters.</p>
             </div>
           </div>
 
           {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
           <section class="notice notice--warning">
-            <strong>Source limit reached:</strong> This guild is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} tracked sources on the {{ guild_presentation.plan }} plan.
+            <strong>Account limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} tracked accounts on the {{ guild_presentation.plan }} plan.
           </section>
           {% endif %}
 
           <div class="workspace-grid">
             <div class="workspace-panel">
-              <h3 class="panel-title">Source Form</h3>
+              <h3 class="panel-title">Account Setup</h3>
               <form id="source-form" class="stack">
                 <div class="form-banner">
-                  Fill this form and click <strong>Save Source</strong> to add a new tracked source. Or load an existing row below to update its routing and filter settings.
+                  Fill this form and click <strong>Save Account</strong> to add a new tracked account. Or load an existing row below to update its routing and filter settings.
                 </div>
                 <input id="source-edit-mode" type="hidden" value="create">
-                <label for="source-username-edit">Source username</label>
-                <input id="source-username-edit" type="text" placeholder="Twitter/X handle, for example CeladonCA">
+                <label for="source-username-edit">Twitter/X account</label>
+                <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA">
                 <div class="field-help">Enter the Twitter/X username to track. This is case-insensitive and should not include the `@` symbol.</div>
 
                 <label for="source-channel-id-edit">Channel ID</label>
@@ -516,21 +582,23 @@
                 </select>
                 <div class="field-help">Used when creating a brand new tracked source. Existing sources keep the client they already use.</div>
 
-                <label for="source-custom-message-edit">Custom message</label>
-                <textarea id="source-custom-message-edit" rows="4" placeholder="Optional per-source message template"></textarea>
-                <div class="field-help">Optional. Leave blank to use the guild default message. Supports the same placeholders as the default template: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>.</div>
+                <label for="source-custom-message-edit">Custom message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
+                <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if not guild_presentation.features.can_customize_source_messages else '' }}></textarea>
+                <div class="field-help">Optional. Leave blank to use Tweeticcini's normal headline-style alert message.</div>
+                <div class="field-help">Headline-style example: <code>Queue is live at Pokemon Center: https://x.com/...</code></div>
+                <div class="field-help">Available placeholders: <code>{mention}</code> inserts the role mention if one is configured, <code>{author}</code> inserts the Twitter/X account name, <code>{action}</code> inserts the post type such as posted or reposted, and <code>{url}</code> inserts the tweet link.</div>
+                <div class="field-help">Example result: <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
 
                 <div class="actions">
-                  <button type="submit">Save Source</button>
+                  <button type="submit">Save Account</button>
                   <button type="button" class="button-secondary" id="source-form-reset">Clear Form</button>
-                  <button type="button" class="button-secondary" id="source-message-reset">Reset Custom Message</button>
                 </div>
               </form>
             </div>
 
             <div class="workspace-panel workspace-panel--wide">
               <div class="panel-head-row">
-                <h3 class="panel-title">Current Sources</h3>
+                <h3 class="panel-title">Current Accounts</h3>
                 <span class="count-pill">{{ plan_usage.source_count }}</span>
               </div>
               <div class="rule-list-wrap">
@@ -607,7 +675,7 @@
                       </button>
                       <button
                         type="button"
-                        class="button-secondary delete-source"
+                        class="button-secondary button-danger delete-source"
                         data-username="{{ source.username }}"
                         data-channel-id="{{ source.channel_id }}"
                       >
@@ -618,7 +686,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                  <td colspan="5" class="empty-cell">No tracked sources found for this guild.</td>
+                  <td colspan="5" class="empty-cell">No tracked accounts yet. Use Account Setup to add the first one for this server.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -635,7 +703,7 @@
             <div>
               <p class="eyebrow">Source Rules</p>
               <h2>Alert Rules</h2>
-              <p class="section-copy">Keyword-based exclusions and escalation rules that shape how individual sources behave.</p>
+              <p class="section-copy section-copy--wide">Keyword-based exclusions and escalation rules that shape how individual accounts behave.</p>
             </div>
           </div>
 
@@ -650,30 +718,30 @@
 
           {% if not guild_presentation.features.can_use_everyone_escalation %}
           <section class="notice notice--plain">
-            <strong>Premium rule type:</strong> `@everyone` escalation is available on the paid plan. Free guilds can still create `role only` rules.
+            <strong>Premium rule type:</strong> `Force everyone` is available on Pro only. Free servers can still create `role only` rules.
           </section>
           {% endif %}
 
           <div class="workspace-grid">
             <div class="workspace-panel">
-              <h3 class="panel-title">Rule Form</h3>
+              <h3 class="panel-title">Rule Setup</h3>
               <form id="rule-form" class="stack">
                 <div class="form-banner">
-                  Fill this form and click <strong>Save Rule</strong> to create or update a rule. Use exclusions to suppress noisy posts, and use escalation rules for high-impact alerts.
+                  Build a rule for one tracked account or apply it across the whole server. Use exclusions to suppress noise, and use escalation only for posts that should break through.
                 </div>
                 <input id="existing-rule-name" type="hidden" value="">
-                <label for="rule-name">Rule name</label>
-                <input id="rule-name" type="text" placeholder="pokemoncenter-queue">
-                <div class="field-help">A unique internal name for this rule within the current guild.</div>
+                <label for="rule-name">Rule label</label>
+                <input id="rule-name" type="text" placeholder="E.g., pokemoncenter-queue">
+                  <div class="field-help">A unique label for this rule inside the current server.</div>
 
-                <label for="source-username">Source username</label>
+                <label for="source-username">Twitter/X account</label>
                 <select id="source-username">
-                  <option value="">All tracked sources</option>
+                  <option value="">All tracked accounts</option>
                   {% for source_name in source_options %}
                   <option value="{{ source_name }}">{{ source_name }}</option>
                   {% endfor %}
                 </select>
-                <div class="field-help">Choose a tracked source for this rule, or leave it on all tracked sources.</div>
+                <div class="field-help">Choose a tracked account for this rule, or leave it on all tracked accounts.</div>
 
                 <label for="channel-id">Channel</label>
                 <select id="channel-id">
@@ -696,12 +764,20 @@
                 <div class="field-help">Choose whether a matching rule should force `@everyone` or fall back to normal role-based delivery.</div>
 
                 <label for="rule-trigger-keywords">Trigger keywords</label>
-                <textarea id="rule-trigger-keywords" rows="3" placeholder="queue live, queue is live"></textarea>
-                <div class="field-help">Comma-separated phrases that must appear in the post before this escalation rule applies.</div>
+                <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., queue is live" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}></textarea>
+                <div class="field-help" id="rule-trigger-keywords-help">
+                  {% if guild_presentation.features.can_use_everyone_escalation %}
+                  Trigger keywords only apply when Escalation mode is set to `Force everyone`. Use only letters, numbers, spaces, and hyphens.
+                  {% else %}
+                  Trigger keywords are only available on Pro, because they are used with `Force everyone` escalation.
+                  {% endif %}
+                </div>
+                <div class="field-error" id="rule-trigger-keywords-error" hidden></div>
 
                 <label for="rule-exclude-keywords">Exclude keywords</label>
-                <textarea id="rule-exclude-keywords" rows="4" placeholder="lorcana, plush, sleeves"></textarea>
-                <div class="field-help">Comma-separated phrases that should suppress alerts when matched.</div>
+                <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., lorcana, plush, sleeves"></textarea>
+                <div class="field-help">Comma-separated phrases that should suppress alerts when matched. Use only letters, numbers, spaces, and hyphens.</div>
+                <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
 
                 <div class="actions">
                   <button type="submit">Save Rule</button>
@@ -752,23 +828,45 @@
                     </div>
                     {% endif %}
                   </td>
-                  <td>{{ rule.source_username or 'all sources' }}</td>
+                  <td>{{ rule.source_username or 'all accounts' }}</td>
                   <td><span class="tag">{{ rule.escalation_mode }}</span></td>
                   <td><span class="count-pill">{{ rule.priority }}</span></td>
                   <td>
-                    <div><span class="meta-label">Triggers</span> {{ rule.trigger_keywords | join(', ') or 'none' }}</div>
-                    <div><span class="meta-label">Excludes</span> {{ rule.exclude_keywords | join(', ') or 'none' }}</div>
+                    <div class="keyword-summary-block">
+                      <span class="meta-label">Triggers</span>
+                      {% if rule.trigger_keywords %}
+                      <div class="keyword-summary">{{ rule.trigger_keywords[:3] | join(', ') }}{% if rule.trigger_keywords | length > 3 %}, +{{ (rule.trigger_keywords | length) - 3 }} more{% endif %}</div>
+                      <details class="keyword-details">
+                        <summary>View all {{ rule.trigger_keywords | length }}</summary>
+                        <div class="keyword-list">{{ rule.trigger_keywords | join(', ') }}</div>
+                      </details>
+                      {% else %}
+                      <div class="keyword-summary keyword-summary--empty">none</div>
+                      {% endif %}
+                    </div>
+                    <div class="keyword-summary-block">
+                      <span class="meta-label">Excludes</span>
+                      {% if rule.exclude_keywords %}
+                      <div class="keyword-summary">{{ rule.exclude_keywords[:4] | join(', ') }}{% if rule.exclude_keywords | length > 4 %}, +{{ (rule.exclude_keywords | length) - 4 }} more{% endif %}</div>
+                      <details class="keyword-details">
+                        <summary>View all {{ rule.exclude_keywords | length }}</summary>
+                        <div class="keyword-list">{{ rule.exclude_keywords | join(', ') }}</div>
+                      </details>
+                      {% else %}
+                      <div class="keyword-summary keyword-summary--empty">none</div>
+                      {% endif %}
+                    </div>
                   </td>
                   <td>
                     <div class="action-stack">
                       <button type="button" class="button-secondary edit-rule" data-rule-name="{{ rule.rule_name }}">Edit</button>
-                      <button type="button" class="button-secondary delete-rule" data-rule-name="{{ rule.rule_name }}">Delete</button>
+                      <button type="button" class="button-secondary button-danger delete-rule" data-rule-name="{{ rule.rule_name }}">Delete</button>
                     </div>
                   </td>
                 </tr>
                 {% else %}
                 <tr>
-                  <td colspan="6" class="empty-cell">No alert rules have been configured for this guild yet.</td>
+                  <td colspan="6" class="empty-cell">No alert rules yet. Use Rule Setup to add your first delivery or exclusion rule.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -778,13 +876,56 @@
           </div>
         </section>
       {% endif %}
+        </div>
+      </div>
     </main>
 
     <script>
       const guildId = {{ guild_id | tojson }};
 
-      function parseKeywords(value) {
-        return value.split(',').map(part => part.trim()).filter(Boolean);
+      function collectKeywords(value) {
+        const seen = new Set();
+        const invalid = [];
+        const keywords = value
+          .split(',')
+          .map(part => part.trim())
+          .filter(Boolean)
+          .filter(function (part) {
+            if (!/^[0-9A-Za-z -]+$/.test(part)) {
+              invalid.push(part);
+              return false;
+            }
+            return true;
+          })
+          .map(part => part.toLowerCase().replace(/\s+/g, ' '))
+          .filter(function (part) {
+            if (seen.has(part)) {
+              return false;
+            }
+            seen.add(part);
+            return true;
+          })
+          .sort(function (left, right) {
+            return left.localeCompare(right);
+          });
+        return { keywords, invalid };
+      }
+
+      function setFieldError(fieldId, errorId, invalidValues) {
+        const field = document.getElementById(fieldId);
+        const errorNode = document.getElementById(errorId);
+        if (!field || !errorNode) {
+          return;
+        }
+        if (!invalidValues.length) {
+          field.classList.remove('field-input--invalid');
+          errorNode.hidden = true;
+          errorNode.textContent = '';
+          return;
+        }
+        field.classList.add('field-input--invalid');
+        errorNode.hidden = false;
+        errorNode.textContent = `Not accepted: ${invalidValues.join(', ')}. Use only letters, numbers, spaces, and hyphens.`;
       }
 
       function setStatus(message, isError = false) {
@@ -792,6 +933,35 @@
         node.textContent = message;
         node.classList.remove('status-message--success', 'status-message--warning', 'status-message--error');
         node.classList.add(isError ? 'status-message--error' : 'status-message--success');
+      }
+
+      function syncTriggerKeywordAvailability() {
+        const escalationMode = document.getElementById('escalation-mode');
+        const triggerTextarea = document.getElementById('rule-trigger-keywords');
+        const triggerHelp = document.getElementById('rule-trigger-keywords-help');
+        if (!escalationMode || !triggerTextarea || !triggerHelp) {
+          return;
+        }
+
+        const everyoneOption = Array.from(escalationMode.options).find(function (option) {
+          return option.value === 'everyone';
+        });
+        const canUseEveryone = !!everyoneOption && !everyoneOption.disabled;
+        const everyoneSelected = escalationMode.value === 'everyone';
+        const shouldEnable = canUseEveryone && everyoneSelected;
+        triggerTextarea.disabled = !shouldEnable;
+
+        if (!shouldEnable) {
+          triggerTextarea.value = '';
+        }
+
+        if (!canUseEveryone) {
+          triggerHelp.textContent = 'Trigger keywords are only available on Pro, because they are used with Force everyone escalation.';
+        } else if (!everyoneSelected) {
+          triggerHelp.textContent = 'Trigger keywords only apply when Escalation mode is set to Force everyone. Use only letters, numbers, spaces, and hyphens.';
+        } else {
+          triggerHelp.textContent = 'Comma-separated phrases that must appear before this Force everyone rule applies. Use only letters, numbers, spaces, and hyphens.';
+        }
       }
 
       async function jsonRequest(url, options = {}) {
@@ -811,6 +981,26 @@
 
       const ruleForm = document.getElementById('rule-form');
       if (ruleForm) {
+        const escalationMode = document.getElementById('escalation-mode');
+        const triggerKeywordsField = document.getElementById('rule-trigger-keywords');
+        const excludeKeywordsField = document.getElementById('rule-exclude-keywords');
+        if (escalationMode) {
+          escalationMode.addEventListener('change', syncTriggerKeywordAvailability);
+        }
+        if (triggerKeywordsField) {
+          triggerKeywordsField.addEventListener('input', function () {
+            const state = collectKeywords(triggerKeywordsField.value);
+            setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', state.invalid);
+          });
+        }
+        if (excludeKeywordsField) {
+          excludeKeywordsField.addEventListener('input', function () {
+            const state = collectKeywords(excludeKeywordsField.value);
+            setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', state.invalid);
+          });
+        }
+        syncTriggerKeywordAvailability();
+
         ruleForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           const ruleName = document.getElementById('rule-name').value.trim();
@@ -820,14 +1010,24 @@
           }
 
           try {
+            const triggerKeywordState = collectKeywords(document.getElementById('rule-trigger-keywords').value);
+            const excludeKeywordState = collectKeywords(document.getElementById('rule-exclude-keywords').value);
+            setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', triggerKeywordState.invalid);
+            setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', excludeKeywordState.invalid);
+            if (triggerKeywordState.invalid.length || excludeKeywordState.invalid.length) {
+              setStatus('Rule keywords contain invalid entries. Remove the highlighted values and try again.', true);
+              return;
+            }
             const payload = {
               existing_rule_name: document.getElementById('existing-rule-name').value.trim() || null,
               source_username: document.getElementById('source-username').value.trim() || null,
               channel_id: document.getElementById('channel-id').value.trim() || null,
               priority: Number(document.getElementById('priority').value || 0),
               escalation_mode: document.getElementById('escalation-mode').value,
-              trigger_keywords: parseKeywords(document.getElementById('rule-trigger-keywords').value),
-              exclude_keywords: parseKeywords(document.getElementById('rule-exclude-keywords').value),
+              trigger_keywords: document.getElementById('escalation-mode').value === 'everyone'
+                ? triggerKeywordState.keywords
+                : [],
+              exclude_keywords: excludeKeywordState.keywords,
             };
             await jsonRequest(`/guilds/${guildId}/rules/${encodeURIComponent(ruleName)}`, {
               method: 'PUT',
@@ -943,6 +1143,7 @@
               method: 'PUT',
               body: JSON.stringify({
                 default_message: document.getElementById('presentation-default-message').value,
+                bot_display_name: document.getElementById('presentation-bot-display-name').value,
                 emoji_auto_format: document.getElementById('presentation-emoji-auto-format').value === 'true',
                 embed_type: document.getElementById('presentation-embed-type').value,
                 built_in_fx_image: document.getElementById('presentation-built-in-fx-image').checked,
@@ -966,7 +1167,7 @@
           const username = document.getElementById('source-username-edit').value.trim();
           const channelId = document.getElementById('source-channel-id-edit').value.trim();
           if (!username || !channelId) {
-            setStatus('Source username and channel ID are required.', true);
+            setStatus('Twitter/X account and channel are required.', true);
             return;
           }
 
@@ -978,6 +1179,11 @@
               media_type: document.getElementById('source-media-type-edit').value,
             };
             const customMessage = document.getElementById('source-custom-message-edit').value;
+            const customMessageLocked = document.getElementById('source-custom-message-edit').disabled;
+            if (customMessageLocked && customMessage.trim()) {
+              setStatus('Custom account messages require the Pro plan.', true);
+              return;
+            }
             if (mode === 'edit') {
               await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}`, {
                 method: 'PUT',
@@ -1050,29 +1256,7 @@
           document.getElementById('source-enable-type-edit').value = '11';
           document.getElementById('source-media-type-edit').value = '11';
           document.getElementById('source-custom-message-edit').value = '';
-          setStatus('Ready to add a new tracked source. Fill in the fields and click Save Source.');
-        });
-      }
-
-      const sourceMessageReset = document.getElementById('source-message-reset');
-      if (sourceMessageReset) {
-        sourceMessageReset.addEventListener('click', async function () {
-          const username = document.getElementById('source-username-edit').value.trim();
-          const channelId = document.getElementById('source-channel-id-edit').value.trim();
-          if (!username || !channelId) {
-            document.getElementById('source-custom-message-edit').value = '';
-            setStatus('Cleared the unsaved custom message field.');
-            return;
-          }
-          try {
-            await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
-              method: 'DELETE',
-            });
-            document.getElementById('source-custom-message-edit').value = '';
-            setStatus(`Reset the custom message for ${username}.`);
-          } catch (error) {
-            setStatus(`Failed to reset custom message: ${error.message}`, true);
-          }
+          setStatus('Ready to add a new tracked account. Fill in the fields and click Save Account.');
         });
       }
 
@@ -1087,6 +1271,9 @@
           document.getElementById('escalation-mode').value = 'role_only';
           document.getElementById('rule-trigger-keywords').value = '';
           document.getElementById('rule-exclude-keywords').value = '';
+          setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', []);
+          setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', []);
+          syncTriggerKeywordAvailability();
           setStatus('Ready to add a new alert rule.');
         });
       }
@@ -1103,12 +1290,19 @@
           document.getElementById('escalation-mode').value = row.dataset.escalationMode || 'role_only';
           document.getElementById('rule-trigger-keywords').value = row.dataset.triggerKeywords || '';
           document.getElementById('rule-exclude-keywords').value = row.dataset.excludeKeywords || '';
+          setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', []);
+          setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', []);
+          syncTriggerKeywordAvailability();
           setStatus(`Loaded rule ${row.dataset.ruleName} for editing.`);
         });
       });
 
       document.querySelectorAll('.delete-source').forEach(function (button) {
         button.addEventListener('click', async function () {
+          const confirmed = window.confirm(`Remove tracked account ${button.dataset.username} from this server?`);
+          if (!confirmed) {
+            return;
+          }
           try {
             await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(button.dataset.username)}/${encodeURIComponent(button.dataset.channelId)}`, {
               method: 'DELETE',
@@ -1123,6 +1317,10 @@
       document.querySelectorAll('.delete-rule').forEach(function (button) {
         button.addEventListener('click', async function () {
           const ruleName = button.dataset.ruleName;
+          const confirmed = window.confirm(`Delete rule ${ruleName}?`);
+          if (!confirmed) {
+            return;
+          }
           try {
             await jsonRequest(`/guilds/${guildId}/rules/${encodeURIComponent(ruleName)}`, {
               method: 'DELETE',

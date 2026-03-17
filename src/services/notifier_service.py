@@ -230,7 +230,10 @@ class NotifierService:
             customized_msg=customized_msg,
         )
 
-    async def set_dashboard_source_message(self, username: str, channel_id: str, customized_msg: str) -> bool:
+    async def set_dashboard_source_message(self, server_id: str, username: str, channel_id: str, customized_msg: str) -> bool:
+        presentation = await self.guild_settings_service.get_presentation_view(server_id)
+        if not presentation.features.can_customize_source_messages:
+            raise ValueError('custom account messages require the Pro plan')
         async with connect_writable(self.db_path) as db:
             async with db.cursor() as cursor:
                 user_id = await get_enabled_notifier_user_id(cursor, username, channel_id)
@@ -241,7 +244,10 @@ class NotifierService:
                     await db.commit()
         return True
 
-    async def reset_dashboard_source_message(self, username: str, channel_id: str) -> bool:
+    async def reset_dashboard_source_message(self, server_id: str, username: str, channel_id: str) -> bool:
+        presentation = await self.guild_settings_service.get_presentation_view(server_id)
+        if not presentation.features.can_customize_source_messages:
+            raise ValueError('custom account messages require the Pro plan')
         async with connect_writable(self.db_path) as db:
             async with db.cursor() as cursor:
                 user_id = await get_enabled_notifier_user_id(cursor, username, channel_id)

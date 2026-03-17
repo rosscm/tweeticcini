@@ -6,6 +6,7 @@ from configs.load_configs import configs
 @dataclass(frozen=True)
 class EffectiveGuildPresentationSettings:
     default_message: str
+    bot_display_name: str
     emoji_auto_format: bool
     embed_type: str
     built_in_fx_image: bool
@@ -29,6 +30,7 @@ def get_default_guild_presentation_settings() -> EffectiveGuildPresentationSetti
     fx_twitter = embed.get('fx_twitter', {})
     return EffectiveGuildPresentationSettings(
         default_message=configs.get('default_message', '').strip(),
+        bot_display_name='',
         emoji_auto_format=bool(configs.get('emoji_auto_format', False)),
         embed_type=_normalize_embed_type(embed.get('type', 'built_in')),
         built_in_fx_image=bool(built_in.get('fx_image', True)),

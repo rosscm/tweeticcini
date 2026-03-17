@@ -30,6 +30,7 @@ class GuildPlanFeatures:
     max_trigger_keywords_total: int
     max_exclude_keywords_total: int
     can_customize_presentation: bool
+    can_customize_source_messages: bool
     can_use_everyone_escalation: bool
 
 
@@ -40,6 +41,7 @@ PLAN_FEATURES = {
         max_trigger_keywords_total=5,
         max_exclude_keywords_total=20,
         can_customize_presentation=False,
+        can_customize_source_messages=False,
         can_use_everyone_escalation=False,
     ),
     PLAN_PRO: GuildPlanFeatures(
@@ -48,6 +50,7 @@ PLAN_FEATURES = {
         max_trigger_keywords_total=150,
         max_exclude_keywords_total=500,
         can_customize_presentation=True,
+        can_customize_source_messages=True,
         can_use_everyone_escalation=True,
     ),
 }
@@ -98,6 +101,7 @@ class GuildSettingsService:
 
         effective = EffectiveGuildPresentationSettings(
             default_message=row['default_message_override'] or defaults.default_message,
+            bot_display_name=row['bot_display_name_override'] or defaults.bot_display_name,
             emoji_auto_format=defaults.emoji_auto_format if row['emoji_auto_format_override'] is None else bool(row['emoji_auto_format_override']),
             embed_type=row['embed_type_override'] or defaults.embed_type,
             built_in_fx_image=defaults.built_in_fx_image if row['built_in_fx_image_override'] is None else bool(row['built_in_fx_image_override']),
@@ -141,6 +145,7 @@ class GuildSettingsService:
                 server_id=server_id,
                 plan=normalized_override or PLAN_FREE,
                 default_message_override=legacy_row['default_message_override'] if legacy_row is not None else None,
+                bot_display_name_override=legacy_row['bot_display_name_override'] if legacy_row is not None else None,
                 emoji_auto_format_override=legacy_row['emoji_auto_format_override'] if legacy_row is not None else None,
                 embed_type_override=legacy_row['embed_type_override'] if legacy_row is not None else None,
                 built_in_fx_image_override=legacy_row['built_in_fx_image_override'] if legacy_row is not None else None,
@@ -240,6 +245,7 @@ class GuildSettingsService:
         self,
         server_id: str,
         default_message: str,
+        bot_display_name: str,
         emoji_auto_format: bool,
         embed_type: str,
         built_in_fx_image: bool,
@@ -256,12 +262,14 @@ class GuildSettingsService:
         sanitized_embed_type = embed_type if embed_type in {'built_in', 'fx_twitter'} else defaults.embed_type
         sanitized_fx_domain = fx_domain_name if fx_domain_name in {'fxtwitter', 'fixupx'} else defaults.fx_domain_name
         normalized_message = default_message.strip() or defaults.default_message
+        normalized_bot_display_name = bot_display_name.strip()
 
         await upsert_guild_settings(
             self.db_path,
             server_id=server_id,
             plan=current.plan,
             default_message_override=None if normalized_message == defaults.default_message else normalized_message,
+            bot_display_name_override=normalized_bot_display_name or None,
             emoji_auto_format_override=None if emoji_auto_format == defaults.emoji_auto_format else int(emoji_auto_format),
             embed_type_override=None if sanitized_embed_type == defaults.embed_type else sanitized_embed_type,
             built_in_fx_image_override=None if built_in_fx_image == defaults.built_in_fx_image else int(built_in_fx_image),
@@ -292,6 +300,7 @@ class GuildSettingsService:
             row[column] is not None
             for column in (
                 'default_message_override',
+                'bot_display_name_override',
                 'emoji_auto_format_override',
                 'embed_type_override',
                 'built_in_fx_image_override',

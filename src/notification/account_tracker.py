@@ -27,7 +27,7 @@ from src.services.alert_rule_service import AlertRuleService
 from src.notification.display_tools import gen_embed, get_action
 from src.notification.get_tweets import get_tweets
 from src.notification.utils import is_match_media_type, is_match_type, replace_emoji
-from src.settings import get_accounts, get_db_path
+from src.settings import get_accounts, get_db_path, get_default_message
 from src.utils import get_lock, extract_first_line
 
 
@@ -44,6 +44,11 @@ def build_notification_message(template: str, mention: str, tweet, url: str) -> 
         'url': url,
     }
     return template.format_map(values).strip()
+
+
+def build_headline_notification_message(mention: str, text: str, url: str) -> str:
+    headline = extract_first_line(text)
+    return f"{mention}{headline}: {url}" if headline else f"{mention}{url}"
 
 class AccountTracker():
     def __init__(self, bot: commands.Bot):
@@ -154,19 +159,30 @@ class AccountTracker():
                                         mention = "@everyone "
                                         log.info(f"[DEBUG] @everyone mention triggered for tweet: {tweet.url}")
 
-                                    template = data['customized_msg'] or presentation.effective.default_message
-                                    try:
-                                        msg = build_notification_message(template, mention, tweet, url)
-                                    except KeyError as e:
-                                        log.warning(f'invalid message template placeholder {e} for {username}, falling back to default message')
-                                        msg = build_notification_message(presentation.effective.default_message, mention, tweet, url)
+                                    custom_template = data['customized_msg']
+                                    default_template = presentation.effective.default_message
+                                    uses_server_message_override = default_template.strip() != get_default_message().strip()
+
+                                    if custom_template:
+                                        try:
+                                            msg = build_notification_message(custom_template, mention, tweet, url)
+                                        except KeyError as e:
+                                            log.warning(f'invalid message template placeholder {e} for {username}, falling back to headline message')
+                                            msg = build_headline_notification_message(mention, text, url)
+                                    elif uses_server_message_override:
+                                        try:
+                                            msg = build_notification_message(default_template, mention, tweet, url)
+                                        except KeyError as e:
+                                            log.warning(f'invalid default message template placeholder {e} for {username}, falling back to headline message')
+                                            msg = build_headline_notification_message(mention, text, url)
+                                    else:
+                                        msg = build_headline_notification_message(mention, text, url)
 
                                     if presentation.effective.emoji_auto_format:
                                         msg = re.sub(r':([a-zA-Z0-9_]+):', lambda m: replace_emoji(m, channel.guild), msg)
 
                                     if not msg:
-                                        headline = extract_first_line(text)
-                                        msg = f"{mention}{headline}: {url}" if headline else f"{mention}{url}"
+                                        msg = build_headline_notification_message(mention, text, url)
 
                                     if presentation.effective.embed_type == 'fx_twitter':
                                         await channel.send(content=msg, view=view)

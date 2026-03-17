@@ -13,6 +13,7 @@ async def get_guild_settings_row(db_path, server_id: str):
                 server_id,
                 plan,
                 default_message_override,
+                bot_display_name_override,
                 emoji_auto_format_override,
                 embed_type_override,
                 built_in_fx_image_override,
@@ -33,6 +34,7 @@ async def upsert_guild_settings(
     server_id: str,
     plan: str,
     default_message_override,
+    bot_display_name_override,
     emoji_auto_format_override,
     embed_type_override,
     built_in_fx_image_override,
@@ -48,6 +50,7 @@ async def upsert_guild_settings(
                 server_id,
                 plan,
                 default_message_override,
+                bot_display_name_override,
                 emoji_auto_format_override,
                 embed_type_override,
                 built_in_fx_image_override,
@@ -55,10 +58,11 @@ async def upsert_guild_settings(
                 built_in_legacy_logo_override,
                 fx_domain_name_override,
                 fx_original_url_button_override
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(server_id) DO UPDATE SET
                 plan = excluded.plan,
                 default_message_override = excluded.default_message_override,
+                bot_display_name_override = excluded.bot_display_name_override,
                 emoji_auto_format_override = excluded.emoji_auto_format_override,
                 embed_type_override = excluded.embed_type_override,
                 built_in_fx_image_override = excluded.built_in_fx_image_override,
@@ -71,6 +75,7 @@ async def upsert_guild_settings(
                 server_id,
                 plan,
                 default_message_override,
+                bot_display_name_override,
                 emoji_auto_format_override,
                 embed_type_override,
                 built_in_fx_image_override,

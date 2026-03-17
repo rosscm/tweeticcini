@@ -47,6 +47,7 @@ async def ensure_db_schema() -> str:
                 plan TEXT DEFAULT 'free',
                 default_message_override TEXT DEFAULT NULL,
                 emoji_auto_format_override INTEGER DEFAULT NULL,
+                bot_display_name_override TEXT DEFAULT NULL,
                 embed_type_override TEXT DEFAULT NULL,
                 built_in_fx_image_override INTEGER DEFAULT NULL,
                 built_in_video_link_button_override INTEGER DEFAULT NULL,
@@ -120,6 +121,7 @@ async def ensure_db_schema() -> str:
         guild_column_definitions = {
             'plan': "TEXT DEFAULT 'free'",
             'default_message_override': 'TEXT DEFAULT NULL',
+            'bot_display_name_override': 'TEXT DEFAULT NULL',
             'emoji_auto_format_override': 'INTEGER DEFAULT NULL',
             'embed_type_override': 'TEXT DEFAULT NULL',
             'built_in_fx_image_override': 'INTEGER DEFAULT NULL',

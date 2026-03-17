@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -45,6 +46,42 @@ def _matches_phrase(text_lower: str, phrase: str) -> bool:
 def _matches_any(text: str, phrases: list[str]) -> bool:
     text_lower = text.lower()
     return any(_matches_phrase(text_lower, phrase) for phrase in phrases)
+
+
+KEYWORD_ALLOWED_PATTERN = re.compile(r'^[0-9A-Za-z -]+$')
+
+
+def _normalize_keyword_value(raw_value: str) -> str:
+    return re.sub(r'\s+', ' ', raw_value.strip()).lower()
+
+
+def _prepare_keywords(raw_keywords: list[str], field_label: str) -> list[str]:
+    invalid_keywords: list[str] = []
+    seen: set[str] = set()
+    normalized_keywords: list[str] = []
+
+    for raw_keyword in raw_keywords:
+        trimmed = str(raw_keyword).strip()
+        if not trimmed:
+            continue
+        if not KEYWORD_ALLOWED_PATTERN.fullmatch(trimmed):
+            invalid_keywords.append(trimmed)
+            continue
+        normalized = _normalize_keyword_value(trimmed)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        normalized_keywords.append(normalized)
+
+    if invalid_keywords:
+        invalid_list = ', '.join(f'`{keyword}`' for keyword in invalid_keywords[:5])
+        if len(invalid_keywords) > 5:
+            invalid_list += f', +{len(invalid_keywords) - 5} more'
+        raise ValueError(
+            f'{field_label} contain unsupported characters. Use only letters, numbers, spaces, and hyphens. Invalid entries: {invalid_list}'
+        )
+
+    return sorted(normalized_keywords, key=lambda item: item.lower())
 
 
 class AlertRuleService:
@@ -101,6 +138,8 @@ class AlertRuleService:
         escalation_mode: str,
     ) -> None:
         presentation = await self.guild_settings_service.get_presentation_view(server_id)
+        trigger_keywords = _prepare_keywords(trigger_keywords, 'trigger keywords')
+        exclude_keywords = _prepare_keywords(exclude_keywords, 'exclude keywords')
         if source_username:
             tracked_sources = await self.notifier_service.list_dashboard_sources(server_id)
             tracked_source_usernames = {source.username.lower() for source in tracked_sources}
@@ -108,12 +147,14 @@ class AlertRuleService:
                 raise ValueError(f'cannot create a rule for untracked source `{source_username}`')
 
         if escalation_mode == 'everyone' and not presentation.features.can_use_everyone_escalation:
-            raise ValueError('`@everyone` escalation requires a paid plan')
+            raise ValueError('`Force everyone` escalation requires the Pro plan')
+        if escalation_mode != 'everyone':
+            trigger_keywords = []
 
         existing_names = await self.get_rule_names(server_id)
         comparison_rule_name = existing_rule_name or rule_name
         if rule_name != comparison_rule_name and rule_name in existing_names:
-            raise ValueError(f'a rule named `{rule_name}` already exists in this guild')
+            raise ValueError(f'a rule named `{rule_name}` already exists in this server')
 
         if comparison_rule_name not in existing_names:
             current_count = await get_alert_rule_count(self.db_path, server_id)

@@ -4,15 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/dashboard/static/favicon-32.png">
     <link rel="stylesheet" href="/dashboard/static/dashboard.css">
   </head>
   <body>
     <main class="shell shell--centered">
       <section class="hero-card">
-        <p class="eyebrow">Dashboard</p>
-        <h1>Configure Tweeticcini by Discord server</h1>
+        <div class="brand-mark brand-mark--hero">
+          <img class="brand-icon" src="/dashboard/static/tweeticcini-icon.png" alt="Tweeticcini icon">
+          <div>
+            <p class="eyebrow">Tweeticcini</p>
+            <div class="brand-name">Dashboard</div>
+          </div>
+        </div>
+        <h1>Manage Tweeticcini by server</h1>
         <p class="lede">
-          Manage tracked sources, alert rules, and presentation settings for the Discord servers you administer.
+          Manage tracked accounts, alert rules, billing, and appearance settings for the Discord servers you administer.
         </p>
         {% if oauth_enabled %}
         {% if discord_user %}
@@ -42,12 +49,12 @@
         {% endif %}
         {% else %}
         <div class="notice">
-          Discord OAuth is not configured yet. You can still use the manual guild picker below for local testing.
+          Discord OAuth is not configured yet. You can still use the manual server picker below for local testing.
         </div>
         <form id="guild-picker" class="stack">
           <label for="guild-id">Discord server ID</label>
           <input id="guild-id" name="guild_id" type="text" placeholder="123456789012345678" required>
-          <button type="submit">Open Guild Dashboard</button>
+          <button type="submit">Open Server Dashboard</button>
         </form>
         {% endif %}
       </section>

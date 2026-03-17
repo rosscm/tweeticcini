@@ -109,6 +109,7 @@ class CreateCheckoutSessionRequest(BaseModel):
 
 class UpdateGuildPresentationRequest(BaseModel):
     default_message: str
+    bot_display_name: str = ''
     emoji_auto_format: bool = True
     embed_type: str = 'built_in'
     built_in_fx_image: bool = True
@@ -200,11 +201,13 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
             'max_trigger_keywords_total': view.features.max_trigger_keywords_total,
             'max_exclude_keywords_total': view.features.max_exclude_keywords_total,
             'can_customize_presentation': view.features.can_customize_presentation,
+            'can_customize_source_messages': view.features.can_customize_source_messages,
             'can_use_everyone_escalation': view.features.can_use_everyone_escalation,
         },
         'has_overrides': view.has_overrides,
         'effective': {
             'default_message': view.effective.default_message,
+            'bot_display_name': view.effective.bot_display_name,
             'emoji_auto_format': view.effective.emoji_auto_format,
             'embed_type': view.effective.embed_type,
             'built_in_fx_image': view.effective.built_in_fx_image,
@@ -333,6 +336,25 @@ async def _fetch_guild_resource_names(guild_id: str) -> dict[str, dict[str, str]
     return {'channels': channels, 'roles': roles}
 
 
+async def _update_bot_server_nickname(guild_id: str, nick: Optional[str]) -> None:
+    bot_token = os.getenv('BOT_TOKEN')
+    if not bot_token:
+        raise HTTPException(status_code=503, detail='bot token is not configured')
+
+    headers = {
+        'Authorization': f'Bot {bot_token}',
+        'Content-Type': 'application/json',
+    }
+    async with aiohttp.ClientSession(headers=headers) as session:
+        async with session.patch(
+            f'https://discord.com/api/v10/guilds/{guild_id}/members/@me',
+            json={'nick': nick},
+        ) as response:
+            if response.status >= 400:
+                detail = await response.text()
+                raise HTTPException(status_code=502, detail=f'failed to update bot display name: {detail}')
+
+
 def _serialize_named_options(resource_map: dict[str, str]) -> list[dict[str, str]]:
     return [
         {'id': resource_id, 'name': resource_name}
@@ -413,7 +435,7 @@ def _build_status_banner(
     if not available_accounts:
         return {
             'level': 'error',
-            'message': 'No Twitter/X sessions are configured, so this guild cannot poll tracked sources yet.',
+            'message': 'No Twitter/X sessions are configured, so this server cannot poll tracked sources yet.',
             'details': ['Add at least one Twitter/X session in the bot environment to enable polling.'],
         }
 
@@ -425,7 +447,7 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'The dashboard is available, but the bot has not logged itself online in the last 24 hours.',
             'details': [
-                f'{source_count} tracked sources are configured for this guild.',
+                f'{source_count} tracked sources are configured for this server.',
                 f'{len(available_accounts)} Twitter/X session(s) are currently configured.',
             ],
         }
@@ -455,7 +477,7 @@ def _build_status_banner(
     if source_count >= source_limit or rule_count >= rule_limit:
         return {
             'level': 'warning',
-            'message': 'This guild is healthy, but it is currently at or near one of its plan limits.',
+            'message': 'This server is healthy, but it is currently at or near one of its plan limits.',
             'details': [
                 f'Sources: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
@@ -465,7 +487,7 @@ def _build_status_banner(
 
     return {
         'level': 'success',
-        'message': 'The bot looks healthy for this guild: sessions are polling, the bot has logged online recently, and no recent dashboard-visible warnings were detected.',
+        'message': 'The bot looks healthy for this server: sessions are polling, the bot has logged online recently, and no recent dashboard-visible warnings were detected.',
         'details': [
             f'Healthy sessions: {len(healthy_clients)} / {len(available_accounts)}',
             f'Sources: {source_count} / {source_limit}',
@@ -486,7 +508,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / 'templates'))
 
 GUILD_SECTIONS = {
     'overview': 'Overview',
-    'sources': 'Sources',
+    'sources': 'Accounts',
     'rules': 'Rules',
     'appearance': 'Appearance',
     'billing': 'Billing',
@@ -645,7 +667,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         request=request,
         name='guild.html',
         context={
-            'title': _get_session_guild_name(request, guild_id) or f'Guild {guild_id}',
+            'title': f"Tweeticcini | {active_section.capitalize()} | {(_get_session_guild_name(request, guild_id) or f'Server {guild_id}')}",
             'guild_id': guild_id,
             'guild_name': _get_session_guild_name(request, guild_id) or guild_id,
             'discord_user': _get_session_user(request),
@@ -922,10 +944,12 @@ async def update_guild_presentation(
 ) -> dict[str, object]:
     _require_guild_access(request, guild_id)
     try:
+        await _update_bot_server_nickname(guild_id, presentation_request.bot_display_name.strip() or None)
         return _serialize_guild_presentation(
             await guild_settings_service.update_presentation(
                 server_id=guild_id,
                 default_message=presentation_request.default_message,
+                bot_display_name=presentation_request.bot_display_name,
                 emoji_auto_format=presentation_request.emoji_auto_format,
                 embed_type=presentation_request.embed_type,
                 built_in_fx_image=presentation_request.built_in_fx_image,
@@ -986,11 +1010,15 @@ async def update_guild_source_message(
     message_request: UpdateDashboardSourceMessageRequest,
 ) -> dict[str, object]:
     _require_guild_access(request, guild_id)
-    updated = await notifier_service.set_dashboard_source_message(
-        username=username,
-        channel_id=channel_id,
-        customized_msg=message_request.customized_msg,
-    )
+    try:
+        updated = await notifier_service.set_dashboard_source_message(
+            server_id=guild_id,
+            username=username,
+            channel_id=channel_id,
+            customized_msg=message_request.customized_msg,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     if not updated:
         raise HTTPException(status_code=404, detail='source not found')
     return {
@@ -1004,7 +1032,10 @@ async def update_guild_source_message(
 @app.delete('/guilds/{guild_id}/sources/{username}/{channel_id}/message')
 async def delete_guild_source_message(request: Request, guild_id: str, username: str, channel_id: str) -> dict[str, bool]:
     _require_guild_access(request, guild_id)
-    reset = await notifier_service.reset_dashboard_source_message(username, channel_id)
+    try:
+        reset = await notifier_service.reset_dashboard_source_message(guild_id, username, channel_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     if not reset:
         raise HTTPException(status_code=404, detail='source not found')
     return {'reset': True}

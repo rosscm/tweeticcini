@@ -8,37 +8,100 @@
       name="description"
       content="Tweeticcini is a subscription alerting service for Discord server owners who want Twitter/X source monitoring, role routing, keyword filtering, and critical-drop escalation."
     >
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <main class="site-shell">
-      <section class="hero">
-        <p class="eyebrow">Discord Alert Automation</p>
-        <h1>Tweeticcini helps Discord communities run fast Twitter/X alerts inside their own server.</h1>
-        <p class="lede">
-          Track trusted Twitter/X sources, route alerts into Discord, apply keyword filtering, target roles, and escalate high-impact drops when they matter most.
-        </p>
-        <div class="hero-actions">
-          <a class="button" href="#pricing">View Pricing</a>
-          <a class="button button-secondary" href="./privacy.html">Privacy Policy</a>
+      <section class="hero hero-app">
+        <div class="hero-copy">
+          <div class="site-brand">
+            <img class="site-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
+            <div>
+              <p class="eyebrow">Tweeticcini</p>
+              <div class="site-brand-name">Discord Alert Automation</div>
+            </div>
+          </div>
+          <h1>Run Twitter/X alerts in your Discord server with cleaner routing, tighter rules, and less noise.</h1>
+          <p class="lede">
+            Tweeticcini is built for Discord operators who want fast source monitoring, role-based delivery, keyword filtering, and premium escalation for the posts that actually matter.
+          </p>
+          <div class="hero-actions">
+            <a class="button" href="#pricing">View Founding Pro</a>
+            <a class="button button-secondary" href="mailto:pokaccini@icloud.com">Request Access</a>
+          </div>
+          <ul class="hero-points">
+            <li>Track trusted Twitter/X sources inside your own server</li>
+            <li>Route alerts by channel, role, and source-specific rule</li>
+            <li>Keep premium controls for high-signal drops and queue alerts</li>
+          </ul>
         </div>
+        <aside class="app-preview">
+          <div class="app-shell">
+            <div class="app-sidebar">
+              <span class="server-dot server-dot--active"></span>
+              <span class="server-dot"></span>
+              <span class="server-dot"></span>
+            </div>
+            <div class="app-content">
+              <div class="app-topbar">
+                <strong>Tweeticcini Dashboard</strong>
+                <span class="status-pill">Founding Pro</span>
+              </div>
+              <div class="app-columns">
+                <div class="app-nav">
+                  <span class="nav-item nav-item--active">Sources</span>
+                  <span class="nav-item">Rules</span>
+                  <span class="nav-item">Appearance</span>
+                  <span class="nav-item">Billing</span>
+                </div>
+                <div class="app-panel">
+                  <div class="metric-row">
+                    <div class="metric-card">
+                      <span class="metric-label">Tracked Sources</span>
+                      <strong>25 max</strong>
+                    </div>
+                    <div class="metric-card">
+                      <span class="metric-label">Alert Rules</span>
+                      <strong>50 max</strong>
+                    </div>
+                  </div>
+                  <div class="feed-card">
+                    <div class="feed-header">
+                      <strong>CeladonCA</strong>
+                      <span class="tag">Queue rule</span>
+                    </div>
+                    <p>Escalate queue-live posts, suppress low-value exclusions, and route the rest to the right role.</p>
+                  </div>
+                  <div class="feed-card feed-card--muted">
+                    <div class="feed-header">
+                      <strong>pokebeach</strong>
+                      <span class="tag tag--soft">Role only</span>
+                    </div>
+                    <p>Send normal alerts to the configured role without premium escalation.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
       </section>
 
-      <section class="panel-grid">
+      <section class="panel-grid panel-grid--feature-lead">
         <article class="panel">
-          <h2>Built for server operators</h2>
+          <h2>Built for operator-owned communities</h2>
           <p>
-            Tweeticcini is designed for Discord server owners running premium alert communities, collector groups, and restock-focused ecosystems who want to keep alerts inside their own brand and server structure.
+            Tweeticcini is designed for collectors, premium alert groups, and server operators who want their own routing model instead of a generic feed bot.
           </p>
         </article>
         <article class="panel">
-          <h2>What it does</h2>
+          <h2>What you control</h2>
           <ul>
-            <li>Monitors selected Twitter/X accounts</li>
-            <li>Routes alerts into your Discord channels</li>
-            <li>Supports role-based mentions and source-specific rules</li>
-            <li>Filters unwanted keywords and low-value noise</li>
-            <li>Supports premium escalation rules for critical alerts</li>
+            <li>Tracked Twitter/X sources per guild</li>
+            <li>Channel and role routing</li>
+            <li>Keyword exclusion and escalation rules</li>
+            <li>Custom message and alert presentation</li>
           </ul>
         </article>
       </section>
@@ -46,52 +109,66 @@
       <section class="feature-strip">
         <div class="feature-card">
           <span class="feature-label">Sources</span>
-          <strong>Track trusted accounts</strong>
-          <p>Monitor specific Twitter/X sources that matter to your community.</p>
+          <strong>Track the accounts that matter</strong>
+          <p>Monitor only the Twitter/X sources your server actually cares about.</p>
         </div>
         <div class="feature-card">
           <span class="feature-label">Rules</span>
-          <strong>Filter and escalate</strong>
-          <p>Use keyword rules to suppress noise and elevate high-impact posts.</p>
+          <strong>Filter noise before it hits chat</strong>
+          <p>Use exclusions and premium escalation to keep alerts high-signal.</p>
         </div>
         <div class="feature-card">
-          <span class="feature-label">Discord-first</span>
-          <strong>Route alerts cleanly</strong>
-          <p>Send alerts into the right channels with the right role mentions.</p>
+          <span class="feature-label">Discord</span>
+          <strong>Deliver alerts with intent</strong>
+          <p>Route to the right channels and roles instead of blasting one generic feed.</p>
         </div>
       </section>
 
       <section id="pricing" class="pricing-card">
-        <p class="eyebrow">Launch Pricing</p>
-        <h2>Founding Pro</h2>
-        <div class="price-line">
-          <strong>$9 USD/month</strong>
-          <span>founding price</span>
+        <div class="pricing-header">
+          <div>
+            <p class="eyebrow">Launch Pricing</p>
+            <h2>Founding Pro</h2>
+          </div>
+          <div class="price-line">
+            <strong>$9 USD/month</strong>
+            <span>limited launch</span>
+          </div>
         </div>
         <p>
-          Founding launch pricing for Discord server owners who want fast Twitter/X alerts, role routing, keyword filtering, and premium escalation controls for critical drops.
+          Founding Pro is for Discord server owners who want premium alert controls without gating the core speed of the service.
         </p>
-        <ul>
-          <li>Up to 25 tracked sources per guild</li>
-          <li>Up to 50 alert rules per guild</li>
-          <li>Custom appearance overrides</li>
-          <li>Premium rule capabilities, including @everyone escalation</li>
-        </ul>
+        <div class="pricing-grid">
+          <div class="pricing-feature">
+            <strong>25 tracked sources</strong>
+            <span>per guild</span>
+          </div>
+          <div class="pricing-feature">
+            <strong>50 alert rules</strong>
+            <span>per guild</span>
+          </div>
+          <div class="pricing-feature">
+            <strong>Appearance overrides</strong>
+            <span>custom alert look and feel</span>
+          </div>
+          <div class="pricing-feature">
+            <strong>@everyone escalation</strong>
+            <span>premium critical-drop rule type</span>
+          </div>
+        </div>
       </section>
 
       <section class="panel-grid panel-grid--legal">
         <article class="panel">
           <h2>Support</h2>
           <p>
-            Tweeticcini is currently in limited launch. Support and onboarding are handled directly during early access.
+            Tweeticcini is currently in limited launch, with support and onboarding handled directly for early users.
           </p>
           <p><strong>Email:</strong> <a href="mailto:pokaccini@icloud.com">pokaccini@icloud.com</a></p>
         </article>
         <article class="panel">
           <h2>Policies</h2>
-          <p>
-            Review the legal and privacy pages below for current service terms.
-          </p>
+          <p>Review the current privacy and service terms below.</p>
           <div class="link-list">
             <a href="./privacy.html">Privacy Policy</a>
             <a href="./terms.html">Terms of Service</a>

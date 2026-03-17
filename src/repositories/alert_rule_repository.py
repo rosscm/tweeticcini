@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Optional
 
 import aiosqlite
@@ -9,12 +10,19 @@ from src.repositories.notifier_repository import connect_writable
 LEGACY_IMPORTED_EXCLUSION_RULE = '__legacy_imported_exclusions__'
 LEGACY_IMPORTED_ESCALATION_RULE = '__legacy_imported_escalation__'
 
-
 def normalize_keywords(value) -> list[str]:
     if not value:
         return []
     if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
+        seen: set[str] = set()
+        normalized: list[str] = []
+        for item in value:
+            cleaned = re.sub(r'\s+', ' ', str(item).strip()).lower()
+            if not cleaned or cleaned in seen:
+                continue
+            seen.add(cleaned)
+            normalized.append(cleaned)
+        return sorted(normalized, key=lambda item: item.lower())
     return []
 
 
