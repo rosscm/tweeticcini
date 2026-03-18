@@ -23,7 +23,7 @@ body {
     radial-gradient(circle at top center, rgba(88, 101, 242, 0.2), transparent 28%),
     radial-gradient(circle at 20% 20%, rgba(69, 79, 191, 0.18), transparent 20%),
     linear-gradient(180deg, #0b0d13 0%, var(--page) 100%);
-  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: "Roboto", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 .site-shell {
@@ -63,6 +63,7 @@ body {
 .legal-shell h1 {
   margin: 0;
   line-height: 1.04;
+  letter-spacing: -0.02em;
 }
 
 .hero h1,
@@ -73,7 +74,7 @@ body {
 .eyebrow {
   margin: 0 0 10px;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--accent);
@@ -101,8 +102,8 @@ body {
   width: 54px;
   height: 54px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .site-brand-name {
@@ -149,14 +150,15 @@ body {
 }
 
 .button {
-  background: var(--accent);
+  background: linear-gradient(145deg, #6673ff, #5663ef);
   color: white;
+  box-shadow: 0 14px 30px rgba(72, 85, 208, 0.24);
 }
 
 .button-secondary,
 .back-link {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
   border: 1px solid var(--line);
 }
 
@@ -181,6 +183,16 @@ body {
 .panel {
   padding: 24px;
   background: var(--panel-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, rgba(88, 101, 242, 0.72), rgba(87, 217, 163, 0.72));
 }
 
 .feature-strip {
@@ -202,11 +214,11 @@ body {
   margin-bottom: 10px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: var(--accent-soft);
+  background: linear-gradient(145deg, rgba(88, 101, 242, 0.18), rgba(87, 217, 163, 0.1));
   color: var(--accent);
   font-size: 0.78rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
 .pricing-card {
@@ -258,7 +270,7 @@ body {
 
 .pricing-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(340px, 1.1fr);
+  grid-template-columns: minmax(0, 0.82fr) minmax(320px, 0.98fr);
   gap: 22px;
   align-items: start;
   margin-top: 18px;
@@ -273,6 +285,7 @@ body {
   border-radius: 20px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.04);
+  max-width: 100%;
 }
 
 .plan-compare-head,

@@ -106,6 +106,22 @@ async def ensure_db_schema() -> str:
                 error_count INTEGER DEFAULT 0,
                 PRIMARY KEY(server_id, username, channel_id)
             );
+            CREATE TABLE IF NOT EXISTS server_twitter_session (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id TEXT NOT NULL,
+                session_name TEXT NOT NULL,
+                client_key TEXT NOT NULL,
+                encrypted_auth_token TEXT NOT NULL,
+                status TEXT DEFAULT 'active',
+                last_validated_at TEXT DEFAULT NULL,
+                last_error_at TEXT DEFAULT NULL,
+                last_error_message TEXT DEFAULT NULL,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT NULL,
+                updated_at TEXT DEFAULT NULL,
+                UNIQUE(server_id, session_name),
+                UNIQUE(client_key)
+            );
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:

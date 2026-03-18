@@ -33,8 +33,15 @@ from src.services.notifier_service import (
     NotifierService,
     NotifierServiceError,
     PlanLimitExceededError,
+    TwitterSessionRequiredError,
     RemoveNotifierRequest,
     UserNotFoundError,
+)
+from src.services.twitter_session_service import (
+    ServerTwitterSessionRecord,
+    TwitterSessionSecretMissingError,
+    TwitterSessionService,
+    TwitterSessionValidationError,
 )
 from src.settings import get_accounts
 
@@ -116,6 +123,11 @@ class CreateCheckoutSessionRequest(BaseModel):
     plan: str = 'pro'
 
 
+class ConnectTwitterSessionRequest(BaseModel):
+    session_name: str
+    auth_token: str
+
+
 class UpdateGuildPresentationRequest(BaseModel):
     default_message: str
     bot_display_name: str = ''
@@ -163,6 +175,38 @@ def _serialize_source(source: DashboardSourceRecord) -> DashboardSourceResponse:
         has_custom_message=source.has_custom_message,
         rule_count=source.rule_count,
     )
+
+
+def _format_dashboard_timestamp(timestamp_text: Optional[str]) -> Optional[str]:
+    if not timestamp_text:
+        return None
+    try:
+        normalized = timestamp_text.replace('Z', '+00:00')
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        try:
+            parsed = datetime.strptime(timestamp_text, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            return timestamp_text
+
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone()
+    return parsed.strftime('%Y-%m-%d %H:%M')
+
+
+def _serialize_twitter_session(session: ServerTwitterSessionRecord) -> dict[str, object]:
+    return {
+        'server_id': session.server_id,
+        'session_name': session.session_name,
+        'client_key': session.client_key,
+        'status': session.status,
+        'last_validated_at': _format_dashboard_timestamp(session.last_validated_at) or session.last_validated_at,
+        'last_error_at': _format_dashboard_timestamp(session.last_error_at) or session.last_error_at,
+        'last_error_message': session.last_error_message,
+        'created_at': _format_dashboard_timestamp(session.created_at) or session.created_at,
+        'updated_at': _format_dashboard_timestamp(session.updated_at) or session.updated_at,
+        'is_active': session.is_active,
+    }
 
 
 def _serialize_bot_defaults() -> dict[str, object]:
@@ -499,6 +543,7 @@ def _read_recent_log_health() -> dict[str, object]:
 
 def _build_status_banner(
     available_accounts: list[str],
+    delivery_sessions: list[dict[str, str]],
     usage: dict[str, int],
     guild_presentation: GuildPresentationView,
     log_health: dict[str, object],
@@ -509,15 +554,24 @@ def _build_status_banner(
     source_count = usage['source_count']
     rule_count = usage['rule_count']
 
+    if not delivery_sessions:
+        return {
+            'level': 'error',
+            'message': 'This server cannot deliver tracked posts yet because no Twitter/X session is connected.',
+            'details': ['Open Twitter Sessions and connect at least one session before adding or delivering tracked accounts.'],
+        }
+
     if not available_accounts:
         return {
             'level': 'error',
-            'message': 'No Twitter/X sessions are configured, so this server cannot poll tracked sources yet.',
-            'details': ['Add at least one Twitter/X session in the bot environment to enable polling.'],
+            'message': 'Server sessions are connected, but the bot has no active Twitter/X clients loaded yet.',
+            'details': ['Wait a moment for the bot to load the newly connected session and bring delivery polling online.'],
         }
 
-    healthy_clients = [row for row in client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']]
-    warning_clients = [row for row in client_statuses if row['last_poll_error_at']]
+    delivery_client_keys = {session['client_key'] for session in delivery_sessions}
+    relevant_client_statuses = [row for row in client_statuses if row['client_used'] in delivery_client_keys]
+    healthy_clients = [row for row in relevant_client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']]
+    warning_clients = [row for row in relevant_client_statuses if row['last_poll_error_at']]
 
     if not log_health['bot_online_recently']:
         return {
@@ -525,7 +579,7 @@ def _build_status_banner(
             'message': 'The dashboard is available, but the bot has not logged itself online in the last 24 hours.',
             'details': [
                 f'{source_count} tracked sources are configured for this server.',
-                f'{len(available_accounts)} Twitter/X session(s) are currently configured.',
+                f'{len(delivery_sessions)} Twitter/X session(s) are connected for this server.',
             ],
         }
 
@@ -534,7 +588,7 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'At least one Twitter/X session has a recent poll error, so alert freshness may be degraded until that session recovers.',
             'details': [
-                f"Healthy sessions: {len(healthy_clients)} / {len(available_accounts)}",
+                f"Healthy sessions: {len(healthy_clients)} / {len(delivery_sessions)}",
                 f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
                 f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
             ],
@@ -566,7 +620,7 @@ def _build_status_banner(
         'level': 'success',
         'message': 'The bot looks healthy for this server: sessions are polling, the bot has logged online recently, and no recent dashboard-visible warnings were detected.',
         'details': [
-            f'Healthy sessions: {len(healthy_clients)} / {len(available_accounts)}',
+            f'Healthy sessions: {len(healthy_clients)} / {len(delivery_sessions)}',
             f'Sources: {source_count} / {source_limit}',
             f'Rules: {rule_count} / {rule_limit}',
             f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
@@ -585,6 +639,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / 'templates'))
 
 GUILD_SECTIONS = {
     'overview': 'Overview',
+    'twitter-sessions': 'Twitter Sessions',
     'sources': 'Accounts',
     'rules': 'Rules',
     'appearance': 'Appearance',
@@ -610,6 +665,7 @@ alert_rule_service = AlertRuleService()
 notifier_service = NotifierService()
 guild_settings_service = GuildSettingsService()
 billing_service = BillingService()
+twitter_session_service = TwitterSessionService()
 
 
 @app.get('/', include_in_schema=False)
@@ -715,6 +771,8 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     _require_guild_access(request, guild_id)
     rules = await alert_rule_service.list_rules(guild_id)
     sources = await notifier_service.list_dashboard_sources(guild_id)
+    twitter_sessions = await twitter_session_service.list_server_sessions(guild_id)
+    delivery_session_options = await twitter_session_service.list_server_delivery_options(guild_id)
     guild_presentation = await guild_settings_service.get_presentation_view(guild_id)
     usage = _serialize_plan_usage(sources, rules)
     resource_names = await _fetch_guild_resource_names(guild_id)
@@ -740,6 +798,10 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         else:
             payload.update(status)
             payload['runtime_state'] = 'warning' if status['last_delivery_error_at'] else 'healthy'
+        payload['last_delivery_success_at_raw'] = payload.get('last_delivery_success_at')
+        payload['last_delivery_error_at_raw'] = payload.get('last_delivery_error_at')
+        payload['last_delivery_success_at'] = _format_dashboard_timestamp(payload.get('last_delivery_success_at')) or payload.get('last_delivery_success_at')
+        payload['last_delivery_error_at'] = _format_dashboard_timestamp(payload.get('last_delivery_error_at')) or payload.get('last_delivery_error_at')
         sources_payload.append(payload)
     return templates.TemplateResponse(
         request=request,
@@ -753,6 +815,9 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'guild_presentation': _serialize_guild_presentation(guild_presentation),
             'plan_usage': usage,
             'available_accounts': available_accounts,
+            'twitter_sessions': [_serialize_twitter_session(session) for session in twitter_sessions],
+            'delivery_session_options': delivery_session_options,
+            'delivery_sessions_required': len(delivery_session_options) == 0,
             'channel_names': resource_names['channels'],
             'role_names': resource_names['roles'],
             'channel_options': _serialize_named_options(resource_names['channels']),
@@ -767,7 +832,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'portal_configured': billing_context.portal_configured,
                 'available_price_plans': billing_context.available_price_plans,
             },
-            'status_banner': _build_status_banner(available_accounts, usage, guild_presentation, log_health, client_statuses),
+            'status_banner': _build_status_banner(available_accounts, delivery_session_options, usage, guild_presentation, log_health, client_statuses),
             'overview': {
                 'escalation_rule_count': escalation_rule_count,
                 'scoped_rule_count': scoped_rule_count,
@@ -776,8 +841,13 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'health': {
                     'oauth_enabled': _get_discord_oauth_config() is not None,
                     'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
-                    'twitter_session_count': len(available_accounts),
-                    'healthy_twitter_session_count': sum(1 for row in client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']),
+                    'twitter_session_count': len(twitter_sessions),
+                    'healthy_twitter_session_count': sum(
+                        1
+                        for session in twitter_sessions
+                        for row in client_statuses
+                        if row['client_used'] == session.client_key and row['last_poll_success_at'] and not row['last_poll_error_at']
+                    ),
                     'active_embed_mode': guild_presentation.effective.embed_type,
                     'tweet_check_period': configs.get('tweets_check_period'),
                     'last_online_at': log_health['last_online_at'],
@@ -796,6 +866,11 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
 @app.get('/dashboard/guilds/{guild_id}/overview', response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_guild_overview(request: Request, guild_id: str):
     return await _render_guild_dashboard(request, guild_id, 'overview')
+
+
+@app.get('/dashboard/guilds/{guild_id}/twitter-sessions', response_class=HTMLResponse, include_in_schema=False)
+async def dashboard_guild_twitter_sessions(request: Request, guild_id: str):
+    return await _render_guild_dashboard(request, guild_id, 'twitter-sessions')
 
 
 @app.get('/dashboard/guilds/{guild_id}/sources', response_class=HTMLResponse, include_in_schema=False)
@@ -855,6 +930,33 @@ async def list_guild_sources(request: Request, guild_id: str) -> list[DashboardS
     return [_serialize_source(source) for source in await notifier_service.list_dashboard_sources(guild_id)]
 
 
+@app.get('/guilds/{guild_id}/twitter-sessions')
+async def list_guild_twitter_sessions(request: Request, guild_id: str) -> list[dict[str, object]]:
+    _require_guild_access(request, guild_id)
+    return [_serialize_twitter_session(session) for session in await twitter_session_service.list_server_sessions(guild_id)]
+
+
+@app.put('/guilds/{guild_id}/twitter-sessions')
+async def connect_guild_twitter_session(
+    request: Request,
+    guild_id: str,
+    session_request: ConnectTwitterSessionRequest,
+) -> dict[str, object]:
+    _require_guild_access(request, guild_id)
+    try:
+        session = await twitter_session_service.connect_session(guild_id, session_request.session_name, session_request.auth_token)
+    except (TwitterSessionSecretMissingError, TwitterSessionValidationError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return _serialize_twitter_session(session)
+
+
+@app.delete('/guilds/{guild_id}/twitter-sessions/{session_name}')
+async def delete_guild_twitter_session(request: Request, guild_id: str, session_name: str) -> dict[str, bool]:
+    _require_guild_access(request, guild_id)
+    await twitter_session_service.remove_session(guild_id, session_name)
+    return {'ok': True}
+
+
 @app.post('/guilds/{guild_id}/sources', response_model=DashboardSourceResponse)
 async def create_guild_source(request: Request, guild_id: str, source_request: CreateDashboardSourceRequest) -> DashboardSourceResponse:
     _require_guild_access(request, guild_id)
@@ -876,6 +978,8 @@ async def create_guild_source(request: Request, guild_id: str, source_request: C
     except AutoChangeClientDisabledError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except PlanLimitExceededError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except TwitterSessionRequiredError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except NotifierServiceError as error:
         raise HTTPException(status_code=500, detail='failed to add source') from error

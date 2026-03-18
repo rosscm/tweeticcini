@@ -27,6 +27,7 @@ from src.services.alert_rule_service import AlertRuleService
 from src.notification.display_tools import gen_embed, get_action
 from src.notification.get_tweets import get_tweets
 from src.notification.utils import is_match_media_type, is_match_type, replace_emoji
+from src.services.twitter_session_service import TwitterSessionService
 from src.settings import get_accounts, get_db_path, get_default_message
 from src.utils import get_lock, extract_first_line
 
@@ -57,36 +58,95 @@ class AccountTracker():
         self.db_path = get_db_path()
         self.alert_rule_service = AlertRuleService(self.db_path)
         self.guild_settings_service = GuildSettingsService(self.db_path)
-        self.tweets = {account_name: [] for account_name in self.accounts_data.keys()}
+        self.twitter_session_service = TwitterSessionService(self.db_path)
+        self.tweets = {}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         bot.loop.create_task(self.setup_tasks())
 
-    async def setup_tasks(self):
-        async def authenticate_account(account_name, account_token):
-            app = create_twitter_session(account_name)
-            max_attempts = configs['auth_max_attempts']
-            for attempt in range(max_attempts):
-                try:
-                    await app.load_auth_token(account_token)
-                    return app
-                except Exception as e:
-                    log.error(f"Authentication failed for account: {account_name} [Attempt {attempt + 1}/{max_attempts}]")
-                    if attempt < max_attempts - 1:
-                        await asyncio.sleep(5)
-                    else:
-                        log.error(f"Persistent authentication failure for account {account_name}")
-                        raise
+    async def _load_available_accounts(self) -> dict[str, str]:
+        accounts = {
+            account_name: {
+                'mode': 'auth_token',
+                'credential': account_token,
+            }
+            for account_name, account_token in get_accounts().items()
+        }
+        try:
+            server_session_accounts = {
+                record.client_key: {
+                    'mode': record.auth_mode,
+                    'credential': record.credential,
+                }
+                for record in await self.twitter_session_service.list_all_active_auth_records()
+            }
+        except Exception as exc:
+            log.error(f'failed to load stored Twitter/X sessions: {exc}')
+            server_session_accounts = {}
+        return {**accounts, **server_session_accounts}
 
-        for account_name, account_token in self.accounts_data.items():
+    async def _authenticate_account(self, account_name: str, account_config: dict[str, str]):
+        app = create_twitter_session(account_name)
+        max_attempts = configs['auth_max_attempts']
+        for attempt in range(max_attempts):
             try:
-                app = await authenticate_account(account_name, account_token)
-                self.bot.loop.create_task(self.tweetsUpdater(app)).set_name(f'TweetsUpdater_{account_name}')
+                if account_config['mode'] == 'session_json':
+                    self.twitter_session_service._write_session_file(account_name, account_config['credential'])
+                    await app.connect()
+                else:
+                    await app.load_auth_token(account_config['credential'])
+                return app
             except Exception:
-                sys.exit(1)
+                log.error(f"Authentication failed for account: {account_name} [Attempt {attempt + 1}/{max_attempts}]")
+                if attempt < max_attempts - 1:
+                    await asyncio.sleep(5)
+                else:
+                    log.error(f"Persistent authentication failure for account {account_name}")
+                    raise
+
+    async def _ensure_twitter_updaters(self, exit_on_failure: bool = False) -> None:
+        latest_accounts = await self._load_available_accounts()
+        self.accounts_data = latest_accounts
+        for account_name in latest_accounts.keys():
+            self.tweets.setdefault(account_name, [])
+
+        active_task_names = {task.get_name() for task in asyncio.all_tasks()}
+        for account_name, account_config in latest_accounts.items():
+            if f'TweetsUpdater_{account_name}' in active_task_names:
+                continue
+            try:
+                app = await self._authenticate_account(account_name, account_config)
+                self.bot.loop.create_task(self.tweetsUpdater(app)).set_name(f'TweetsUpdater_{account_name}')
+                log.info(f'loaded Twitter/X session {account_name} without bot restart')
+            except Exception:
+                if exit_on_failure:
+                    sys.exit(1)
+                log.error(f'skipping unavailable Twitter/X session {account_name} until it can authenticate successfully')
+
+        for task in asyncio.all_tasks():
+            task_name = task.get_name()
+            if not task_name.startswith('TweetsUpdater_'):
+                continue
+            account_name = task_name.split('_', 1)[1]
+            if account_name in latest_accounts:
+                continue
+            try:
+                task.cancel()
+                log.info(f'removed tweets updater for inactive session {account_name}')
+            except Exception as exc:
+                log.warning(f'failed to remove tweets updater for {account_name}: {exc}')
+
+    async def setup_tasks(self):
+        await self._ensure_twitter_updaters(exit_on_failure=True)
+
+        if not self.accounts_data:
+            log.warning('no Twitter/X sessions are configured; tracked sources cannot poll until a session is connected')
 
         usernames_and_clients = await get_enabled_user_client_map(self.db_path)
 
         for username, client_used in usernames_and_clients.items():
+            if client_used not in self.tweets:
+                log.warning(f'skipping task for {username}; Twitter/X session {client_used} is not available')
+                continue
             self.bot.loop.create_task(self.notification(username, client_used)).set_name(username)
         self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
 
@@ -247,6 +307,7 @@ class AccountTracker():
 
     async def tasksMonitor(self):
         while True:
+            await self._ensure_twitter_updaters()
             users_and_clients = await get_enabled_user_client_map(self.db_path)
             taskSet = {task.get_name() for task in asyncio.all_tasks()}
             users = {username for username, _ in users_and_clients.items()}

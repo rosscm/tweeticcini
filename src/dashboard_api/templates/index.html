@@ -19,16 +19,18 @@
         </div>
         <h1>Manage Tweeticcini by server</h1>
         <p class="lede">
-          Manage tracked accounts, alert rules, billing, and appearance settings for the Discord servers you administer.
+          Manage tracked accounts, alert rules, billing, and appearance across the Discord servers you administer.
         </p>
         {% if oauth_enabled %}
         {% if discord_user %}
         <div class="notice">
-          Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong>.
-          <a class="ghost-link" href="/dashboard/logout">Sign Out</a>
-          {% if public_site_url %}
-          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Visit Site</a>
-          {% endif %}
+          <div>Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong>.</div>
+          <div class="notice-actions">
+            <a class="ghost-link" href="/dashboard/logout">Sign Out</a>
+            {% if public_site_url %}
+            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Visit Site</a>
+            {% endif %}
+          </div>
         </div>
         {% if manageable_guilds %}
         <div class="stack">
@@ -47,7 +49,7 @@
         {% else %}
         <div class="stack">
           <a class="oauth-button" href="{{ discord_login_url }}">Sign In With Discord</a>
-          <p class="section-copy">You’ll see the Discord servers where you have administrator or manage-server permissions.</p>
+          <p class="section-copy">You’ll see the Discord servers where you can manage Tweeticcini.</p>
           {% if public_site_url %}
           <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
           {% endif %}

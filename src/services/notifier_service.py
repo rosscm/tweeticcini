@@ -28,6 +28,7 @@ from src.repositories.notifier_repository import (
     upsert_notification,
 )
 from src.services.guild_settings_service import GuildSettingsService
+from src.services.twitter_session_service import TwitterSessionService
 from src.settings import get_db_path
 from src.utils import get_lock, get_utcnow
 
@@ -109,12 +110,23 @@ class PlanLimitExceededError(NotifierServiceError):
     pass
 
 
+class TwitterSessionRequiredError(NotifierServiceError):
+    pass
+
+
 class NotifierService:
     def __init__(self, db_path=None):
         self.db_path = db_path or get_db_path()
         self.guild_settings_service = GuildSettingsService(self.db_path)
+        self.twitter_session_service = TwitterSessionService(self.db_path)
 
     async def add_notifier(self, request: AddNotifierRequest) -> AddNotifierResult:
+        valid_session_keys = set(await self.twitter_session_service.list_server_twitter_session_keys(request.server_id))
+        if request.account_used not in valid_session_keys:
+            raise TwitterSessionRequiredError(
+                'Connect a Twitter/X session for this server before adding tracked accounts.'
+            )
+
         async with connect_writable(self.db_path) as db:
             async with db.cursor() as cursor:
                 try:

@@ -4,6 +4,7 @@ import sys
 
 from src.db_function.readonly_db import connect_readonly
 from src.log import setup_logger
+from src.repositories.twitter_session_repository import list_all_server_twitter_session_keys
 from src.settings import get_accounts, get_db_path
 
 log = setup_logger(__name__)
@@ -60,7 +61,7 @@ def check_configs(configs):
 
 def check_env():
     required_keys = [
-        'BOT_TOKEN', 'DATA_PATH', 'TWITTER_TOKEN'
+        'BOT_TOKEN', 'DATA_PATH'
     ]
 
     missing_keys = [key for key in required_keys if key not in os.environ]
@@ -68,8 +69,8 @@ def check_env():
         log.error(f'missing required environment variables: {missing_keys}')
         return False
 
-    twitter_token = os.getenv('TWITTER_TOKEN')
-    if not all([(lambda e : len(e) == 2 and all(e))(entry.split(':', 1)) for entry in twitter_token.split(',')]):
+    twitter_token = os.getenv('TWITTER_TOKEN', '').strip()
+    if twitter_token and not all([(lambda e : len(e) == 2 and all(e))(entry.split(':', 1)) for entry in twitter_token.split(',') if entry]):
         log.error('invalid TWITTER_TOKEN format, must be in the form of "account_name:twitter_token"')
         return False
 
@@ -84,7 +85,8 @@ async def check_db() -> set[str]:
             
     db_clients = set(client[0] for client in row)
     env_clients = set(get_accounts().keys())
-    invalid_clients = db_clients - env_clients
+    stored_server_clients = set(await list_all_server_twitter_session_keys(get_db_path()))
+    invalid_clients = db_clients - (env_clients | stored_server_clients)
     
     return invalid_clients
 

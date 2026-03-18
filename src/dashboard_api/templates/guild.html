@@ -23,7 +23,7 @@
               <h1>{{ guild_name }}</h1>
               <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
             </div>
-            <p class="lede lede--wide">Manage tracked accounts, alert behavior, and presentation settings for this Discord server with Tweeticcini.</p>
+            <p class="lede lede--wide">Manage tracked accounts, alert behavior, and presentation for this Discord server with Tweeticcini.</p>
           </section>
 
           <nav class="guild-subnav guild-subnav--sidebar">
@@ -37,6 +37,14 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 10.5 12 3l9 7.5"></path>
                   <path d="M5.5 9.5V20h13V9.5"></path>
+                </svg>
+                {% elif section_id == 'twitter-sessions' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="6" width="16" height="12" rx="2"></rect>
+                  <path d="M8 10h8"></path>
+                  <path d="M8 14h5"></path>
+                  <path d="M17.5 4.5v3"></path>
+                  <path d="M17.5 16.5v3"></path>
                 </svg>
                 {% elif section_id == 'sources' %}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -85,15 +93,16 @@
             {% endfor %}
           </nav>
 
-          <section class="card sidebar-utility">
+          <section class="card sidebar-utility desktop-only">
             {% if discord_user %}
             <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
             {% endif %}
-            <a class="ghost-link" href="/dashboard">Change Guild</a>
+            <a class="ghost-link" href="/dashboard">Change Server</a>
             {% if public_site_url %}
             <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
             {% endif %}
           </section>
+
         </aside>
 
         <div class="dashboard-main">
@@ -127,7 +136,7 @@
           <div>
             <p class="eyebrow">Overview</p>
             <h2>Control Center</h2>
-            <p class="section-copy">A quick read on this server's plan, monitoring footprint, and dashboard readiness before you dive into sources, rules, or presentation.</p>
+            <p class="section-copy section-copy--wide">A quick read on this server's plan, monitoring footprint, and dashboard readiness before you dive into accounts, rules, or appearance.</p>
           </div>
         </div>
 
@@ -163,6 +172,12 @@
           {% if plan_usage.rule_count >= guild_presentation.features.max_rules %}
           This server is at its alert rule limit.
           {% endif %}
+        </section>
+        {% endif %}
+
+        {% if delivery_sessions_required %}
+        <section class="notice notice--warning">
+          <strong>Delivery blocked:</strong> this server still needs a connected Twitter/X session before tracked posts can be delivered. Finish setup on the <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">Twitter Sessions</a> page.
         </section>
         {% endif %}
 
@@ -219,13 +234,116 @@
       </section>
       {% endif %}
 
+      {% if active_section == 'twitter-sessions' %}
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Twitter/X Sessions</p>
+            <h2>Delivery Authorization</h2>
+            <p class="section-copy section-copy--wide">Connect at least one Twitter/X session for this server before Tweeticcini can poll sources and deliver alerts here.</p>
+          </div>
+        </div>
+
+        {% if delivery_sessions_required %}
+        <section class="notice notice--warning">
+          <strong>Delivery blocked:</strong> this server does not have a connected Twitter/X session yet. Add one below before configuring tracked accounts.
+        </section>
+        {% else %}
+        <section class="notice notice--success">
+          <strong>Delivery ready:</strong> this server has {{ delivery_session_options|length }} active Twitter/X session{{ '' if delivery_session_options|length == 1 else 's' }} available for polling and delivery.
+        </section>
+        {% endif %}
+
+        <div class="workspace-grid">
+          <div class="workspace-panel">
+            <h3 class="panel-title">Connect Session</h3>
+            <form id="twitter-session-form" class="stack">
+              <div class="form-banner">
+                Connect a server-owned Twitter/X session here first. Without it, no tracked posts can be delivered for this server. A primary session is usually the best place to start.
+              </div>
+              <div id="twitter-session-status" class="form-banner form-banner--hidden" hidden></div>
+
+              <label for="twitter-session-name">Session label</label>
+              <input id="twitter-session-name" type="text" value="Primary Session" placeholder="E.g., Primary Session">
+              <div class="field-help">Give this session a short label so you can recognize it later. <code>Primary Session</code> is a good default.</div>
+
+              <label for="twitter-session-auth-token">Session input</label>
+              <textarea id="twitter-session-auth-token" rows="7" placeholder="Paste either the full contents of a .tw_session file or a raw Twitter/X auth_token"></textarea>
+              <div class="field-help">Best for now: paste the full JSON contents of a working <code>.tw_session</code> file. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
+              <div class="field-help">Raw cookie fallback: sign in to X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value for <code>auth_token</code>.</div>
+              <div class="field-help">If you use Safari on macOS, open <strong>Develop</strong> <span aria-hidden="true">→</span> <strong>Show Web Inspector</strong>, then check the Storage tab for the same <code>x.com</code> cookie.</div>
+
+              <div class="actions">
+                <button type="submit">Connect Session</button>
+                <button type="button" class="button-secondary" id="twitter-session-form-reset">Clear Form</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="workspace-panel workspace-panel--wide">
+            <div class="panel-head-row">
+              <h3 class="panel-title">Connected Sessions</h3>
+              <span class="count-pill">{{ twitter_sessions|length }}</span>
+            </div>
+            <div class="rule-list-wrap">
+              <table class="rule-table">
+                <thead>
+                  <tr>
+                    <th>Session</th>
+                    <th>Status</th>
+                    <th>Last validated</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for session in twitter_sessions %}
+                  <tr class="data-row">
+                    <td>
+                      <div class="entity-title">{{ session.session_name }}</div>
+                      <div class="entity-meta">{{ session.client_key }}</div>
+                    </td>
+                    <td>
+                      <span class="tag {{ 'tag--warning' if session.status != 'active' else '' }}">{{ session.status }}</span>
+                      {% if session.last_error_message %}
+                      <div class="entity-meta entity-meta--warning">{{ session.last_error_message }}</div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <div class="entity-meta">{{ session.last_validated_at or 'not validated yet' }}</div>
+                      {% if session.last_error_at %}
+                      <div class="entity-meta entity-meta--warning">Last error {{ session.last_error_at }}</div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        class="button-secondary button-danger delete-twitter-session"
+                        data-session-name="{{ session.session_name }}"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr>
+                    <td colspan="4" class="empty-cell">No Twitter/X sessions connected yet. Add one here before this server can receive delivered posts.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
       {% if active_section == 'platform' %}
       <section class="card">
         <div class="card-header">
           <div>
             <p class="eyebrow">Platform Settings</p>
             <h2>Platform Baseline</h2>
-            <p class="section-copy">Read-only reference for shared bot-level settings from `configs.yml`. These are platform defaults and operational controls, not day-to-day server settings.</p>
+            <p class="section-copy">Read-only reference for shared bot settings from `configs.yml`. These are platform defaults and operational controls, not day-to-day server settings.</p>
           </div>
         </div>
 
@@ -282,7 +400,7 @@
           <div>
             <p class="eyebrow">Presentation</p>
             <h2>Alert Appearance</h2>
-            <p class="section-copy section-copy--wide">Control how alerts look inside this server. Billing and subscription management live on the dedicated Billing page.</p>
+            <p class="section-copy section-copy--wide">Control how alerts look inside this server. Billing and subscription management live on the Billing page.</p>
           </div>
         </div>
 
@@ -379,7 +497,7 @@
           <div>
             <p class="eyebrow">Billing</p>
             <h2>Subscription</h2>
-            <p class="section-copy section-copy--wide">Manage this server's plan, checkout flow, and customer billing access. Internal support tools live below in a separate section.</p>
+            <p class="section-copy section-copy--wide">Manage this server's plan, checkout flow, and billing access. Internal tools live below in a separate section.</p>
           </div>
         </div>
 
@@ -439,8 +557,10 @@
               <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Pro Checkout</button>
               <button type="button" class="button-secondary" id="open-billing-portal" {{ 'disabled' if not guild_presentation.entitlement.external_customer_id }}>Open Customer Portal</button>
             </div>
-            <div class="field-help field-help--body">Use Checkout to start or upgrade a subscription for this server. Once a Stripe customer is linked, Customer Portal is the right place for ongoing billing changes.</div>
-            <div class="field-help field-help--body">Free and Pro use the same core polling speed. Pro unlocks more control, customization, and higher limits.</div>
+            <div class="field-help field-help--body">Use Checkout to start or upgrade this server. Once Stripe is linked, use Customer Portal for billing changes.</div>
+            <section class="notice notice--success notice--compact">
+              Free and Pro use the same core polling speed. Pro unlocks more control, customization, and higher limits.
+            </section>
           </div>
 
           <div class="workspace-panel workspace-panel--wide">
@@ -536,7 +656,7 @@
             <div>
               <p class="eyebrow">Tracked Accounts</p>
               <h2>Accounts</h2>
-              <p class="section-copy section-copy--wide">Every Twitter/X account currently routed through this server, with its destination and delivery filters.</p>
+              <p class="section-copy section-copy--wide">Every Twitter/X account routed through this server, along with its destination and delivery filters.</p>
             </div>
           </div>
 
@@ -546,20 +666,30 @@
           </section>
           {% endif %}
 
+          {% if delivery_sessions_required %}
+          <section class="notice notice--warning">
+            <strong>Twitter/X session required:</strong> connect a Twitter/X session on the <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">Twitter Sessions</a> page before this server can deliver alerts.
+          </section>
+          {% endif %}
+
           <div class="workspace-grid">
             <div class="workspace-panel">
               <h3 class="panel-title">Account Setup</h3>
-              <form id="source-form" class="stack">
+              <form id="source-form" class="stack {{ 'is-locked' if delivery_sessions_required else '' }}">
                 <div class="form-banner">
+                  {% if delivery_sessions_required %}
+                  Connect a Twitter/X session first. Until then, no posts can be delivered for this server.
+                  {% else %}
                   Fill this form and click <strong>Save Account</strong> to add a new tracked account. Or load an existing row below to update its routing and filter settings.
+                  {% endif %}
                 </div>
                 <input id="source-edit-mode" type="hidden" value="create">
                 <label for="source-username-edit">Twitter/X account</label>
-                <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA">
+                <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA" {{ 'disabled' if delivery_sessions_required else '' }}>
                 <div class="field-help">Enter the Twitter/X username to track. This is case-insensitive and should not include the `@` symbol.</div>
 
                 <label for="source-channel-id-edit">Channel ID</label>
-                <select id="source-channel-id-edit">
+                <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
                   <option value="">Select a channel</option>
                   {% for channel in channel_options %}
                   <option value="{{ channel.id }}">#{{ channel.name }}</option>
@@ -568,7 +698,7 @@
                 <div class="field-help">The Discord text channel that should receive alerts for this source.</div>
 
                 <label for="source-role-id-edit">Role</label>
-                <select id="source-role-id-edit">
+                <select id="source-role-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
                   <option value="">No role mention</option>
                   {% for role in role_options %}
                   <option value="{{ role.id }}">@{{ role.name }}</option>
@@ -577,7 +707,7 @@
                 <div class="field-help">Optional. If set, the bot will mention this role when sending alerts for the source.</div>
 
                 <label for="source-enable-type-edit">Tweet filter</label>
-                <select id="source-enable-type-edit">
+                <select id="source-enable-type-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
                   <option value="11">All</option>
                   <option value="10">Tweet + Retweet</option>
                   <option value="01">Tweet + Quote</option>
@@ -586,7 +716,7 @@
                 <div class="field-help">Controls which post types should be forwarded for this source.</div>
 
                 <label for="source-media-type-edit">Media filter</label>
-                <select id="source-media-type-edit">
+                <select id="source-media-type-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
                   <option value="11">All</option>
                   <option value="10">No Media</option>
                   <option value="01">Media Only</option>
@@ -594,24 +724,28 @@
                 <div class="field-help">Controls whether alerts should include all posts, only text posts, or only posts with media.</div>
 
                 <label for="source-account-used-edit">Twitter/X session</label>
-                <select id="source-account-used-edit">
-                  {% for account_name in available_accounts %}
-                  <option value="{{ account_name }}">{{ account_name }}</option>
+                <select id="source-account-used-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
+                  {% if delivery_session_options %}
+                  {% for session in delivery_session_options %}
+                  <option value="{{ session.client_key }}">{{ session.session_name }}</option>
                   {% endfor %}
+                  {% else %}
+                  <option value="">Connect a session first</option>
+                  {% endif %}
                 </select>
-                <div class="field-help">Used when creating a brand new tracked source. Existing sources keep the client they already use.</div>
+                <div class="field-help">Required for new tracked accounts. Existing accounts keep the session they already use until you reconnect them.</div>
 
                 <label for="source-custom-message-edit">Custom message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
-                <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if not guild_presentation.features.can_customize_source_messages else '' }}></textarea>
+                <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
                 <div class="field-help">Optional. Leave blank to use Tweeticcini's normal headline-style alert message.</div>
                 <div class="field-help">Headline-style example: <code>Queue is live at Pokemon Center: https://x.com/...</code></div>
-                <div class="field-help">Available placeholders: <code>{mention}</code> inserts the role mention if one is configured, <code>{author}</code> inserts the Twitter/X account name, <code>{action}</code> inserts the post type such as posted or reposted, and <code>{url}</code> inserts the tweet link.</div>
+                <div class="field-help">Placeholders: <code>{mention}</code> role mention, <code>{author}</code> account name, <code>{action}</code> post type, <code>{url}</code> tweet link.</div>
                 <div class="field-help">Example result: <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
                 <div class="field-help">Use <strong>Send Test Alert</strong> to post a non-pinging sample alert into the selected channel before saving.</div>
 
                 <div class="actions">
-                  <button type="submit">Save Account</button>
-                  <button type="button" class="button-secondary" id="source-send-test">Send Test Alert</button>
+                  <button type="submit" {{ 'disabled' if delivery_sessions_required else '' }}>Save Account</button>
+                  <button type="button" class="button-secondary" id="source-send-test" {{ 'disabled' if delivery_sessions_required else '' }}>Send Test Alert</button>
                   <button type="button" class="button-secondary" id="source-form-reset">Clear Form</button>
                 </div>
               </form>
@@ -641,22 +775,22 @@
                     <div class="entity-meta">via {{ source.client_used }}</div>
                   </td>
                   <td>
-                    <div>
+                    <div class="destination-block">
                       <span class="meta-label">Channel</span>
                       {% if channel_names.get(source.channel_id) %}
-                      <span>#{{ channel_names.get(source.channel_id) }}</span>
+                      <span class="destination-value">#{{ channel_names.get(source.channel_id) }}</span>
                       {% else %}
-                      <code>{{ source.channel_id }}</code>
+                      <code class="destination-value">{{ source.channel_id }}</code>
                       {% endif %}
                     </div>
-                    <div>
+                    <div class="destination-block">
                       <span class="meta-label">Role</span>
                       {% if source.role_id and role_names.get(source.role_id) %}
-                      <span>@{{ role_names.get(source.role_id) }}</span>
+                      <span class="destination-value">@{{ role_names.get(source.role_id) }}</span>
                       {% elif source.role_id %}
-                      <code>{{ source.role_id }}</code>
+                      <code class="destination-value">{{ source.role_id }}</code>
                       {% else %}
-                      <code>none</code>
+                      <code class="destination-value">none</code>
                       {% endif %}
                     </div>
                   </td>
@@ -724,7 +858,7 @@
             <div>
               <p class="eyebrow">Source Rules</p>
               <h2>Alert Rules</h2>
-              <p class="section-copy section-copy--wide">Keyword-based exclusions and escalation rules that shape how individual accounts behave.</p>
+              <p class="section-copy section-copy--wide">Keyword exclusions and escalation rules that shape how individual accounts behave.</p>
             </div>
           </div>
 
@@ -898,6 +1032,16 @@
         </section>
       {% endif %}
         </div>
+
+        <section class="card sidebar-utility sidebar-utility--layout mobile-only">
+          {% if discord_user %}
+          <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
+          {% endif %}
+          <a class="ghost-link" href="/dashboard">Change Server</a>
+          {% if public_site_url %}
+          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
+          {% endif %}
+        </section>
       </div>
     </main>
 
@@ -956,6 +1100,22 @@
         node.classList.add(isError ? 'status-message--error' : 'status-message--success');
       }
 
+      function setFormStatus(nodeId, message = '', isError = false) {
+        const node = document.getElementById(nodeId);
+        if (!node) {
+          return;
+        }
+        if (!message) {
+          node.hidden = true;
+          node.textContent = '';
+          node.classList.remove('form-banner--error');
+          return;
+        }
+        node.hidden = false;
+        node.textContent = message;
+        node.classList.toggle('form-banner--error', isError);
+      }
+
       function syncTriggerKeywordAvailability() {
         const escalationMode = document.getElementById('escalation-mode');
         const triggerTextarea = document.getElementById('rule-trigger-keywords');
@@ -992,7 +1152,14 @@
         });
         if (!response.ok) {
           const text = await response.text();
-          throw new Error(text || `Request failed with ${response.status}`);
+          let detail = text;
+          try {
+            const parsed = JSON.parse(text);
+            detail = parsed.detail || text;
+          } catch (parseError) {
+            detail = text || `Request failed with ${response.status}`;
+          }
+          throw new Error(detail || `Request failed with ${response.status}`);
         }
         if (response.status === 204) {
           return null;
@@ -1180,6 +1347,60 @@
           }
         });
       }
+
+      const twitterSessionForm = document.getElementById('twitter-session-form');
+      if (twitterSessionForm) {
+        twitterSessionForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          setFormStatus('twitter-session-status');
+          const sessionName = document.getElementById('twitter-session-name').value.trim();
+          const authToken = document.getElementById('twitter-session-auth-token').value.trim();
+          if (!sessionName || !authToken) {
+            setFormStatus('twitter-session-status', 'Session label and session input are required.', true);
+            return;
+          }
+
+          try {
+            await jsonRequest(`/guilds/${guildId}/twitter-sessions`, {
+              method: 'PUT',
+              body: JSON.stringify({
+                session_name: sessionName,
+                auth_token: authToken,
+              }),
+            });
+            window.location.reload();
+          } catch (error) {
+            setFormStatus('twitter-session-status', `Failed to connect Twitter/X session: ${error.message}`, true);
+          }
+        });
+      }
+
+      const twitterSessionFormReset = document.getElementById('twitter-session-form-reset');
+      if (twitterSessionFormReset) {
+        twitterSessionFormReset.addEventListener('click', function () {
+          document.getElementById('twitter-session-name').value = 'Primary Session';
+          document.getElementById('twitter-session-auth-token').value = '';
+          setFormStatus('twitter-session-status');
+          setStatus('Ready to connect a Twitter/X session for this server.');
+        });
+      }
+
+      document.querySelectorAll('.delete-twitter-session').forEach(function (button) {
+        button.addEventListener('click', async function () {
+          const sessionName = button.dataset.sessionName;
+          if (!window.confirm(`Remove Twitter/X session ${sessionName}? Sources in this server will stop delivering until another session is connected.`)) {
+            return;
+          }
+          try {
+            await jsonRequest(`/guilds/${guildId}/twitter-sessions/${encodeURIComponent(sessionName)}`, {
+              method: 'DELETE',
+            });
+            window.location.reload();
+          } catch (error) {
+            setStatus(`Failed to remove Twitter/X session: ${error.message}`, true);
+          }
+        });
+      });
 
       const sourceForm = document.getElementById('source-form');
       if (sourceForm) {
