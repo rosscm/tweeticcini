@@ -25,6 +25,7 @@ SUPPORTED_ENTITLEMENT_STATUSES = {'none', 'trialing', 'active', 'past_due', 'can
 
 @dataclass(frozen=True)
 class GuildPlanFeatures:
+    max_twitter_sessions: int
     max_sources: int
     max_rules: int
     max_trigger_keywords_total: int
@@ -36,6 +37,7 @@ class GuildPlanFeatures:
 
 PLAN_FEATURES = {
     PLAN_FREE: GuildPlanFeatures(
+        max_twitter_sessions=1,
         max_sources=3,
         max_rules=3,
         max_trigger_keywords_total=5,
@@ -45,6 +47,7 @@ PLAN_FEATURES = {
         can_use_everyone_escalation=False,
     ),
     PLAN_PRO: GuildPlanFeatures(
+        max_twitter_sessions=5,
         max_sources=25,
         max_rules=50,
         max_trigger_keywords_total=150,

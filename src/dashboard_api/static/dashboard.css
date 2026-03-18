@@ -627,6 +627,12 @@ h2 {
   color: #ffc4bf;
 }
 
+.form-banner--inline {
+  margin-top: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
 .field-help {
   margin-top: -6px;
   color: var(--muted);

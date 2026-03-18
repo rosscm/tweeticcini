@@ -197,7 +197,6 @@ class AccountTracker():
                                         or ''
                                     )
                                     if not text:
-                                        log.info(f"[DEBUG] tweet.rawContent missing. Falling back to tweet.content: {getattr(tweet, 'content', None)}")
                                         text = getattr(tweet, 'content', None) or ''
 
                                     alert_decision = await self.alert_rule_service.resolve_alert_decision(
@@ -207,16 +206,10 @@ class AccountTracker():
                                         text=text,
                                     )
                                     if alert_decision.should_exclude:
-                                        log.info(f"[DEBUG] Tweet excluded by keyword filter: {text}")
                                         continue
-
-                                    log.info(f"[DEBUG] Evaluating @everyone condition for {username} in channel {channel.id}")
-                                    log.info(f"[DEBUG] tweet content: {text}")
-                                    log.info(f"[DEBUG] matched_rule = {alert_decision.matched_rule_name}")
 
                                     if alert_decision.should_force_everyone:
                                         mention = "@everyone "
-                                        log.info(f"[DEBUG] @everyone mention triggered for tweet: {tweet.url}")
 
                                     custom_template = data['customized_msg']
                                     default_template = presentation.effective.default_message
@@ -301,6 +294,7 @@ class AccountTracker():
                     datetime.now(timezone.utc).isoformat(timespec='seconds'),
                 )
                 log.error(f'{e} (task : tweets updater {updater_name})')
+                log.exception('tweets updater failure details')
                 log.error(f"an unexpected error occurred, try again in {configs['tweets_updater_retry_delay']} minutes")
                 await asyncio.sleep(configs['tweets_updater_retry_delay'] * 60)
 

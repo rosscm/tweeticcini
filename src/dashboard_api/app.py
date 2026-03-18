@@ -39,6 +39,7 @@ from src.services.notifier_service import (
 )
 from src.services.twitter_session_service import (
     ServerTwitterSessionRecord,
+    TwitterSessionPlanLimitError,
     TwitterSessionSecretMissingError,
     TwitterSessionService,
     TwitterSessionValidationError,
@@ -195,7 +196,24 @@ def _format_dashboard_timestamp(timestamp_text: Optional[str]) -> Optional[str]:
     return parsed.strftime('%Y-%m-%d %H:%M')
 
 
-def _serialize_twitter_session(session: ServerTwitterSessionRecord) -> dict[str, object]:
+def _serialize_twitter_session(
+    session: ServerTwitterSessionRecord,
+    runtime_status: Optional[dict[str, object]] = None,
+    assigned_monitor_count: int = 0,
+) -> dict[str, object]:
+    last_poll_success_at = None
+    last_poll_error_at = None
+    runtime_error_message = None
+    runtime_state = 'idle'
+    if runtime_status is not None:
+        last_poll_success_at = _format_dashboard_timestamp(runtime_status.get('last_poll_success_at')) or runtime_status.get('last_poll_success_at')
+        last_poll_error_at = _format_dashboard_timestamp(runtime_status.get('last_poll_error_at')) or runtime_status.get('last_poll_error_at')
+        runtime_error_message = runtime_status.get('last_error_message')
+        if last_poll_error_at:
+            runtime_state = 'warning'
+        elif last_poll_success_at:
+            runtime_state = 'healthy'
+
     return {
         'server_id': session.server_id,
         'session_name': session.session_name,
@@ -207,6 +225,11 @@ def _serialize_twitter_session(session: ServerTwitterSessionRecord) -> dict[str,
         'created_at': _format_dashboard_timestamp(session.created_at) or session.created_at,
         'updated_at': _format_dashboard_timestamp(session.updated_at) or session.updated_at,
         'is_active': session.is_active,
+        'assigned_monitor_count': assigned_monitor_count,
+        'last_poll_success_at': last_poll_success_at,
+        'last_poll_error_at': last_poll_error_at,
+        'runtime_error_message': runtime_error_message,
+        'runtime_state': runtime_state,
     }
 
 
@@ -516,6 +539,12 @@ def _read_recent_log_health() -> dict[str, object]:
     updater_error_count = 0
     delivery_error_count = 0
     dead_task_warning_count = 0
+    errors_since_last_online = {
+        'updater_error_count': 0,
+        'delivery_error_count': 0,
+        'dead_task_warning_count': 0,
+    }
+    parsed_lines: list[tuple[Optional[datetime], str]] = []
 
     for line in lines:
         timestamp_text = line[:19]
@@ -523,6 +552,7 @@ def _read_recent_log_health() -> dict[str, object]:
             timestamp = datetime.strptime(timestamp_text, '%Y-%m-%d %H:%M:%S')
         except ValueError:
             timestamp = None
+        parsed_lines.append((timestamp, line))
 
         if ' is online' in line and timestamp is not None:
             last_online_at = timestamp
@@ -533,17 +563,30 @@ def _read_recent_log_health() -> dict[str, object]:
         if 'dead tasks :' in line or 'tweets updater' in line and 'dead' in line:
             dead_task_warning_count += 1
 
+    if last_online_at is not None:
+        for timestamp, line in parsed_lines:
+            if timestamp is None or timestamp < last_online_at:
+                continue
+            if 'ERROR' in line and 'tweets updater' in line:
+                errors_since_last_online['updater_error_count'] += 1
+            if 'while sending notification' in line:
+                errors_since_last_online['delivery_error_count'] += 1
+            if 'dead tasks :' in line or 'tweets updater' in line and 'dead' in line:
+                errors_since_last_online['dead_task_warning_count'] += 1
+
     return {
         'bot_online_recently': bool(last_online_at and last_online_at >= online_cutoff),
         'updater_error_count': updater_error_count,
         'delivery_error_count': delivery_error_count,
         'dead_task_warning_count': dead_task_warning_count,
+        'updater_error_count_since_last_online': errors_since_last_online['updater_error_count'],
+        'delivery_error_count_since_last_online': errors_since_last_online['delivery_error_count'],
+        'dead_task_warning_count_since_last_online': errors_since_last_online['dead_task_warning_count'],
         'last_online_at': None if last_online_at is None else last_online_at.strftime('%Y-%m-%d %H:%M'),
     }
 
 
 def _build_status_banner(
-    available_accounts: list[str],
     delivery_sessions: list[dict[str, str]],
     usage: dict[str, int],
     guild_presentation: GuildPresentationView,
@@ -559,20 +602,20 @@ def _build_status_banner(
         return {
             'level': 'error',
             'message': 'This server cannot deliver tracked posts yet because no Twitter/X session is connected.',
-            'details': ['Open Twitter Sessions and connect at least one session before adding or delivering tracked accounts.'],
-        }
-
-    if not available_accounts:
-        return {
-            'level': 'error',
-            'message': 'Server sessions are connected, but the bot has no active Twitter/X clients loaded yet.',
-            'details': ['Wait a moment for the bot to load the newly connected session and bring delivery polling online.'],
+            'details': ['Open Sessions and connect at least one session before adding or delivering monitors.'],
         }
 
     delivery_client_keys = {session['client_key'] for session in delivery_sessions}
     relevant_client_statuses = [row for row in client_statuses if row['client_used'] in delivery_client_keys]
     healthy_clients = [row for row in relevant_client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']]
     warning_clients = [row for row in relevant_client_statuses if row['last_poll_error_at']]
+
+    if not relevant_client_statuses:
+        return {
+            'level': 'error',
+            'message': 'Server sessions are connected, but the bot has no active Twitter/X clients loaded yet.',
+            'details': ['Wait a moment for the bot to load the newly connected session and bring delivery polling online.'],
+        }
 
     if not log_health['bot_online_recently']:
         return {
@@ -589,20 +632,24 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'At least one Twitter/X session has a recent poll error, so alert freshness may be degraded until that session recovers.',
             'details': [
-                f"Healthy sessions: {len(healthy_clients)} / {len(delivery_sessions)}",
+                f"Healthy sessions: {len(healthy_clients)}",
                 f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
                 f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
             ],
         }
 
-    if log_health['updater_error_count'] or log_health['delivery_error_count'] or log_health['dead_task_warning_count']:
+    if (
+        log_health['updater_error_count_since_last_online']
+        or log_health['delivery_error_count_since_last_online']
+        or log_health['dead_task_warning_count_since_last_online']
+    ):
         return {
             'level': 'warning',
             'message': 'The bot appears online, but recent logs show updater, delivery, or task health warnings that are worth reviewing.',
             'details': [
-                f"Updater errors: {log_health['updater_error_count']}",
-                f"Delivery errors: {log_health['delivery_error_count']}",
-                f"Task warnings: {log_health['dead_task_warning_count']}",
+                f"Updater errors since restart: {log_health['updater_error_count_since_last_online']}",
+                f"Delivery errors since restart: {log_health['delivery_error_count_since_last_online']}",
+                f"Task warnings since restart: {log_health['dead_task_warning_count_since_last_online']}",
             ],
         }
 
@@ -621,7 +668,7 @@ def _build_status_banner(
         'level': 'success',
         'message': 'The bot looks healthy for this server: sessions are polling, the bot has logged online recently, and no recent dashboard-visible warnings were detected.',
         'details': [
-            f'Healthy sessions: {len(healthy_clients)} / {len(delivery_sessions)}',
+            f'Healthy sessions: {len(healthy_clients)}',
             f'Sources: {source_count} / {source_limit}',
             f'Rules: {rule_count} / {rule_limit}',
             f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
@@ -640,8 +687,8 @@ templates = Jinja2Templates(directory=str(BASE_DIR / 'templates'))
 
 GUILD_SECTIONS = {
     'overview': 'Overview',
-    'twitter-sessions': 'Twitter Sessions',
-    'sources': 'Accounts',
+    'twitter-sessions': 'Sessions',
+    'sources': 'Monitors',
     'rules': 'Rules',
     'appearance': 'Appearance',
     'billing': 'Billing',
@@ -774,13 +821,14 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     sources = await notifier_service.list_dashboard_sources(guild_id)
     twitter_sessions = await twitter_session_service.list_server_sessions(guild_id)
     delivery_session_options = await twitter_session_service.list_server_delivery_options(guild_id)
+    delivery_sessions_required = len(delivery_session_options) == 0
     guild_presentation = await guild_settings_service.get_presentation_view(guild_id)
     usage = _serialize_plan_usage(sources, rules)
     resource_names = await _fetch_guild_resource_names(guild_id)
-    available_accounts = list(get_accounts().keys())
     billing_context = billing_service.get_context()
     log_health = _read_recent_log_health()
     client_statuses = await list_runtime_client_statuses(notifier_service.db_path)
+    client_status_map = {row['client_used']: row for row in client_statuses}
     source_status_map = await get_runtime_source_status_map(notifier_service.db_path, guild_id)
     escalation_rule_count = sum(1 for rule in rules if rule.escalation_mode == 'everyone')
     scoped_rule_count = sum(1 for rule in rules if rule.source_username or rule.channel_id)
@@ -804,6 +852,17 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         payload['last_delivery_success_at'] = _format_dashboard_timestamp(payload.get('last_delivery_success_at')) or payload.get('last_delivery_success_at')
         payload['last_delivery_error_at'] = _format_dashboard_timestamp(payload.get('last_delivery_error_at')) or payload.get('last_delivery_error_at')
         sources_payload.append(payload)
+    assigned_monitor_counts: dict[str, int] = {}
+    for source in sources_payload:
+        assigned_monitor_counts[source['client_used']] = assigned_monitor_counts.get(source['client_used'], 0) + 1
+    twitter_sessions_payload = [
+        _serialize_twitter_session(
+            session,
+            runtime_status=client_status_map.get(session.client_key),
+            assigned_monitor_count=assigned_monitor_counts.get(session.client_key, 0),
+        )
+        for session in twitter_sessions
+    ]
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -815,10 +874,9 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'bot_defaults': _serialize_bot_defaults(),
             'guild_presentation': _serialize_guild_presentation(guild_presentation),
             'plan_usage': usage,
-            'available_accounts': available_accounts,
-            'twitter_sessions': [_serialize_twitter_session(session) for session in twitter_sessions],
+            'twitter_sessions': twitter_sessions_payload,
             'delivery_session_options': delivery_session_options,
-            'delivery_sessions_required': len(delivery_session_options) == 0,
+            'delivery_sessions_required': delivery_sessions_required,
             'channel_names': resource_names['channels'],
             'role_names': resource_names['roles'],
             'channel_options': _serialize_named_options(resource_names['channels']),
@@ -833,12 +891,18 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'portal_configured': billing_context.portal_configured,
                 'available_price_plans': billing_context.available_price_plans,
             },
-            'status_banner': _build_status_banner(available_accounts, delivery_session_options, usage, guild_presentation, log_health, client_statuses),
+            'status_banner': _build_status_banner(delivery_session_options, usage, guild_presentation, log_health, client_statuses),
             'overview': {
                 'escalation_rule_count': escalation_rule_count,
                 'scoped_rule_count': scoped_rule_count,
                 'custom_message_count': sum(1 for source in sources if source.has_custom_message),
                 'source_names': [source.username for source in sources[:6]],
+                'onboarding': {
+                    'show': delivery_sessions_required or usage['source_count'] == 0 or usage['rule_count'] == 0,
+                    'sessions_ready': not delivery_sessions_required,
+                    'monitors_ready': usage['source_count'] > 0,
+                    'rules_ready': usage['rule_count'] > 0,
+                },
                 'health': {
                     'oauth_enabled': _get_discord_oauth_config() is not None,
                     'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
@@ -857,6 +921,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                     'dead_task_warning_count': log_health['dead_task_warning_count'],
                 },
             },
+            'twitter_session_limit_reached': len(twitter_sessions) >= guild_presentation.features.max_twitter_sessions,
             'sources': sources_payload,
             'rules': [_serialize_rule(rule).model_dump() for rule in rules],
             'public_site_url': _get_public_site_url(),
@@ -908,11 +973,12 @@ async def dashboard_guild_defaults_redirect(guild_id: str):
 async def healthcheck() -> dict[str, object]:
     log_health = _read_recent_log_health()
     client_statuses = await list_runtime_client_statuses(notifier_service.db_path)
+    twitter_session_count = len(await twitter_session_service.list_all_server_twitter_session_keys())
     return {
         'status': 'ok',
         'oauth_enabled': _get_discord_oauth_config() is not None,
         'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
-        'twitter_session_count': len(get_accounts()),
+        'twitter_session_count': twitter_session_count,
         'healthy_twitter_session_count': sum(1 for row in client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']),
         'runtime_client_statuses': client_statuses,
         'log_health': log_health,
@@ -946,7 +1012,7 @@ async def connect_guild_twitter_session(
     _require_guild_access(request, guild_id)
     try:
         session = await twitter_session_service.connect_session(guild_id, session_request.session_name, session_request.auth_token)
-    except (TwitterSessionSecretMissingError, TwitterSessionValidationError) as error:
+    except (TwitterSessionSecretMissingError, TwitterSessionValidationError, TwitterSessionPlanLimitError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return _serialize_twitter_session(session)
 
@@ -1009,7 +1075,8 @@ async def send_guild_source_test_alert(
     presentation = await guild_settings_service.get_presentation_view(guild_id)
     if test_request.customized_msg.strip() and not presentation.features.can_customize_source_messages:
         raise HTTPException(status_code=400, detail='custom account messages require the Pro plan')
-    mention = f'<@&{test_request.role_id}> ' if test_request.role_id else ''
+    role_name = resource_names['roles'].get(test_request.role_id, '').strip() if test_request.role_id else ''
+    mention = f'@{role_name} ' if role_name else ''
     sample_text = 'Queue is live at Pokemon Center'
     sample_url = f'https://x.com/{test_request.username}/status/1999999999999999999'
     message = _build_test_alert_message(

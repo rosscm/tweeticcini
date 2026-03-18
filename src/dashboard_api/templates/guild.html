@@ -23,7 +23,7 @@
               <h1>{{ guild_name }}</h1>
               <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
             </div>
-            <p class="lede lede--wide">Manage tracked accounts, alert behavior, and presentation for this Discord server with Tweeticcini.</p>
+            <p class="lede lede--wide">Manage monitors, alert behavior, and presentation for this Discord server with Tweeticcini.</p>
           </section>
 
           <nav class="guild-subnav guild-subnav--sidebar">
@@ -177,7 +177,24 @@
 
         {% if delivery_sessions_required %}
         <section class="notice notice--warning">
-          <strong>Delivery blocked:</strong> this server still needs a connected Twitter/X session before tracked posts can be delivered. Finish setup on the <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">Twitter Sessions</a> page.
+          <strong>Delivery blocked:</strong> this server still needs a connected Twitter/X session before tracked posts can be delivered. Finish setup on the <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">Sessions</a> page.
+        </section>
+        {% endif %}
+
+        {% if overview.get('onboarding', {}).get('show') %}
+        <section class="notice notice--plain">
+          <strong>Start here:</strong> finish the first-time setup flow for this server.
+          <div class="status-detail-list">
+            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('sessions_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
+              {{ 'Sessions connected' if overview.get('onboarding', {}).get('sessions_ready') else 'Connect a session' }}
+            </a>
+            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('monitors_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
+              {{ 'Monitor added' if overview.get('onboarding', {}).get('monitors_ready') else 'Add your first monitor' }}
+            </a>
+            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('rules_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/rules">
+              {{ 'Rule added' if overview.get('onboarding', {}).get('rules_ready') else 'Add your first rule' }}
+            </a>
+          </div>
         </section>
         {% endif %}
 
@@ -200,16 +217,16 @@
               {% endfor %}
             </div>
             {% if plan_usage.source_count > overview.source_names | length %}
-            <div class="overview-note">Plus {{ plan_usage.source_count - (overview.source_names | length) }} more tracked accounts.</div>
+            <div class="overview-note">Plus {{ plan_usage.source_count - (overview.source_names | length) }} more monitors.</div>
             {% endif %}
             {% else %}
-            <div class="overview-note">No tracked accounts yet. Add your first account from the Accounts page.</div>
+            <div class="overview-note">No monitors yet. Add your first monitor from the Monitors page.</div>
             {% endif %}
           </div>
 
           <div class="default-block">
             <h3>Quick Actions</h3>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage tracked accounts</a></div>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage monitors</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules">Edit alert rules</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust presentation</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Manage billing</a></div>
@@ -246,7 +263,7 @@
 
         {% if delivery_sessions_required %}
         <section class="notice notice--warning">
-          <strong>Delivery blocked:</strong> this server does not have a connected Twitter/X session yet. Add one below before configuring tracked accounts.
+          <strong>Delivery blocked:</strong> this server does not have a connected Twitter/X session yet. Add one below before configuring monitors.
         </section>
         {% else %}
         <section class="notice notice--success">
@@ -254,28 +271,36 @@
         </section>
         {% endif %}
 
+        <section class="notice">
+          One primary session is enough for most servers. Pro can add multiple sessions to spread monitors across separate X sessions for more flexibility and resilience. Using the same X account across several sessions can increase rate-limit pressure.
+        </section>
+
         <div class="workspace-grid">
           <div class="workspace-panel">
             <h3 class="panel-title">Connect Session</h3>
             <form id="twitter-session-form" class="stack">
               <div class="form-banner">
-                Connect a server-owned Twitter/X session here first. Without it, no tracked posts can be delivered for this server. A primary session is usually the best place to start.
+                Connect a server-owned Twitter/X session here first. Without it, no tracked posts can be delivered for this server.
               </div>
               <div id="twitter-session-status" class="form-banner form-banner--hidden" hidden></div>
+              {% if twitter_session_limit_reached %}
+              <div class="form-banner form-banner--warning">
+                Session limit reached for the {{ guild_presentation.plan }} plan. This server can connect {{ guild_presentation.features.max_twitter_sessions }} Twitter/X session{{ '' if guild_presentation.features.max_twitter_sessions == 1 else 's' }}.
+              </div>
+              {% endif %}
 
               <label for="twitter-session-name">Session label</label>
-              <input id="twitter-session-name" type="text" value="Primary Session" placeholder="E.g., Primary Session">
+              <input id="twitter-session-name" type="text" value="Primary Session" placeholder="E.g., Primary Session" {{ 'disabled' if twitter_session_limit_reached else '' }}>
               <div class="field-help">Give this session a short label so you can recognize it later. <code>Primary Session</code> is a good default.</div>
 
-              <label for="twitter-session-auth-token">Auth token or session JSON</label>
-              <textarea id="twitter-session-auth-token" rows="7" placeholder="Paste the raw value of the x.com auth_token cookie"></textarea>
-              <div class="field-help">Recommended: paste the raw value of your current <code>x.com</code> <code>auth_token</code> cookie. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
-              <div class="field-help">If needed, you can still paste the full JSON contents of a working <code>.tw_session</code> file instead.</div>
+              <label for="twitter-session-auth-token">Auth token</label>
+              <textarea id="twitter-session-auth-token" rows="7" placeholder="E.g., 53f95f4c8a2d7b1e9c0f4a6d3b8e1f7a2c9d4e6f1b3a5c7d9e0f2a4b6c8d1e3" {{ 'disabled' if twitter_session_limit_reached else '' }}></textarea>
+              <div class="field-help">Paste the raw value of your current <code>x.com</code> <code>auth_token</code> cookie. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
               <div class="field-help">To find <code>auth_token</code>, sign in to X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value for <code>auth_token</code>.</div>
 
               <div class="actions">
-                <button type="submit">Connect Session</button>
-                <button type="button" class="button-secondary" id="twitter-session-form-reset">Clear Form</button>
+                <button type="submit" {{ 'disabled' if twitter_session_limit_reached else '' }}>Connect Session</button>
+                <button type="button" class="button-secondary" id="twitter-session-form-reset" {{ 'disabled' if twitter_session_limit_reached else '' }}>Clear Form</button>
               </div>
             </form>
           </div>
@@ -291,7 +316,7 @@
                   <tr>
                     <th>Session</th>
                     <th>Status</th>
-                    <th>Last validated</th>
+                    <th>Activity</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -303,15 +328,21 @@
                       <div class="entity-meta">{{ session.client_key }}</div>
                     </td>
                     <td>
-                      <span class="tag {{ 'tag--warning' if session.status != 'active' else '' }}">{{ session.status }}</span>
-                      {% if session.last_error_message %}
+                      <span class="tag {{ 'tag--warning' if session.runtime_state == 'warning' or session.status != 'active' else '' }}">{{ 'Needs attention' if session.runtime_state == 'warning' else session.status }}</span>
+                      <div class="entity-meta">{{ session.assigned_monitor_count }} assigned monitor{{ '' if session.assigned_monitor_count == 1 else 's' }}</div>
+                      {% if session.runtime_error_message %}
+                      <div class="entity-meta entity-meta--warning">{{ session.runtime_error_message }}</div>
+                      {% elif session.last_error_message %}
                       <div class="entity-meta entity-meta--warning">{{ session.last_error_message }}</div>
                       {% endif %}
                     </td>
                     <td>
-                      <div class="entity-meta">{{ session.last_validated_at or 'not validated yet' }}</div>
-                      {% if session.last_error_at %}
-                      <div class="entity-meta entity-meta--warning">Last error {{ session.last_error_at }}</div>
+                      <div class="entity-meta">Last poll {{ session.last_poll_success_at or 'not recorded yet' }}</div>
+                      <div class="entity-meta">Last validated {{ session.last_validated_at or 'not validated yet' }}</div>
+                      {% if session.last_poll_error_at %}
+                      <div class="entity-meta entity-meta--warning">Last runtime error {{ session.last_poll_error_at }}</div>
+                      {% elif session.last_error_at %}
+                      <div class="entity-meta entity-meta--warning">Last validation error {{ session.last_error_at }}</div>
                       {% endif %}
                     </td>
                     <td>
@@ -654,33 +685,33 @@
         <section class="card">
           <div class="card-header">
             <div>
-              <p class="eyebrow">Tracked Accounts</p>
-              <h2>Accounts</h2>
-              <p class="section-copy section-copy--wide">Every Twitter/X account routed through this server, along with its destination and delivery filters.</p>
+              <p class="eyebrow">Tracked Monitors</p>
+              <h2>Monitors</h2>
+              <p class="section-copy section-copy--wide">Every Twitter/X account monitored through this server, along with its destination and delivery filters.</p>
             </div>
           </div>
 
           {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
           <section class="notice notice--warning">
-            <strong>Account limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} tracked accounts on the {{ guild_presentation.plan }} plan.
+            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ guild_presentation.plan }} plan.
           </section>
           {% endif %}
 
           {% if delivery_sessions_required %}
           <section class="notice notice--warning">
-            <strong>Twitter/X session required:</strong> connect a Twitter/X session on the <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">Twitter Sessions</a> page before this server can deliver alerts.
+            <strong>Twitter/X session required:</strong> connect a Twitter/X session on the <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">Sessions</a> page before this server can deliver alerts.
           </section>
           {% endif %}
 
           <div class="workspace-grid">
             <div class="workspace-panel">
-              <h3 class="panel-title">Account Setup</h3>
+              <h3 class="panel-title">Monitor Setup</h3>
               <form id="source-form" class="stack {{ 'is-locked' if delivery_sessions_required else '' }}">
                 <div class="form-banner">
                   {% if delivery_sessions_required %}
                   Connect a Twitter/X session first. Until then, no posts can be delivered for this server.
                   {% else %}
-                  Fill this form and click <strong>Save Account</strong> to add a new tracked account. Or load an existing row below to update its routing and filter settings.
+                  Fill this form and click <strong>Save Monitor</strong> to add a new monitor. Or load an existing row below to update its routing and filter settings.
                   {% endif %}
                 </div>
                 <input id="source-edit-mode" type="hidden" value="create">
@@ -744,16 +775,17 @@
                 <div class="field-help">Use <strong>Send Test Alert</strong> to post a non-pinging sample alert into the selected channel before saving.</div>
 
                 <div class="actions">
-                  <button type="submit" {{ 'disabled' if delivery_sessions_required else '' }}>Save Account</button>
+                  <button type="submit" {{ 'disabled' if delivery_sessions_required else '' }}>Save Monitor</button>
                   <button type="button" class="button-secondary" id="source-send-test" {{ 'disabled' if delivery_sessions_required else '' }}>Send Test Alert</button>
                   <button type="button" class="button-secondary" id="source-form-reset">Clear Form</button>
                 </div>
+                <div id="source-form-status" class="form-banner form-banner--inline form-banner--hidden" hidden></div>
               </form>
             </div>
 
             <div class="workspace-panel workspace-panel--wide">
               <div class="panel-head-row">
-                <h3 class="panel-title">Current Accounts</h3>
+                <h3 class="panel-title">Current Monitors</h3>
                 <span class="count-pill">{{ plan_usage.source_count }}</span>
               </div>
               <div class="rule-list-wrap">
@@ -842,7 +874,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                  <td colspan="5" class="empty-cell">No tracked accounts yet. Use Account Setup to add the first one for this server.</td>
+                  <td colspan="5" class="empty-cell">No monitors yet. Use Monitor Setup to add the first one for this server.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -892,12 +924,12 @@
 
                 <label for="source-username">Twitter/X account</label>
                 <select id="source-username">
-                  <option value="">All tracked accounts</option>
+                  <option value="">All monitors</option>
                   {% for source_name in source_options %}
                   <option value="{{ source_name }}">{{ source_name }}</option>
                   {% endfor %}
                 </select>
-                <div class="field-help">Choose a tracked account for this rule, or leave it on all tracked accounts.</div>
+                <div class="field-help">Choose a monitor for this rule, or leave it on all monitors.</div>
 
                 <label for="channel-id">Channel</label>
                 <select id="channel-id">
@@ -1115,6 +1147,20 @@
         node.hidden = false;
         node.textContent = message;
         node.classList.toggle('form-banner--error', isError);
+      }
+
+      function setRequiredFieldState(fieldId, isInvalid) {
+        const field = document.getElementById(fieldId);
+        if (!field) {
+          return;
+        }
+        field.classList.toggle('field-input--invalid', !!isInvalid);
+      }
+
+      function resetSourceFieldValidation() {
+        ['source-username-edit', 'source-channel-id-edit'].forEach(function (fieldId) {
+          setRequiredFieldState(fieldId, false);
+        });
       }
 
       function syncTriggerKeywordAvailability() {
@@ -1407,9 +1453,14 @@
       if (sourceForm) {
         sourceForm.addEventListener('submit', async function (event) {
           event.preventDefault();
+          resetSourceFieldValidation();
+          setFormStatus('source-form-status');
           const username = document.getElementById('source-username-edit').value.trim();
           const channelId = document.getElementById('source-channel-id-edit').value.trim();
           if (!username || !channelId) {
+            setRequiredFieldState('source-username-edit', !username);
+            setRequiredFieldState('source-channel-id-edit', !channelId);
+            setFormStatus('source-form-status', 'Twitter/X account and channel are required.', true);
             setStatus('Twitter/X account and channel are required.', true);
             return;
           }
@@ -1466,8 +1517,10 @@
                 });
               }
             }
+            setFormStatus('source-form-status', 'Account settings saved.');
             window.location.reload();
           } catch (error) {
+            setFormStatus('source-form-status', `Failed to save source: ${error.message}`, true);
             setStatus(`Failed to save source: ${error.message}`, true);
           }
         });
@@ -1476,9 +1529,14 @@
       const sourceSendTest = document.getElementById('source-send-test');
       if (sourceSendTest) {
         sourceSendTest.addEventListener('click', async function () {
+          resetSourceFieldValidation();
+          setFormStatus('source-form-status');
           const username = document.getElementById('source-username-edit').value.trim();
           const channelId = document.getElementById('source-channel-id-edit').value.trim();
           if (!username || !channelId) {
+            setRequiredFieldState('source-username-edit', !username);
+            setRequiredFieldState('source-channel-id-edit', !channelId);
+            setFormStatus('source-form-status', 'Choose a Twitter/X account and channel before sending a test alert.', true);
             setStatus('Choose a Twitter/X account and channel before sending a test alert.', true);
             return;
           }
@@ -1495,8 +1553,10 @@
                   : document.getElementById('source-custom-message-edit').value,
               }),
             });
+            setFormStatus('source-form-status', `Sent a non-pinging test alert to #${result.channel_name}.`);
             setStatus(`Sent a non-pinging test alert to #${result.channel_name}.`);
           } catch (error) {
+            setFormStatus('source-form-status', `Failed to send test alert: ${error.message}`, true);
             setStatus(`Failed to send test alert: ${error.message}`, true);
           }
         });
@@ -1518,6 +1578,8 @@
           } catch (error) {
             document.getElementById('source-custom-message-edit').value = '';
           }
+          resetSourceFieldValidation();
+          setFormStatus('source-form-status');
           setStatus(`Loaded ${button.dataset.username} for editing, including its assigned Twitter/X session.`);
         });
       });
@@ -1532,7 +1594,9 @@
           document.getElementById('source-enable-type-edit').value = '11';
           document.getElementById('source-media-type-edit').value = '11';
           document.getElementById('source-custom-message-edit').value = '';
-          setStatus('Ready to add a new tracked account. Fill in the fields and click Save Account.');
+          resetSourceFieldValidation();
+          setFormStatus('source-form-status');
+          setStatus('Ready to add a new monitor. Fill in the fields and click Save Monitor.');
         });
       }
 

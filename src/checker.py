@@ -80,9 +80,17 @@ def check_env():
 # currently only client_used is checked
 async def check_db() -> set[str]:
     async with connect_readonly(get_db_path()) as db:
-        async with db.execute('SELECT client_used FROM user') as cursor:
+        async with db.execute(
+            '''
+            SELECT DISTINCT client_used
+            FROM notification
+            WHERE enabled = 1
+              AND client_used IS NOT NULL
+              AND client_used != ''
+            '''
+        ) as cursor:
             row = await cursor.fetchall()
-            
+
     db_clients = set(client[0] for client in row)
     env_clients = set(get_accounts().keys())
     stored_server_clients = set(await list_all_server_twitter_session_keys(get_db_path()))

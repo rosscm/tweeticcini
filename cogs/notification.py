@@ -48,7 +48,6 @@ class Notification(Cog_Extension):
     @app_commands.choices(
         enable_type=[app_commands.Choice(name='All (default)', value='11'), app_commands.Choice(name='Tweet & Retweet Only', value='10'), app_commands.Choice(name='Tweet & Quote Only', value='01'), app_commands.Choice(name='Tweet Only', value='00')],
         media_type=[app_commands.Choice(name='All (default)', value='11'), app_commands.Choice(name='No Media', value='10'), app_commands.Choice(name='Media Only', value='01')],
-        account_used=[app_commands.Choice(name=account_name, value=account_name) for account_name, _ in get_accounts().items()]
     )
     @app_commands.rename(enable_type='type')
     @app_commands.describe(
@@ -68,12 +67,19 @@ class Notification(Cog_Extension):
         mention: discord.Role = None,
         enable_type: str = '11',
         media_type: str = '11',
-        account_used: str = list(get_accounts().keys())[0],
+        account_used: str = '',
         force_everyone: bool = False,
     ):
         """Add a twitter user to specific channel on your server."""
 
         await itn.response.defer(ephemeral=True)
+
+        if not account_used:
+            await itn.followup.send(
+                'Use the dashboard to choose a connected Twitter/X session for this monitor.',
+                ephemeral=True,
+            )
+            return
 
         request = AddNotifierRequest(
             username=username,

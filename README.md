@@ -17,6 +17,7 @@ Built for communities that require reliable, automated social monitoring without
 ## ✨ Core Features
 
 - 🔄 Real-time tweet monitoring
+- 🔐 Server-managed Twitter/X session authorization in the dashboard
 - 🎯 Role-based mention targeting
 - 🔎 Keyword include and exclude filtering
 - 🔁 Retweet and quote filtering
@@ -31,10 +32,10 @@ Built for communities that require reliable, automated social monitoring without
 
 | Command              | Description                                              |
 | -------------------- | -------------------------------------------------------- |
-| `/add notifier`      | Add a monitored Twitter/X account to a channel           |
+| `/add notifier`      | Legacy add flow; dashboard monitors are preferred        |
 | `/remove notifier`   | Remove a monitored account from a channel                |
 | `/list users`        | List monitored accounts configured in the current server |
-| `/sync`              | Resync notifications after changing Twitter clients      |
+| `/sync`              | Legacy env-session sync helper                           |
 | `/customize message` | Customize the notification message format                |
 
 <details> <summary><strong>'/add notifier' parameters</strong></summary> <br>
@@ -46,7 +47,7 @@ Built for communities that require reliable, automated social monitoring without
 | `mention`      | Discord role    | Role to mention when sending notifications |
 | `type`         | string          | Enable or disable retweets and quotes      |
 | `media_type`   | string          | Filter by media-only or include all tweets |
-| `account_used` | string          | Twitter client alias used for monitoring   |
+| `account_used` | string          | Legacy Twitter client alias used for monitoring   |
 
 </details>
 <details> <summary><strong>'/remove notifier' parameters</strong></summary> <br>
@@ -89,27 +90,31 @@ Supported variables for message formatting:
 
 ```
 BOT_TOKEN=YourDiscordBotToken
-TWITTER_TOKEN=ClientAlias:AuthToken
 DATA_PATH=./data
 DISCORD_CLIENT_ID=YourDiscordClientId
 DISCORD_CLIENT_SECRET=YourDiscordClientSecret
 DISCORD_REDIRECT_URI=http://localhost:8000/dashboard/callback
 DASHBOARD_SESSION_SECRET=YourLongRandomSessionSecret
+TWITTER_SESSION_SECRET=YourLongRandomSessionSecret
 STRIPE_PUBLISHABLE_KEY=pk_test_replace_me
 STRIPE_SECRET_KEY=sk_test_replace_me
 STRIPE_WEBHOOK_SECRET=whsec_replace_me
 STRIPE_PRICE_ID_PRO=price_replace_me
 ```
 
-Multiple Twitter accounts can be defined by separating entries with commas.
-
-Example:
+Optional fallback only:
 
 `TWITTER_TOKEN=Account1:token1,Account2:token2`
+
+The current recommended flow is:
+- connect Twitter/X sessions from the dashboard
+- store them encrypted with `TWITTER_SESSION_SECRET`
+- assign monitors to those connected sessions per server
 
 Local vs production reminders:
 - local dashboard OAuth should use `http://localhost:8000/dashboard/callback`
 - production OAuth should use your real dashboard domain callback URL
+- `TWITTER_SESSION_SECRET` should be set anywhere the dashboard or bot will read stored server sessions
 - Stripe test keys and live keys must never be mixed with the wrong `price_...` or webhook secret
 - the production bot and dashboard should share the same `DATA_PATH` target so billing, dashboard, and runtime changes land in one database
 
@@ -130,7 +135,7 @@ Important production parameters:
 
 ## 🖥 Dashboard
 
-The dashboard supports guild-scoped source management, alert rules, appearance overrides, billing scaffolding, and Discord OAuth login.
+The dashboard supports server-scoped monitor management, Twitter/X session connection, alert rules, appearance overrides, billing scaffolding, and Discord OAuth login.
 
 Run it locally with:
 
@@ -144,7 +149,8 @@ Then open:
 
 Current dashboard scope:
 - guild overview and runtime health
-- tracked source management
+- connected Twitter/X sessions per server
+- monitor management and session assignment
 - source-specific alert rules
 - appearance overrides
 - billing and entitlement testing
@@ -184,6 +190,7 @@ Before switching from local/testing to a live deployment, verify:
 - public site is published and shows product, pricing, support email, privacy, and terms
 - Discord OAuth redirect URI is set to the live dashboard callback URL
 - `DASHBOARD_SESSION_SECRET` is set to a strong random value
+- `TWITTER_SESSION_SECRET` is set to a strong random value
 - bot and dashboard both use the intended persistent `DATA_PATH`
 - Stripe keys are all live-mode values
 - `STRIPE_PRICE_ID_PRO` is the live recurring Pro price
@@ -192,11 +199,13 @@ Before switching from local/testing to a live deployment, verify:
   - `checkout.session.completed`
   - `customer.subscription.updated`
   - `customer.subscription.deleted`
-- `BOT_TOKEN` and `TWITTER_TOKEN` values are present on the live host
+- `BOT_TOKEN` is present on the live host
+- at least one Twitter/X session can be connected through the dashboard for each server that should deliver alerts
 - dashboard login works through Discord OAuth on the live domain
 - checkout creates a Stripe session from the live Billing page
 - webhook delivery updates the server entitlement without a manual override
 - test alerts can be sent from the dashboard into a real Discord channel
+- a newly connected Twitter/X session is picked up by the bot without a manual restart
 
 Suggested first live rollout:
 

@@ -5,6 +5,7 @@ from discord.ext import commands
 from core.classes import Cog_Extension
 from src.log import setup_logger
 from src.repositories.notifier_repository import get_all_user_client_map
+from src.settings import get_accounts
 from src.sync_db.sync_db import sync_db
 from src.settings import get_db_path
 
@@ -19,6 +20,13 @@ class Sync(Cog_Extension):
         """To sync the notification of new Twitter account with database, use this command."""
 
         await itn.response.defer(ephemeral=True)
+
+        if not get_accounts():
+            await itn.followup.send(
+                'No legacy env-based Twitter/X sessions are configured. Server-managed sessions do not need this sync command.',
+                ephemeral=True,
+            )
+            return
 
         follow_list = await get_all_user_client_map(get_db_path())
 

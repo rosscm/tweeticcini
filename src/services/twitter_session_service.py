@@ -36,6 +36,10 @@ class TwitterSessionValidationError(TwitterSessionServiceError):
     pass
 
 
+class TwitterSessionPlanLimitError(TwitterSessionValidationError):
+    pass
+
+
 @dataclass(frozen=True)
 class ServerTwitterSessionRecord:
     server_id: str
@@ -122,6 +126,14 @@ class TwitterSessionService:
         normalized_input = auth_token.strip()
         if not normalized_input:
             raise TwitterSessionValidationError('Twitter/X session input is required')
+        if await self._would_exceed_session_limit(server_id, normalized_name):
+            from src.services.guild_settings_service import GuildSettingsService
+
+            presentation = await GuildSettingsService(self.db_path).get_presentation_view(server_id)
+            raise TwitterSessionPlanLimitError(
+                f'{presentation.plan.capitalize()} includes {presentation.features.max_twitter_sessions} Twitter/X session'
+                f"{'' if presentation.features.max_twitter_sessions == 1 else 's'}. Upgrade to add more."
+            )
 
         client_key = self._build_client_key(server_id, normalized_name)
         try:
@@ -333,3 +345,14 @@ class TwitterSessionService:
     @staticmethod
     def _build_bootstrap_client_key() -> str:
         return f'tweeticcini-bootstrap-{secrets.token_hex(6)}'
+
+    async def _would_exceed_session_limit(self, server_id: str, session_name: str) -> bool:
+        existing = await get_server_twitter_session(self.db_path, server_id, session_name)
+        if existing is not None and bool(existing['is_active']):
+            return False
+
+        from src.services.guild_settings_service import GuildSettingsService
+
+        presentation = await GuildSettingsService(self.db_path).get_presentation_view(server_id)
+        sessions = await self.list_server_sessions(server_id)
+        return len(sessions) >= presentation.features.max_twitter_sessions

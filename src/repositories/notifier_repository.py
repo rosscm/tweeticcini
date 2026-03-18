@@ -329,8 +329,10 @@ async def get_enabled_usernames_for_channel(db_path, channel_id: str) -> list[st
 
 @asynccontextmanager
 async def connect_writable(db_path):
-    async with aiosqlite.connect(db_path) as db:
-        await db.execute('PRAGMA synchronous = OFF')
+    async with aiosqlite.connect(db_path, timeout=30) as db:
+        await db.execute('PRAGMA journal_mode = WAL')
+        await db.execute('PRAGMA synchronous = NORMAL')
+        await db.execute('PRAGMA busy_timeout = 30000')
         await db.execute('PRAGMA count_changes = OFF')
         db.row_factory = aiosqlite.Row
         yield db
