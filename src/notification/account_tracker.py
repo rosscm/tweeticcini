@@ -34,6 +34,7 @@ from src.utils import get_lock, extract_first_line
 
 log = setup_logger(__name__)
 lock = get_lock()
+AUTH_TIMEOUT_SECONDS = 30
 
 
 def build_notification_message(template: str, mention: str, tweet, url: str) -> str:
@@ -90,13 +91,28 @@ class AccountTracker():
         for attempt in range(max_attempts):
             try:
                 if account_config['mode'] == 'session_json':
+                    log.info(f'authenticating Twitter/X session {account_name} from stored session file')
                     self.twitter_session_service._write_session_file(account_name, account_config['credential'])
-                    await app.connect()
+                    await asyncio.wait_for(app.connect(), timeout=AUTH_TIMEOUT_SECONDS)
                 else:
-                    await app.load_auth_token(account_config['credential'])
+                    log.info(f'authenticating Twitter/X session {account_name} from auth token')
+                    await asyncio.wait_for(app.load_auth_token(account_config['credential']), timeout=AUTH_TIMEOUT_SECONDS)
                 return app
-            except Exception:
-                log.error(f"Authentication failed for account: {account_name} [Attempt {attempt + 1}/{max_attempts}]")
+            except asyncio.TimeoutError:
+                log.error(
+                    f"Authentication timed out for account: {account_name} "
+                    f"[Attempt {attempt + 1}/{max_attempts}] after {AUTH_TIMEOUT_SECONDS}s"
+                )
+                if attempt < max_attempts - 1:
+                    await asyncio.sleep(5)
+                else:
+                    log.error(f"Persistent authentication timeout for account {account_name}")
+                    raise
+            except Exception as exc:
+                log.error(
+                    f"Authentication failed for account: {account_name} "
+                    f"[Attempt {attempt + 1}/{max_attempts}] ({type(exc).__name__}: {exc})"
+                )
                 if attempt < max_attempts - 1:
                     await asyncio.sleep(5)
                 else:
