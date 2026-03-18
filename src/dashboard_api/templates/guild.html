@@ -267,11 +267,11 @@
               <input id="twitter-session-name" type="text" value="Primary Session" placeholder="E.g., Primary Session">
               <div class="field-help">Give this session a short label so you can recognize it later. <code>Primary Session</code> is a good default.</div>
 
-              <label for="twitter-session-auth-token">Session input</label>
-              <textarea id="twitter-session-auth-token" rows="7" placeholder="Paste either the full contents of a .tw_session file or a raw Twitter/X auth_token"></textarea>
-              <div class="field-help">Best for now: paste the full JSON contents of a working <code>.tw_session</code> file. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
-              <div class="field-help">Raw cookie fallback: sign in to X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value for <code>auth_token</code>.</div>
-              <div class="field-help">If you use Safari on macOS, open <strong>Develop</strong> <span aria-hidden="true">→</span> <strong>Show Web Inspector</strong>, then check the Storage tab for the same <code>x.com</code> cookie.</div>
+              <label for="twitter-session-auth-token">Auth token or session JSON</label>
+              <textarea id="twitter-session-auth-token" rows="7" placeholder="Paste the raw value of the x.com auth_token cookie"></textarea>
+              <div class="field-help">Recommended: paste the raw value of your current <code>x.com</code> <code>auth_token</code> cookie. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
+              <div class="field-help">If needed, you can still paste the full JSON contents of a working <code>.tw_session</code> file instead.</div>
+              <div class="field-help">To find <code>auth_token</code>, sign in to X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value for <code>auth_token</code>.</div>
 
               <div class="actions">
                 <button type="submit">Connect Session</button>
@@ -733,7 +733,7 @@
                   <option value="">Connect a session first</option>
                   {% endif %}
                 </select>
-                <div class="field-help">Required for new tracked accounts. Existing accounts keep the session they already use until you reconnect them.</div>
+                <div class="field-help">Choose which connected Twitter/X session this account should use for polling and delivery.</div>
 
                 <label for="source-custom-message-edit">Custom message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
                 <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
@@ -820,6 +820,7 @@
                         type="button"
                         class="button-secondary edit-source"
                         data-username="{{ source.username }}"
+                        data-client-used="{{ source.client_used }}"
                         data-channel-id="{{ source.channel_id }}"
                         data-role-id="{{ source.role_id }}"
                         data-enable-type="{{ source.enable_type }}"
@@ -1429,7 +1430,10 @@
             if (mode === 'edit') {
               await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}`, {
                 method: 'PUT',
-                body: JSON.stringify(payload),
+                body: JSON.stringify({
+                  account_used: document.getElementById('source-account-used-edit').value,
+                  ...payload,
+                }),
               });
               if (customMessage.trim()) {
                 await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`, {
@@ -1507,13 +1511,14 @@
           document.getElementById('source-role-id-edit').value = button.dataset.roleId || '';
           document.getElementById('source-enable-type-edit').value = button.dataset.enableType;
           document.getElementById('source-media-type-edit').value = button.dataset.mediaType;
+          document.getElementById('source-account-used-edit').value = button.dataset.clientUsed || '';
           try {
             const messageData = await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(button.dataset.username)}/${encodeURIComponent(button.dataset.channelId)}/message`);
             document.getElementById('source-custom-message-edit').value = messageData.customized_msg || '';
           } catch (error) {
             document.getElementById('source-custom-message-edit').value = '';
           }
-          setStatus(`Loaded ${button.dataset.username} for editing. Twitter/X session is only used for new sources.`);
+          setStatus(`Loaded ${button.dataset.username} for editing, including its assigned Twitter/X session.`);
         });
       });
 

@@ -1,4 +1,12 @@
+import os
+
 from tweety import Twitter
+
+from src.adapters.tweety_compat import apply_tweety_compat_patch
+
+
+if os.getenv('DISABLE_TWEETY_COMPAT', '').lower() not in {'1', 'true', 'yes'}:
+    apply_tweety_compat_patch()
 
 
 class TwitterSessionAdapter:

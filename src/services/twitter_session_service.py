@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -259,10 +260,20 @@ class TwitterSessionService:
             await app.connect()
             return f'session_json:{session_payload}'
 
-        app = create_twitter_session(client_key)
+        # Bootstrap the cookie into a fresh Tweety session file first, then store
+        # the resulting full session JSON for the server-specific client key.
+        bootstrap_client_key = self._build_bootstrap_client_key()
+        bootstrap_path = self._session_file_path(bootstrap_client_key)
+        if bootstrap_path.exists():
+            bootstrap_path.unlink()
+
+        app = create_twitter_session(bootstrap_client_key)
         await app.load_auth_token(credential_input)
-        session_payload = self._read_session_file(client_key)
+        session_payload = self._read_session_file(bootstrap_client_key)
+        if bootstrap_path.exists():
+            bootstrap_path.unlink()
         if session_payload:
+            self._write_session_file(client_key, session_payload)
             return f'session_json:{session_payload}'
         return f'auth_token:{credential_input}'
 
@@ -318,3 +329,7 @@ class TwitterSessionService:
     def _build_client_key(server_id: str, session_name: str) -> str:
         slug = re.sub(r'[^a-z0-9]+', '-', session_name.lower()).strip('-') or 'session'
         return f'server-{server_id}-{slug}'
+
+    @staticmethod
+    def _build_bootstrap_client_key() -> str:
+        return f'tweeticcini-bootstrap-{secrets.token_hex(6)}'

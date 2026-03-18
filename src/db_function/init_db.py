@@ -32,6 +32,7 @@ async def ensure_db_schema() -> str:
             CREATE TABLE IF NOT EXISTS notification (
                 user_id TEXT,
                 channel_id TEXT,
+                client_used TEXT DEFAULT NULL,
                 role_id TEXT,
                 enabled INTEGER DEFAULT 1,
                 enable_type TEXT DEFAULT 11,
@@ -126,6 +127,21 @@ async def ensure_db_schema() -> str:
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:
             columns = {row[1] async for row in cursor}
+
+        if 'client_used' not in columns:
+            await db.execute('ALTER TABLE notification ADD COLUMN client_used TEXT DEFAULT NULL')
+            await db.execute(
+                '''
+                UPDATE notification
+                SET client_used = (
+                    SELECT user.client_used
+                    FROM user
+                    WHERE user.id = notification.user_id
+                )
+                WHERE client_used IS NULL
+                '''
+            )
+            log.info('added missing notification.client_used column and backfilled from user.client_used')
 
         if 'force_everyone' not in columns:
             await db.execute('ALTER TABLE notification ADD COLUMN force_everyone INTEGER DEFAULT 0')

@@ -13,9 +13,9 @@ from src.repositories.notifier_repository import (
     get_active_notifications_for_user,
     get_dashboard_source_message,
     get_channel_ids_for_server,
-    get_client_used_for_user,
     get_enabled_notifier_user_id,
-    get_enabled_user_client_map,
+    get_enabled_notifications_for_user_client,
+    get_enabled_user_client_pairs,
     get_enabled_usernames_for_channel,
     get_user_by_username,
     insert_user,
@@ -24,7 +24,6 @@ from src.repositories.notifier_repository import (
     set_custom_message as set_notification_custom_message,
     set_user_enabled,
     update_notification_settings,
-    update_user_client,
     upsert_notification,
 )
 from src.services.guild_settings_service import GuildSettingsService
@@ -151,6 +150,7 @@ class NotifierService:
                             cursor,
                             match_user['id'],
                             request.channel_id,
+                            request.account_used,
                             request.role_id,
                             request.enable_type,
                             request.media_type,
@@ -168,10 +168,7 @@ class NotifierService:
         return AddNotifierResult(
             created_or_reactivated=False,
             task_client_used=None,
-            response_message=(
-                f'{request.username} already exists under {match_user["client_used"]}. '
-                'Using the same account to deliver notifications'
-            ),
+            response_message=f'{request.username} is already tracked here. Delivery settings were refreshed.',
         )
 
     async def remove_notifier(self, request: RemoveNotifierRequest) -> RemoveNotifierResult:
@@ -204,7 +201,8 @@ class NotifierService:
 
                     client_used = None
                     if not active_notifiers:
-                        client_used = await get_client_used_for_user(cursor, match_notifier['user_id'])
+                        client_notifications = await get_enabled_notifications_for_user_client(cursor, match_notifier['user_id'], '')
+                        client_used = client_notifications[0]['client_used'] if client_notifications else None
                 except NotifierServiceError:
                     await db.rollback()
                     raise
@@ -288,8 +286,8 @@ class NotifierService:
     async def get_enabled_usernames_for_channel(self, channel_id: str) -> list[str]:
         return await get_enabled_usernames_for_channel(self.db_path, channel_id)
 
-    async def get_enabled_user_client_map(self) -> dict[str, str]:
-        return await get_enabled_user_client_map(self.db_path)
+    async def get_enabled_user_client_pairs(self) -> list[tuple[str, str]]:
+        return await get_enabled_user_client_pairs(self.db_path)
 
     async def list_dashboard_sources(self, server_id: str) -> list[DashboardSourceRecord]:
         rows = await list_dashboard_sources(self.db_path, server_id)
@@ -311,6 +309,7 @@ class NotifierService:
         self,
         username: str,
         channel_id: str,
+        client_used: str,
         role_id: str,
         enable_type: str,
         media_type: str,
@@ -319,6 +318,7 @@ class NotifierService:
             self.db_path,
             username=username,
             channel_id=channel_id,
+            client_used=client_used,
             role_id=role_id,
             enable_type=enable_type,
             media_type=media_type,
@@ -341,6 +341,7 @@ class NotifierService:
                     cursor,
                     str(target_user.id),
                     request.channel_id,
+                    request.account_used,
                     request.role_id,
                     request.enable_type,
                     request.media_type,
@@ -348,17 +349,14 @@ class NotifierService:
                 )
                 await db.commit()
         else:
-            is_changed_client = await self._handle_existing_user_client(match_user, request)
-
             async with lock:
                 await db.execute('BEGIN')
-                if is_changed_client:
-                    await update_user_client(cursor, match_user['id'], request.account_used)
                 await ensure_channel(cursor, request.channel_id, request.server_id)
                 await upsert_notification(
                     cursor,
                     match_user['id'],
                     request.channel_id,
+                    request.account_used,
                     request.role_id,
                     request.enable_type,
                     request.media_type,
@@ -379,25 +377,3 @@ class NotifierService:
             task_client_used=request.account_used,
             response_message=f'successfully add notifier of {request.username} under {request.account_used}!',
         )
-
-    async def _handle_existing_user_client(self, match_user, request: AddNotifierRequest) -> bool:
-        if match_user['client_used'] == request.account_used:
-            return False
-
-        if not configs['auto_change_client']:
-            raise AutoChangeClientDisabledError
-
-        if configs['auto_unfollow'] or configs['auto_turn_off_notification']:
-            old_client_used = match_user['client_used']
-            old_app = create_twitter_session(old_client_used)
-            await old_app.connect()
-            target_user = await old_app.get_user_info(request.username)
-
-            if configs['auto_unfollow']:
-                status = await old_app.unfollow_user(target_user)
-                log.info(f'successfully unfollowed {request.username} (due to client change)') if status else log.warning(f'unable to unfollow {request.username}')
-            else:
-                status = await old_app.disable_user_notification(target_user)
-                log.info(f'successfully turned off notification for {request.username} (due to client change)') if status else log.warning(f'unable to turn off notifications for {request.username}')
-
-        return True

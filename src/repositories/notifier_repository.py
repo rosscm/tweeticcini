@@ -18,6 +18,7 @@ async def upsert_notification(
     cursor,
     user_id: str,
     channel_id: str,
+    client_used: str,
     role_id: str,
     enable_type: str,
     media_type: str,
@@ -26,10 +27,10 @@ async def upsert_notification(
     await cursor.execute(
         '''
         INSERT OR REPLACE INTO notification
-        (user_id, channel_id, role_id, enable_type, enable_media_type, force_everyone)
-        VALUES (?, ?, ?, ?, ?, ?)
+        (user_id, channel_id, client_used, role_id, enable_type, enable_media_type, force_everyone)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ''',
-        (user_id, channel_id, role_id, enable_type, media_type, int(force_everyone)),
+        (user_id, channel_id, client_used, role_id, enable_type, media_type, int(force_everyone)),
     )
 
 
@@ -104,14 +105,32 @@ async def get_enabled_notifications_for_user(cursor, user_id: str):
     return await cursor.fetchall()
 
 
+async def get_enabled_notifications_for_user_client(cursor, user_id: str, client_used: str):
+    await cursor.execute(
+        'SELECT * FROM notification WHERE user_id = ? AND client_used = ? AND enabled = 1',
+        (user_id, client_used),
+    )
+    return await cursor.fetchall()
+
+
 async def update_user_latest_tweet(cursor, username: str, latest_tweet: str) -> None:
     await cursor.execute('UPDATE user SET lastest_tweet = ? WHERE username = ?', (latest_tweet, username))
 
 
-async def get_enabled_user_client_map(db_path) -> dict[str, str]:
+async def get_enabled_user_client_pairs(db_path) -> list[tuple[str, str]]:
     async with connect_readonly(db_path) as db:
-        async with db.execute('SELECT username, client_used FROM user WHERE enabled = 1') as cursor:
-            return {row[0]: row[1] async for row in cursor}
+        async with db.execute(
+            '''
+            SELECT DISTINCT user.username, notification.client_used
+            FROM user
+            JOIN notification ON notification.user_id = user.id
+            WHERE user.enabled = 1
+              AND notification.enabled = 1
+              AND notification.client_used IS NOT NULL
+            ORDER BY user.username ASC, notification.client_used ASC
+            '''
+        ) as cursor:
+            return [(row[0], row[1]) async for row in cursor]
 
 
 async def get_all_user_client_map(db_path) -> dict[str, str]:
@@ -131,14 +150,14 @@ async def list_server_notifications(db_path, server_id: str, account: str = '', 
     async with connect_readonly(db_path) as db:
         async with db.execute(
             '''
-            SELECT user.username, channel.id, notification.role_id, notification.enable_type, notification.enable_media_type, user.client_used
+            SELECT user.username, channel.id, notification.role_id, notification.enable_type, notification.enable_media_type, notification.client_used
             FROM user
             JOIN notification
             ON user.id = notification.user_id
             JOIN channel
             ON notification.channel_id = channel.id
             WHERE channel.server_id = ? AND notification.enabled = 1
-            AND (user.client_used = ? OR '' = ?)
+            AND (notification.client_used = ? OR '' = ?)
             AND (channel.id = ? OR '' = ?)
             ''',
             (server_id, account, account, channel_id, channel_id),
@@ -169,7 +188,7 @@ async def list_dashboard_sources(db_path, server_id: str):
             '''
             SELECT
                 user.username,
-                user.client_used,
+                notification.client_used,
                 channel.id AS channel_id,
                 notification.role_id,
                 notification.enable_type,
@@ -194,7 +213,7 @@ async def list_dashboard_sources(db_path, server_id: str):
               AND notification.enabled = 1
             GROUP BY
                 user.username,
-                user.client_used,
+                notification.client_used,
                 channel.id,
                 notification.role_id,
                 notification.enable_type,
@@ -211,6 +230,7 @@ async def update_notification_settings(
     db_path,
     username: str,
     channel_id: str,
+    client_used: str,
     role_id: str,
     enable_type: str,
     media_type: str,
@@ -219,11 +239,11 @@ async def update_notification_settings(
         cursor = await db.execute(
             '''
             UPDATE notification
-            SET role_id = ?, enable_type = ?, enable_media_type = ?
+            SET client_used = ?, role_id = ?, enable_type = ?, enable_media_type = ?
             WHERE channel_id = ?
               AND user_id = (SELECT id FROM user WHERE username = ?)
             ''',
-            (role_id, enable_type, media_type, channel_id, username),
+            (client_used, role_id, enable_type, media_type, channel_id, username),
         )
         await db.commit()
         return cursor.rowcount > 0
@@ -252,7 +272,16 @@ async def get_dashboard_source_message(db_path, username: str, channel_id: str) 
 async def get_enabled_client_names(db_path) -> list[str]:
     async with connect_readonly(db_path) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute('SELECT client_used FROM user WHERE enabled = 1') as cursor:
+        async with db.execute(
+            '''
+            SELECT notification.client_used
+            FROM notification
+            JOIN user ON user.id = notification.user_id
+            WHERE user.enabled = 1
+              AND notification.enabled = 1
+              AND notification.client_used IS NOT NULL
+            '''
+        ) as cursor:
             return list({row['client_used'] async for row in cursor})
 
 

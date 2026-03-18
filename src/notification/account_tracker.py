@@ -10,8 +10,7 @@ from discord.ext import commands
 from src.adapters.twitter_adapter import create_twitter_session
 from configs.load_configs import configs
 from src.repositories.notifier_repository import (
-    get_enabled_notifications_for_user,
-    get_enabled_user_client_map,
+    get_enabled_notifications_for_user_client,
     get_user_by_username,
     update_user_latest_tweet,
 )
@@ -34,7 +33,6 @@ from src.utils import get_lock, extract_first_line
 
 log = setup_logger(__name__)
 lock = get_lock()
-AUTH_TIMEOUT_SECONDS = 30
 
 
 def build_notification_message(template: str, mention: str, tweet, url: str) -> str:
@@ -91,28 +89,13 @@ class AccountTracker():
         for attempt in range(max_attempts):
             try:
                 if account_config['mode'] == 'session_json':
-                    log.info(f'authenticating Twitter/X session {account_name} from stored session file')
                     self.twitter_session_service._write_session_file(account_name, account_config['credential'])
-                    await asyncio.wait_for(app.connect(), timeout=AUTH_TIMEOUT_SECONDS)
+                    await app.connect()
                 else:
-                    log.info(f'authenticating Twitter/X session {account_name} from auth token')
-                    await asyncio.wait_for(app.load_auth_token(account_config['credential']), timeout=AUTH_TIMEOUT_SECONDS)
+                    await app.load_auth_token(account_config['credential'])
                 return app
-            except asyncio.TimeoutError:
-                log.error(
-                    f"Authentication timed out for account: {account_name} "
-                    f"[Attempt {attempt + 1}/{max_attempts}] after {AUTH_TIMEOUT_SECONDS}s"
-                )
-                if attempt < max_attempts - 1:
-                    await asyncio.sleep(5)
-                else:
-                    log.error(f"Persistent authentication timeout for account {account_name}")
-                    raise
-            except Exception as exc:
-                log.error(
-                    f"Authentication failed for account: {account_name} "
-                    f"[Attempt {attempt + 1}/{max_attempts}] ({type(exc).__name__}: {exc})"
-                )
+            except Exception:
+                log.error(f"Authentication failed for account: {account_name} [Attempt {attempt + 1}/{max_attempts}]")
                 if attempt < max_attempts - 1:
                     await asyncio.sleep(5)
                 else:
@@ -157,13 +140,13 @@ class AccountTracker():
         if not self.accounts_data:
             log.warning('no Twitter/X sessions are configured; tracked sources cannot poll until a session is connected')
 
-        usernames_and_clients = await get_enabled_user_client_map(self.db_path)
+        usernames_and_clients = await self.twitter_session_service_pairs()
 
-        for username, client_used in usernames_and_clients.items():
+        for username, client_used in usernames_and_clients:
             if client_used not in self.tweets:
                 log.warning(f'skipping task for {username}; Twitter/X session {client_used} is not available')
                 continue
-            self.bot.loop.create_task(self.notification(username, client_used)).set_name(username)
+            self.bot.loop.create_task(self.notification(username, client_used)).set_name(self._task_name(username, client_used))
         self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
 
     async def notification(self, username: str, client_used: str):
@@ -184,7 +167,7 @@ class AccountTracker():
 
                     for tweet in lastest_tweets:
                         log.info(f'find a new tweet from {username}')
-                        notifications = await get_enabled_notifications_for_user(cursor, user['id'])
+                        notifications = await get_enabled_notifications_for_user_client(cursor, user['id'], client_used)
                         for data in notifications:
                             channel = self.bot.get_channel(int(data['channel_id']))
                             if channel is not None and is_match_type(tweet, data['enable_type']) and is_match_media_type(tweet, data['enable_media_type']):
@@ -324,16 +307,16 @@ class AccountTracker():
     async def tasksMonitor(self):
         while True:
             await self._ensure_twitter_updaters()
-            users_and_clients = await get_enabled_user_client_map(self.db_path)
+            users_and_clients = await self.twitter_session_service_pairs()
+            expected_tasks = {self._task_name(username, client_used): (username, client_used) for username, client_used in users_and_clients}
             taskSet = {task.get_name() for task in asyncio.all_tasks()}
-            users = {username for username, _ in users_and_clients.items()}
-            aliveTasks = taskSet & users
+            aliveTasks = taskSet & set(expected_tasks.keys())
 
-            if aliveTasks != users:
-                deadTasks = list(users - aliveTasks)
+            if aliveTasks != set(expected_tasks.keys()):
+                deadTasks = [expected_tasks[name] for name in (set(expected_tasks.keys()) - aliveTasks)]
                 log.warning(f'dead tasks : {deadTasks}')
-                for deadTask in deadTasks:
-                    self.bot.loop.create_task(self.notification(deadTask, users_and_clients[deadTask])).set_name(deadTask)
+                for username, client_used in deadTasks:
+                    self.bot.loop.create_task(self.notification(username, client_used)).set_name(self._task_name(username, client_used))
                     log.info(f'restart {deadTask} successfully using {users_and_clients[deadTask]}')
 
             for client in self.accounts_data.keys():
@@ -349,8 +332,16 @@ class AccountTracker():
 
             await asyncio.sleep(configs['tasks_monitor_check_period'] * 60)
 
+    async def twitter_session_service_pairs(self) -> list[tuple[str, str]]:
+        from src.services.notifier_service import NotifierService
+        return await NotifierService(self.db_path).get_enabled_user_client_pairs()
+
+    @staticmethod
+    def _task_name(username: str, client_used: str) -> str:
+        return f'{username}::{client_used}'
+
     async def addTask(self, username: str, client_used: str):
-        self.bot.loop.create_task(self.notification(username, client_used)).set_name(username)
+        self.bot.loop.create_task(self.notification(username, client_used)).set_name(self._task_name(username, client_used))
         log.info(f'new task {username} added successfully using {client_used}')
 
         for task in asyncio.all_tasks():
@@ -372,7 +363,7 @@ class AccountTracker():
                     log.warning(f'removeTask : {e}')
 
         for task in asyncio.all_tasks():
-            if task.get_name() == username:
+            if task.get_name().startswith(f'{username}::'):
                 try:
                     log.info(f'existing task {username} has been closed') if task.cancel() else log.info(f'existing task {username} failed to close')
                 except Exception as e:

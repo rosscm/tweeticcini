@@ -80,6 +80,7 @@ class DashboardSourceResponse(BaseModel):
 
 
 class UpdateDashboardSourceRequest(BaseModel):
+    account_used: str
     role_id: str = ''
     enable_type: str = '11'
     media_type: str = '11'
@@ -1194,6 +1195,7 @@ async def update_guild_source(
     updated = await notifier_service.update_dashboard_source(
         username=username,
         channel_id=channel_id,
+        client_used=source_request.account_used,
         role_id=source_request.role_id,
         enable_type=source_request.enable_type,
         media_type=source_request.media_type,
