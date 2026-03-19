@@ -291,10 +291,27 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">Overview</p>
-            <h2>Control Center</h2>
+            <h2>Server Snapshot</h2>
             <p class="section-copy section-copy--wide">A quick read on this server's plan, monitoring footprint, and dashboard readiness before you dive into accounts, rules, or appearance.</p>
           </div>
         </div>
+
+        {% if overview.get('onboarding', {}).get('show') %}
+        <section class="notice notice--warning">
+          <strong>Start here:</strong> finish the first-time setup flow for this server.
+          <div class="status-detail-list">
+            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('sessions_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
+              {{ 'Sessions connected' if overview.get('onboarding', {}).get('sessions_ready') else 'Connect a session' }}
+            </a>
+            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('monitors_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
+              {{ 'Monitor added' if overview.get('onboarding', {}).get('monitors_ready') else 'Add your first monitor' }}
+            </a>
+            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('rules_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/rules">
+              {{ 'Rule added' if overview.get('onboarding', {}).get('rules_ready') else 'Add your first rule' }}
+            </a>
+          </div>
+        </section>
+        {% endif %}
 
         <div class="plan-summary">
           <div class="plan-tile">
@@ -331,37 +348,14 @@
         </section>
         {% endif %}
 
-        {% if delivery_sessions_required %}
-        <section class="notice notice--warning">
-          <strong>Delivery blocked:</strong> this server still needs a connected Twitter/X session before tracked posts can be delivered. Finish setup on the <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">Sessions</a> page.
-        </section>
-        {% endif %}
-
-        {% if overview.get('onboarding', {}).get('show') %}
-        <section class="notice notice--plain">
-          <strong>Start here:</strong> finish the first-time setup flow for this server.
-          <div class="status-detail-list">
-            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('sessions_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
-              {{ 'Sessions connected' if overview.get('onboarding', {}).get('sessions_ready') else 'Connect a session' }}
-            </a>
-            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('monitors_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
-              {{ 'Monitor added' if overview.get('onboarding', {}).get('monitors_ready') else 'Add your first monitor' }}
-            </a>
-            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('rules_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/rules">
-              {{ 'Rule added' if overview.get('onboarding', {}).get('rules_ready') else 'Add your first rule' }}
-            </a>
-          </div>
-        </section>
-        {% endif %}
-
         <div class="overview-grid">
           <div class="default-block">
-            <h3>Alert Behavior</h3>
-            <div><span class="meta-label">Escalation rules</span> {{ overview.escalation_rule_count }}</div>
-            <div><span class="meta-label">Scoped rules</span> {{ overview.scoped_rule_count }}</div>
-            <div><span class="meta-label">Custom source messages</span> {{ overview.custom_message_count }}</div>
-            <div><span class="meta-label">Trigger keywords</span> {{ plan_usage.trigger_keyword_count }}</div>
-            <div><span class="meta-label">Exclusion keywords</span> {{ plan_usage.exclude_keyword_count }}</div>
+            <h3>Alert Setup</h3>
+            <div><span class="meta-label">Ping everyone rules</span> {{ overview.escalation_rule_count }}</div>
+            <div><span class="meta-label">Monitor-specific rules</span> {{ overview.scoped_rule_count }}</div>
+            <div><span class="meta-label">Custom monitor messages</span> {{ overview.custom_message_count }}</div>
+            <div><span class="meta-label">Ping keywords</span> {{ plan_usage.trigger_keyword_count }}</div>
+            <div><span class="meta-label">Exclude keywords</span> {{ plan_usage.exclude_keyword_count }}</div>
           </div>
 
           <div class="default-block">
@@ -376,7 +370,7 @@
             <div class="overview-note">Plus {{ plan_usage.source_count - (overview.source_names | length) }} more monitors.</div>
             {% endif %}
             {% else %}
-            <div class="overview-note">No monitors yet. Add your first monitor from the Monitors page.</div>
+            <div class="overview-note">No monitors yet. Add your first monitor from 'Monitors'.</div>
             {% endif %}
           </div>
 
@@ -411,9 +405,9 @@
       <section class="card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Twitter/X Sessions</p>
-            <h2>Delivery Authorization</h2>
-            <p class="section-copy section-copy--wide">Connect at least one Twitter/X session for this server before Tweeticcini can poll sources and deliver alerts here.</p>
+            <p class="eyebrow">Sessions</p>
+            <h2>Connect &amp; Manage Sessions</h2>
+            <p class="section-copy section-copy--wide">Connect at least one Twitter/X session before this server can watch for posts and deliver alerts.</p>
           </div>
         </div>
 
@@ -423,25 +417,21 @@
         </section>
         {% else %}
         <section class="notice notice--success">
-          <strong>Delivery ready:</strong> this server has {{ delivery_session_options|length }} active Twitter/X session{{ '' if delivery_session_options|length == 1 else 's' }} available for polling and delivery.
+          <strong>Delivery ready:</strong> this server has {{ delivery_session_options|length }} active Twitter/X session{{ '' if delivery_session_options|length == 1 else 's' }} ready to watch for new posts.
         </section>
         {% endif %}
-
-        <section class="notice">
-          One primary session is enough for most servers. Pro can add multiple sessions to spread monitors across separate X sessions for more flexibility and resilience. Using the same X account across several sessions can increase rate-limit pressure.
-        </section>
 
         <div class="workspace-grid">
           <div class="workspace-panel">
             <h3 class="panel-title">Connect Session</h3>
             <form id="twitter-session-form" class="stack">
               <div class="form-banner">
-                Connect a server-owned Twitter/X session here first. Without it, no tracked posts can be delivered for this server.
+                Connect a server-owned Twitter/X session here first. Most servers only need one. <strong>Pro</strong> can add more to spread monitors across separate X sessions for extra flexibility.
               </div>
               <div id="twitter-session-status" class="form-banner form-banner--hidden" hidden></div>
               {% if twitter_session_limit_reached %}
               <div class="form-banner form-banner--warning">
-                Session limit reached for the {{ guild_presentation.plan }} plan. This server can connect {{ guild_presentation.features.max_twitter_sessions }} Twitter/X session{{ '' if guild_presentation.features.max_twitter_sessions == 1 else 's' }}.
+                Session limit reached on the {{ guild_presentation.plan }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Pro</a> to connect more Twitter/X sessions.
               </div>
               {% endif %}
 
@@ -463,7 +453,7 @@
 
           <div class="workspace-panel workspace-panel--wide">
             <div class="panel-head-row">
-              <h3 class="panel-title">Connected Sessions</h3>
+              <h3 class="panel-title">Live Sessions</h3>
               <span class="count-pill">{{ twitter_sessions|length }}</span>
             </div>
             <div class="rule-list-wrap">
@@ -481,10 +471,10 @@
                   <tr class="data-row">
                     <td>
                       <div class="entity-title">{{ session.session_name }}</div>
-                      <div class="entity-meta">{{ session.client_key }}</div>
+                      <div class="entity-meta">Key: {{ session.client_key }}</div>
                     </td>
                     <td>
-                      <span class="tag {{ 'tag--warning' if session.runtime_state == 'warning' or session.status != 'active' else '' }}">{{ 'Needs attention' if session.runtime_state == 'warning' else session.status }}</span>
+                      <span class="tag {{ 'tag--warning' if session.runtime_state == 'warning' or session.status != 'active' else '' }}">{{ 'Needs attention' if session.runtime_state == 'warning' else 'Active' }}</span>
                       <div class="entity-meta">{{ session.assigned_monitor_count }} assigned monitor{{ '' if session.assigned_monitor_count == 1 else 's' }}</div>
                       {% if session.runtime_error_message %}
                       <div class="entity-meta entity-meta--warning">{{ session.runtime_error_message }}</div>
@@ -493,12 +483,12 @@
                       {% endif %}
                     </td>
                     <td>
-                      <div class="entity-meta">Last poll {{ session.last_poll_success_at or 'not recorded yet' }}</div>
-                      <div class="entity-meta">Last validated {{ session.last_validated_at or 'not validated yet' }}</div>
+                      <div class="entity-meta">Last healthy poll {{ session.last_poll_success_at or 'not recorded yet' }}</div>
+                      <div class="entity-meta">Last connected {{ session.last_validated_at or 'not recorded yet' }}</div>
                       {% if session.last_poll_error_at %}
                       <div class="entity-meta entity-meta--warning">Last runtime error {{ session.last_poll_error_at }}</div>
                       {% elif session.last_error_at %}
-                      <div class="entity-meta entity-meta--warning">Last validation error {{ session.last_error_at }}</div>
+                      <div class="entity-meta entity-meta--warning">Last connection error {{ session.last_error_at }}</div>
                       {% endif %}
                     </td>
                     <td>
@@ -528,14 +518,14 @@
       <section class="card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Platform Settings</p>
-            <h2>Platform Baseline</h2>
-            <p class="section-copy">Read-only reference for shared bot settings from `configs.yml`. These are platform defaults and operational controls, not day-to-day server settings.</p>
+            <p class="eyebrow">Platform</p>
+            <h2>Shared Defaults</h2>
+            <p class="section-copy">Read-only reference for the shared bot defaults that shape how Tweeticcini behaves across every server.</p>
           </div>
         </div>
 
         <section class="notice notice--plain">
-          <strong>Advanced reference:</strong> this page is meant for visibility into shared bot behavior. Source routing, alert rules, and presentation are still managed from the server-facing pages.
+          <strong>Shared defaults:</strong> use this page to understand the bot-wide baseline. Session routing, monitors, rules, and appearance are still managed from the server pages.
         </section>
 
         <div class="defaults-grid">
@@ -585,37 +575,9 @@
       <section class="card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Presentation</p>
-            <h2>Alert Appearance</h2>
-            <p class="section-copy section-copy--wide">Control how alerts look inside this server. Billing and subscription management live on the Billing page.</p>
-          </div>
-        </div>
-
-        <div class="plan-summary">
-          <div class="plan-tile">
-            <span class="meta-label">Current plan</span>
-            <strong class="plan-name">{{ guild_presentation.plan }}</strong>
-            <div class="plan-tile-copy">via {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</div>
-          </div>
-          <div class="plan-tile">
-            <span class="meta-label">Source limit</span>
-            <strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong>
-          </div>
-          <div class="plan-tile">
-            <span class="meta-label">Rule limit</span>
-            <strong>{{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }}</strong>
-          </div>
-          <div class="plan-tile">
-            <span class="meta-label">Presentation overrides</span>
-            <strong>{{ 'unlocked' if guild_presentation.features.can_customize_presentation else 'locked' }}</strong>
-          </div>
-          <div class="plan-tile">
-            <span class="meta-label">Trigger keywords</span>
-            <strong>{{ plan_usage.trigger_keyword_count }} / {{ guild_presentation.features.max_trigger_keywords_total }}</strong>
-          </div>
-          <div class="plan-tile">
-            <span class="meta-label">Exclusion keywords</span>
-            <strong>{{ plan_usage.exclude_keyword_count }} / {{ guild_presentation.features.max_exclude_keywords_total }}</strong>
+            <p class="eyebrow">Appearance</p>
+            <h2>Delivery Style</h2>
+            <p class="section-copy section-copy--wide">Shape how alerts look and feel when they land in this server, from the default message and bot name to the emoji style and alert image.</p>
           </div>
         </div>
 
@@ -625,7 +587,7 @@
             <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
               {% if not guild_presentation.features.can_customize_presentation %}
               <div class="form-banner">
-                Presentation overrides are unavailable on this server's current entitlement. Free or inactive billing states inherit the platform message and embed defaults.
+                This server is currently using Tweeticcini's shared default look. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Pro</a> to customize the message, bot name, emoji style, and alert image.
               </div>
               {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
               <div class="form-banner">
@@ -683,7 +645,7 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">Billing</p>
-            <h2>Subscription</h2>
+            <h2>Plans &amp; Checkout</h2>
             <p class="section-copy section-copy--wide">Manage this server's plan, checkout flow, and billing access. Internal tools live below in a separate section.</p>
           </div>
         </div>
@@ -716,38 +678,34 @@
         </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'active' %}
         <section class="notice notice--success">
-          <strong>Subscription active:</strong> this server has an active entitlement for <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong>{% if guild_presentation.entitlement.current_period_end %}, currently paid through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
+          <strong>Subscription active:</strong> this server has an active entitlement for <strong>{{ (guild_presentation.entitlement.subscribed_plan or guild_presentation.plan) | capitalize }}</strong>{% if guild_presentation.entitlement.current_period_end %}, currently paid through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
+          <div class="status-detail-list">
+            <span class="tag tag--soft">Source: {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</span>
+            {% if guild_presentation.entitlement.billing_provider %}
+            <span class="tag tag--soft">Billing provider: {{ guild_presentation.entitlement.billing_provider }}</span>
+            {% endif %}
+          </div>
         </section>
         {% endif %}
 
         <div class="workspace-grid workspace-grid--appearance">
           <div class="workspace-panel">
             <h3 class="panel-title">Current Subscription</h3>
-            <div class="field-help">
-              Effective plan: <strong>{{ guild_presentation.entitlement.effective_plan }}</strong>.
-              Source: <strong>{{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</strong>.
-              Status: <strong>{{ guild_presentation.entitlement.entitlement_status }}</strong>.
-            </div>
-            {% if guild_presentation.entitlement.subscribed_plan %}
-            <div class="field-help">Subscribed plan: <strong>{{ guild_presentation.entitlement.subscribed_plan }}</strong>.</div>
-            {% endif %}
-            {% if guild_presentation.entitlement.billing_provider %}
-            <div class="field-help">Billing provider: <strong>{{ guild_presentation.entitlement.billing_provider }}</strong>.</div>
-            {% endif %}
             {% if guild_presentation.entitlement.external_customer_id %}
             <div class="field-help">Customer ID: <code>{{ guild_presentation.entitlement.external_customer_id }}</code></div>
             {% endif %}
             {% if guild_presentation.entitlement.external_subscription_id %}
             <div class="field-help">Subscription ID: <code>{{ guild_presentation.entitlement.external_subscription_id }}</code></div>
             {% endif %}
+            <div class="form-banner">
+              Use Checkout to start or upgrade this server. Once Stripe is linked, use Customer Portal for billing changes.
+              <br>
+              Free and Pro use the same core polling speed. Pro unlocks more control, customization, and higher limits.
+            </div>
             <div class="actions">
-              <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Pro Checkout</button>
+              <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Checkout</button>
               <button type="button" class="button-secondary" id="open-billing-portal" {{ 'disabled' if not guild_presentation.entitlement.external_customer_id }}>Open Customer Portal</button>
             </div>
-            <div class="field-help field-help--body">Use Checkout to start or upgrade this server. Once Stripe is linked, use Customer Portal for billing changes.</div>
-            <section class="notice notice--success notice--compact">
-              Free and Pro use the same core polling speed. Pro unlocks more control, customization, and higher limits.
-            </section>
           </div>
 
           <div class="workspace-panel workspace-panel--wide">
@@ -841,39 +799,35 @@
         <section class="card">
           <div class="card-header">
             <div>
-              <p class="eyebrow">Tracked Monitors</p>
-              <h2>Monitors</h2>
-              <p class="section-copy section-copy--wide">Every Twitter/X account monitored through this server, along with its destination and delivery filters.</p>
+              <p class="eyebrow">Monitors</p>
+              <h2>Watch &amp; Route Alerts</h2>
+              <p class="section-copy section-copy--wide">Choose which Twitter/X accounts this server watches, where alerts go, and how each monitor behaves.</p>
             </div>
           </div>
 
           {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
           <section class="notice notice--warning">
-            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ guild_presentation.plan }} plan.
+            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ guild_presentation.plan }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Pro</a> to add more.
           </section>
           {% endif %}
 
           {% if delivery_sessions_required %}
           <section class="notice notice--warning">
-            <strong>Twitter/X session required:</strong> connect a Twitter/X session on the <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">Sessions</a> page before this server can deliver alerts.
+            <strong>Twitter/X session required:</strong> connect a Twitter/X session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can deliver alerts.
           </section>
           {% endif %}
 
           <div class="workspace-grid">
             <div class="workspace-panel">
-              <h3 class="panel-title">Monitor Setup</h3>
+              <h3 class="panel-title">Add or Edit Monitor</h3>
               <form id="source-form" class="stack {{ 'is-locked' if delivery_sessions_required else '' }}">
                 <div class="form-banner">
-                  {% if delivery_sessions_required %}
-                  Connect a Twitter/X session first. Until then, no posts can be delivered for this server.
-                  {% else %}
                   Fill this form and click <strong>Save Monitor</strong> to add a new monitor. Or load an existing row below to update its routing and filter settings.
-                  {% endif %}
                 </div>
                 <input id="source-edit-mode" type="hidden" value="create">
                 <label for="source-username-edit">Twitter/X account</label>
                 <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA" {{ 'disabled' if delivery_sessions_required else '' }}>
-                <div class="field-help">Enter the Twitter/X username to track. This is case-insensitive and should not include the `@` symbol.</div>
+                <div class="field-help">Enter the Twitter/X username exactly as it appears on X, without the <code>@</code> symbol.</div>
 
                 <label for="source-channel-id-edit">Channel ID</label>
                 <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -882,7 +836,7 @@
                   <option value="{{ channel.id }}">#{{ channel.name }}</option>
                   {% endfor %}
                 </select>
-                <div class="field-help">The Discord text channel that should receive alerts for this source.</div>
+                <div class="field-help">Choose the Discord channel where alerts for this account should land.</div>
 
                 <label for="source-role-id-edit">Role</label>
                 <select id="source-role-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -891,7 +845,7 @@
                   <option value="{{ role.id }}">@{{ role.name }}</option>
                   {% endfor %}
                 </select>
-                <div class="field-help">Optional. If set, the bot will mention this role when sending alerts for the source.</div>
+                <div class="field-help">Optional. If set, Tweeticcini will mention this role when it posts alerts for this account.</div>
 
                 <label for="source-enable-type-edit">Tweet filter</label>
                 <select id="source-enable-type-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -920,7 +874,7 @@
                   <option value="">Connect a session first</option>
                   {% endif %}
                 </select>
-                <div class="field-help">Choose which connected Twitter/X session this account should use for polling and delivery.</div>
+                <div class="field-help">Choose which connected Twitter/X session this monitor should use.</div>
 
                 <label for="source-custom-message-edit">Custom message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
                 <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
@@ -941,14 +895,14 @@
 
             <div class="workspace-panel workspace-panel--wide">
               <div class="panel-head-row">
-                <h3 class="panel-title">Current Monitors</h3>
+                <h3 class="panel-title">Live Monitors</h3>
                 <span class="count-pill">{{ plan_usage.source_count }}</span>
               </div>
               <div class="rule-list-wrap">
                 <table class="rule-table">
               <thead>
                 <tr>
-                  <th>Source</th>
+                  <th>Account</th>
                   <th>Destination</th>
                   <th>Delivery</th>
                   <th>Rules</th>
@@ -960,7 +914,7 @@
                 <tr class="data-row">
                   <td>
                     <div class="entity-title">{{ source.username }}</div>
-                    <div class="entity-meta">via {{ source.client_used }}</div>
+                    <div class="entity-meta">Uses {{ source.client_used }}</div>
                   </td>
                   <td>
                     <div class="destination-block">
@@ -1030,7 +984,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                  <td colspan="5" class="empty-cell">No monitors yet. Use Monitor Setup to add the first one for this server.</td>
+                  <td colspan="5" class="empty-cell">No monitors yet. Use Add or Edit Monitor to start watching the first account for this server.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -1045,9 +999,9 @@
         <section class="card">
           <div class="card-header">
             <div>
-              <p class="eyebrow">Source Rules</p>
-              <h2>Alert Rules</h2>
-              <p class="section-copy section-copy--wide">Keyword exclusions and escalation rules that shape how individual accounts behave.</p>
+              <p class="eyebrow">Rules</p>
+              <h2>Filter &amp; Escalate Alerts</h2>
+              <p class="section-copy section-copy--wide">Fine-tune which alerts stay quiet, which ones stand out, and which monitors each rule should apply to.</p>
             </div>
           </div>
 
@@ -1060,26 +1014,31 @@
           </section>
           {% endif %}
 
-          {% if not guild_presentation.features.can_use_everyone_escalation %}
-          <section class="notice notice--plain">
-            <strong>Premium rule type:</strong> `Force everyone` is available on Pro only. Free servers can still create `role only` rules.
+          {% if delivery_sessions_required %}
+          <section class="notice notice--warning">
+            <strong>Twitter/X session required:</strong> connect a Twitter/X session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can create rules.
+          </section>
+          {% elif plan_usage.source_count == 0 %}
+          <section class="notice notice--warning">
+            <strong>Monitor required:</strong> add a monitor on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">'Monitors'</a> before this server can create rules.
           </section>
           {% endif %}
 
           <div class="workspace-grid">
             <div class="workspace-panel">
-              <h3 class="panel-title">Rule Setup</h3>
-              <form id="rule-form" class="stack">
+              <h3 class="panel-title">Add or Edit Rule</h3>
+              <form id="rule-form" class="stack {{ 'is-locked' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}">
                 <div class="form-banner">
-                  Build a rule for one tracked account or apply it across the whole server. Use exclusions to suppress noise, and use escalation only for posts that should break through.
+                  Build a rule for one tracked account or apply it across the whole server.<br>
+                  Use <code>Exclude alerts</code> rules to suppress noise, or use <code>Ping everyone</code> for high-priority posts that should stand out.
                 </div>
                 <input id="existing-rule-name" type="hidden" value="">
                 <label for="rule-name">Rule label</label>
-                <input id="rule-name" type="text" placeholder="E.g., pokemoncenter-queue">
+                <input id="rule-name" type="text" placeholder="E.g., pokemoncenter-queue" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
                   <div class="field-help">A unique label for this rule inside the current server.</div>
 
                 <label for="source-username">Twitter/X account</label>
-                <select id="source-username">
+                <select id="source-username" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
                   <option value="">All monitors</option>
                   {% for source_name in source_options %}
                   <option value="{{ source_name }}">{{ source_name }}</option>
@@ -1087,44 +1046,35 @@
                 </select>
                 <div class="field-help">Choose a monitor for this rule, or leave it on all monitors.</div>
 
-                <label for="channel-id">Channel</label>
-                <select id="channel-id">
-                  <option value="">All channels</option>
-                  {% for channel in channel_options %}
-                  <option value="{{ channel.id }}">#{{ channel.name }}</option>
-                  {% endfor %}
-                </select>
-                <div class="field-help">Optional. Restrict the rule to alerts sent into one Discord channel.</div>
-
                 <label for="priority">Priority</label>
-                <input id="priority" type="number" min="-100" max="100" step="1" value="0">
+                <input id="priority" type="number" min="-100" max="100" step="1" value="0" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
                 <div class="field-help">Higher priority rules are evaluated first. Allowed range: -100 to 100.</div>
 
-                <label for="escalation-mode">Escalation mode</label>
-                <select id="escalation-mode">
-                  <option value="role_only">Role only</option>
-                  <option value="everyone" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}>Force everyone{{ ' (Pro)' if not guild_presentation.features.can_use_everyone_escalation else '' }}</option>
+                <label for="escalation-mode">Rule type</label>
+                <select id="escalation-mode" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
+                  <option value="role_only">Exclude alerts</option>
+                  <option value="everyone" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}>Ping everyone{{ ' (Pro)' if not guild_presentation.features.can_use_everyone_escalation else '' }}</option>
                 </select>
-                <div class="field-help">Choose whether a matching rule should force `@everyone` or fall back to normal role-based delivery.</div>
+                <div class="field-help">Choose whether this rule should suppress alerts or make high-priority posts stand out.</div>
 
                 <label for="rule-trigger-keywords">Trigger keywords</label>
-                <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., queue is live" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}></textarea>
+                <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., queue is live" {{ 'disabled' if (not guild_presentation.features.can_use_everyone_escalation) or delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
                 <div class="field-help" id="rule-trigger-keywords-help">
                   {% if guild_presentation.features.can_use_everyone_escalation %}
-                  Trigger keywords only apply when Escalation mode is set to `Force everyone`. Use only letters, numbers, spaces, and hyphens.
+                  Trigger keywords only apply when Rule type is set to <code>Ping everyone</code>. Use only letters, numbers, spaces, and hyphens.
                   {% else %}
-                  Trigger keywords are only available on Pro, because they are used with `Force everyone` escalation.
+                  Trigger keywords are only available on <strong>Pro</strong>, because they are used with <code>Ping everyone</code> rules.
                   {% endif %}
                 </div>
                 <div class="field-error" id="rule-trigger-keywords-error" hidden></div>
 
                 <label for="rule-exclude-keywords">Exclude keywords</label>
-                <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., lorcana, plush, sleeves"></textarea>
+                <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., lorcana, plush, sleeves" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
                 <div class="field-help">Comma-separated phrases that should suppress alerts when matched. Use only letters, numbers, spaces, and hyphens.</div>
                 <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
 
                 <div class="actions">
-                  <button type="submit">Save Rule</button>
+                  <button type="submit" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>Save Rule</button>
                   <button type="button" class="button-secondary" id="rule-form-reset">Clear Form</button>
                 </div>
               </form>
@@ -1132,15 +1082,15 @@
 
             <div class="workspace-panel workspace-panel--wide">
               <div class="panel-head-row">
-                <h3 class="panel-title">Current Rules</h3>
+                <h3 class="panel-title">Live Rules</h3>
                 <span class="count-pill">{{ plan_usage.rule_count }}</span>
               </div>
               <div class="rule-list-wrap">
                 <table class="rule-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Source</th>
+                  <th>Rule</th>
+                  <th>Monitor</th>
                   <th>Behavior</th>
                   <th>Priority</th>
                   <th>Keywords</th>
@@ -1161,19 +1111,9 @@
                 >
                   <td>
                     <div class="entity-title">{{ rule.rule_name }}</div>
-                    {% if rule.channel_id %}
-                    <div class="entity-meta">
-                      channel
-                      {% if channel_names.get(rule.channel_id) %}
-                      #{{ channel_names.get(rule.channel_id) }}
-                      {% else %}
-                      <code>{{ rule.channel_id }}</code>
-                      {% endif %}
-                    </div>
-                    {% endif %}
                   </td>
-                  <td>{{ rule.source_username or 'all accounts' }}</td>
-                  <td><span class="tag">{{ rule.escalation_mode }}</span></td>
+                  <td>{{ rule.source_username or 'all monitors' }}</td>
+                  <td><span class="tag">{{ 'Ping everyone' if rule.escalation_mode == 'everyone' else 'Exclude alerts' }}</span></td>
                   <td><span class="count-pill">{{ rule.priority }}</span></td>
                   <td>
                     <div class="keyword-summary-block">
@@ -1210,7 +1150,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                  <td colspan="6" class="empty-cell">No alert rules yet. Use Rule Setup to add your first delivery or exclusion rule.</td>
+                  <td colspan="6" class="empty-cell">No alert rules yet. Use Add or Edit Rule to create the first one for this server.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -1222,15 +1162,6 @@
       {% endif %}
         </div>
 
-        <section class="card sidebar-utility sidebar-utility--layout mobile-only">
-          {% if discord_user %}
-          <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
-          {% endif %}
-          <a class="ghost-link" href="/dashboard">Change Server</a>
-          {% if public_site_url %}
-          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
-          {% endif %}
-        </section>
       </div>
     </main>
 
@@ -1401,11 +1332,11 @@
         }
 
         if (!canUseEveryone) {
-          triggerHelp.textContent = 'Trigger keywords are only available on Pro, because they are used with Force everyone escalation.';
+          triggerHelp.innerHTML = 'Trigger keywords are only available on <strong>Pro</strong>, because they are used with <code>Ping everyone</code> rules.';
         } else if (!everyoneSelected) {
-          triggerHelp.textContent = 'Trigger keywords only apply when Escalation mode is set to Force everyone. Use only letters, numbers, spaces, and hyphens.';
+          triggerHelp.innerHTML = 'Trigger keywords only apply when Rule type is set to <code>Ping everyone</code>. Use only letters, numbers, spaces, and hyphens.';
         } else {
-          triggerHelp.textContent = 'Comma-separated phrases that must appear before this Force everyone rule applies. Use only letters, numbers, spaces, and hyphens.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that must appear before this <code>Ping everyone</code> rule applies. Use only letters, numbers, spaces, and hyphens.';
         }
       }
 
@@ -1473,7 +1404,7 @@
             const payload = {
               existing_rule_name: document.getElementById('existing-rule-name').value.trim() || null,
               source_username: document.getElementById('source-username').value.trim() || null,
-              channel_id: document.getElementById('channel-id').value.trim() || null,
+              channel_id: null,
               priority: Number(document.getElementById('priority').value || 0),
               escalation_mode: document.getElementById('escalation-mode').value,
               trigger_keywords: document.getElementById('escalation-mode').value === 'everyone'
@@ -1652,7 +1583,19 @@
       document.querySelectorAll('.delete-twitter-session').forEach(function (button) {
         button.addEventListener('click', async function () {
           const sessionName = button.dataset.sessionName;
-          if (!window.confirm(`Remove Twitter/X session ${sessionName}? Sources in this server will stop delivering until another session is connected.`)) {
+          if (button.dataset.confirming !== 'true') {
+            button.dataset.confirming = 'true';
+            button.textContent = 'Tap again to remove';
+            setStatus(
+              `Tap Remove again to disconnect ${sessionName}. Monitors in this server will need another session before they can deliver again.`,
+              true
+            );
+            window.setTimeout(function () {
+              if (button.dataset.confirming === 'true') {
+                button.dataset.confirming = 'false';
+                button.textContent = 'Remove';
+              }
+            }, 4000);
             return;
           }
           try {
@@ -1661,6 +1604,8 @@
             });
             window.location.reload();
           } catch (error) {
+            button.dataset.confirming = 'false';
+            button.textContent = 'Remove';
             setStatus(`Failed to remove Twitter/X session: ${error.message}`, true);
           }
         });
@@ -1823,7 +1768,6 @@
           document.getElementById('existing-rule-name').value = '';
           document.getElementById('rule-name').value = '';
           document.getElementById('source-username').value = '';
-          document.getElementById('channel-id').value = '';
           document.getElementById('priority').value = 0;
           document.getElementById('escalation-mode').value = 'role_only';
           document.getElementById('rule-trigger-keywords').value = '';
@@ -1842,7 +1786,6 @@
           document.getElementById('existing-rule-name').value = row.dataset.ruleName || '';
           document.getElementById('rule-name').value = row.dataset.ruleName || '';
           document.getElementById('source-username').value = row.dataset.sourceUsername || '';
-          document.getElementById('channel-id').value = row.dataset.channelId || '';
           document.getElementById('priority').value = row.dataset.priority || 0;
           document.getElementById('escalation-mode').value = row.dataset.escalationMode || 'role_only';
           document.getElementById('rule-trigger-keywords').value = row.dataset.triggerKeywords || '';
@@ -1856,8 +1799,16 @@
 
       document.querySelectorAll('.delete-source').forEach(function (button) {
         button.addEventListener('click', async function () {
-          const confirmed = window.confirm(`Remove tracked account ${button.dataset.username} from this server?`);
-          if (!confirmed) {
+          if (button.dataset.confirming !== 'true') {
+            button.dataset.confirming = 'true';
+            button.textContent = 'Tap again to remove';
+            setStatus(`Tap Remove again to stop watching ${button.dataset.username} in this server.`, true);
+            window.setTimeout(function () {
+              if (button.dataset.confirming === 'true') {
+                button.dataset.confirming = 'false';
+                button.textContent = 'Remove';
+              }
+            }, 4000);
             return;
           }
           try {
@@ -1866,6 +1817,8 @@
             });
             window.location.reload();
           } catch (error) {
+            button.dataset.confirming = 'false';
+            button.textContent = 'Remove';
             setStatus(`Failed to remove source: ${error.message}`, true);
           }
         });
@@ -1874,8 +1827,16 @@
       document.querySelectorAll('.delete-rule').forEach(function (button) {
         button.addEventListener('click', async function () {
           const ruleName = button.dataset.ruleName;
-          const confirmed = window.confirm(`Delete rule ${ruleName}?`);
-          if (!confirmed) {
+          if (button.dataset.confirming !== 'true') {
+            button.dataset.confirming = 'true';
+            button.textContent = 'Tap again to delete';
+            setStatus(`Tap Delete again to remove rule ${ruleName}.`, true);
+            window.setTimeout(function () {
+              if (button.dataset.confirming === 'true') {
+                button.dataset.confirming = 'false';
+                button.textContent = 'Delete';
+              }
+            }, 4000);
             return;
           }
           try {
@@ -1884,6 +1845,8 @@
             });
             window.location.reload();
           } catch (error) {
+            button.dataset.confirming = 'false';
+            button.textContent = 'Delete';
             setStatus(`Failed to delete rule: ${error.message}`, true);
           }
         });

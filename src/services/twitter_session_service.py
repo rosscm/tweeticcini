@@ -11,9 +11,10 @@ from typing import Optional
 from src.adapters.twitter_adapter import create_twitter_session
 from src.log import setup_logger
 from src.repositories.twitter_session_repository import (
-    disable_server_twitter_session,
+    delete_server_twitter_session,
     get_server_twitter_session,
     list_active_server_twitter_sessions,
+    list_all_server_twitter_session_keys,
     list_server_twitter_session_keys,
     list_server_twitter_sessions,
     upsert_server_twitter_session,
@@ -121,6 +122,24 @@ class TwitterSessionService:
             )
         return records
 
+    async def list_all_active_session_records(self) -> list[ServerTwitterSessionRecord]:
+        rows = await list_active_server_twitter_sessions(self.db_path)
+        return [
+            ServerTwitterSessionRecord(
+                server_id=str(row['server_id']),
+                session_name=str(row['session_name']),
+                client_key=str(row['client_key']),
+                status=str(row['status']),
+                last_validated_at=row['last_validated_at'],
+                last_error_at=row['last_error_at'],
+                last_error_message=row['last_error_message'],
+                created_at=row['created_at'],
+                updated_at=row['updated_at'],
+                is_active=True,
+            )
+            for row in rows
+        ]
+
     async def list_all_active_client_keys(self) -> set[str]:
         rows = await list_active_server_twitter_sessions(self.db_path)
         return {str(row['client_key']) for row in rows if bool(row['is_active'])}
@@ -144,6 +163,7 @@ class TwitterSessionService:
             )
 
         client_key = self._build_client_key(server_id, normalized_name)
+        await self._assert_client_key_available(server_id, normalized_name, client_key)
         try:
             stored_secret = await self._authorize_and_capture_secret(client_key, normalized_input)
         except Exception as exc:
@@ -187,6 +207,7 @@ class TwitterSessionService:
         await self._assert_session_name_available(server_id, normalized_name)
 
         client_key = self._build_client_key(server_id, normalized_name)
+        await self._assert_client_key_available(server_id, normalized_name, client_key)
         stored_secret = self._normalize_import_secret(normalized_input)
         if stored_secret.startswith('session_json:'):
             _, session_payload = stored_secret.split(':', 1)
@@ -202,7 +223,7 @@ class TwitterSessionService:
     async def remove_session(self, server_id: str, session_name: str) -> None:
         normalized_name = self._normalize_session_name(session_name)
         client_key = self._build_client_key(server_id, normalized_name)
-        await disable_server_twitter_session(self.db_path, server_id, normalized_name, get_utcnow())
+        await delete_server_twitter_session(self.db_path, server_id, normalized_name)
         session_file = self._session_file_path(client_key)
         if session_file.exists():
             session_file.unlink()
@@ -371,4 +392,13 @@ class TwitterSessionService:
         if existing is not None and bool(existing['is_active']):
             raise TwitterSessionDuplicateNameError(
                 'That session label is already in use on this server. Choose a different label instead.'
+            )
+
+    async def _assert_client_key_available(self, server_id: str, session_name: str, client_key: str) -> None:
+        existing = await get_server_twitter_session(self.db_path, server_id, session_name)
+        if existing is not None and str(existing['client_key']) == client_key:
+            return
+        if client_key in await list_all_server_twitter_session_keys(self.db_path):
+            raise TwitterSessionDuplicateNameError(
+                'That session label is too similar to an existing one. Choose a more distinct label.'
             )

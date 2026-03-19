@@ -174,3 +174,15 @@ async def disable_server_twitter_session(db_path, server_id: str, session_name: 
             (updated_at, server_id, session_name),
         )
         await db.commit()
+
+
+async def delete_server_twitter_session(db_path, server_id: str, session_name: str) -> None:
+    async with connect_writable(db_path) as db:
+        await db.execute(
+            '''
+            DELETE FROM server_twitter_session
+            WHERE server_id = ? AND session_name = ?
+            ''',
+            (server_id, session_name),
+        )
+        await db.commit()

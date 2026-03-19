@@ -17,10 +17,13 @@
             <div class="brand-name">Dashboard</div>
           </div>
         </div>
-        <h1>Pick a server</h1>
+        <h1>Choose a server</h1>
         <p class="lede">
-          Jump into any server you manage to set up monitors, tune alerts, and shape how Tweeticcini posts there
+          Choose a server to connect sessions, set up monitors, tune alerts, and shape how Tweeticcini posts there.
         </p>
+        {% if public_site_url and oauth_enabled and not discord_user %}
+        <p class="section-copy">Need the plan details first? Open <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>, then come back here when you're ready to pick a server.</p>
+        {% endif %}
         {% if oauth_enabled %}
         {% if discord_user %}
         <div class="notice">
@@ -66,10 +69,6 @@
         {% else %}
         <div class="stack">
           <a class="oauth-button" href="{{ discord_login_url }}">Sign In With Discord</a>
-          <p class="section-copy">Sign in to see the Discord servers where you can manage Tweeticcini</p>
-          {% if public_site_url %}
-          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
-          {% endif %}
         </div>
         {% endif %}
         {% else %}

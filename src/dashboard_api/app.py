@@ -624,8 +624,12 @@ def _build_status_banner(
     if not delivery_sessions:
         return {
             'level': 'error',
-            'message': 'Connect a Twitter/X session before this server can start delivering monitor alerts',
-            'details': ['Open Sessions and connect at least one session before adding or delivering monitors'],
+            'message': "Connect a Twitter/X session before this server can start delivering monitor alerts. To get started, open 'Sessions' and connect at least one session before adding monitors.",
+            'details': [
+                'Healthy sessions: 0',
+                f'Sources: {source_count} / {source_limit}',
+                f'Rules: {rule_count} / {rule_limit}',
+            ],
         }
 
     delivery_client_keys = {session['client_key'] for session in delivery_sessions}
@@ -634,10 +638,23 @@ def _build_status_banner(
     warning_clients = [row for row in relevant_client_statuses if row['last_poll_error_at']]
 
     if not relevant_client_statuses:
+        if source_count == 0:
+            return {
+                'level': 'warning',
+                'message': "A session is connected and ready. Open 'Monitors' to add the first account for this server.",
+                'details': [
+                    f'Connected sessions: {len(delivery_sessions)}',
+                    f'Sources: {source_count} / {source_limit}',
+                    f'Rules: {rule_count} / {rule_limit}',
+                ],
+            }
         return {
             'level': 'error',
-            'message': 'A session is connected, but the bot has not brought it online yet.',
-            'details': ['Wait a moment for the bot to load the newly connected session and bring delivery polling online.'],
+            'message': 'A session is connected, but the bot has not brought it online yet. Wait a moment for the bot to load the newly connected session and bring delivery polling online.',
+            'details': [
+                f'Connected sessions: {len(delivery_sessions)}',
+                f'Sources: {source_count} / {source_limit}',
+            ],
         }
 
     if not log_health['bot_online_recently']:
@@ -705,7 +722,7 @@ def _build_status_banner(
 
     return {
         'level': 'success',
-        'message': 'Everything looks healthy right now. Sessions are polling and the bot has checked in recently.',
+        'message': 'Everything looks healthy right now. Sessions are watching for new posts and the bot has checked in recently.',
         'details': [
             f'Healthy sessions: {len(healthy_clients)}',
             f'Sources: {source_count} / {source_limit}',
@@ -862,8 +879,6 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     rules = await alert_rule_service.list_rules(guild_id)
     sources = await notifier_service.list_dashboard_sources(guild_id)
     twitter_sessions = await twitter_session_service.list_server_sessions(guild_id)
-    delivery_session_options = await twitter_session_service.list_server_delivery_options(guild_id)
-    delivery_sessions_required = len(delivery_session_options) == 0
     guild_presentation = await guild_settings_service.get_presentation_view(guild_id)
     usage = _serialize_plan_usage(sources, rules)
     resource_names = await _fetch_guild_resource_names(guild_id)
@@ -897,14 +912,52 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     assigned_monitor_counts: dict[str, int] = {}
     for source in sources_payload:
         assigned_monitor_counts[source['client_used']] = assigned_monitor_counts.get(source['client_used'], 0) + 1
-    twitter_sessions_payload = [
-        _serialize_twitter_session(
+    local_session_keys = {session.client_key for session in twitter_sessions}
+    external_assigned_keys = {
+        client_key
+        for client_key, count in assigned_monitor_counts.items()
+        if count > 0 and client_key not in local_session_keys
+    }
+    all_active_sessions = await twitter_session_service.list_all_active_session_records()
+    external_sessions = [
+        session for session in all_active_sessions if session.client_key in external_assigned_keys
+    ]
+
+    twitter_sessions_payload = []
+    for session in twitter_sessions:
+        payload = _serialize_twitter_session(
             session,
             runtime_status=client_status_map.get(session.client_key),
             assigned_monitor_count=assigned_monitor_counts.get(session.client_key, 0),
         )
-        for session in twitter_sessions
+        payload['shared_from_server_id'] = None
+        twitter_sessions_payload.append(payload)
+
+    external_sessions_payload = []
+    for session in external_sessions:
+        payload = _serialize_twitter_session(
+            session,
+            runtime_status=client_status_map.get(session.client_key),
+            assigned_monitor_count=assigned_monitor_counts.get(session.client_key, 0),
+        )
+        payload['shared_from_server_id'] = session.server_id
+        external_sessions_payload.append(payload)
+
+    visible_twitter_sessions = twitter_sessions_payload + [
+        session
+        for session in external_sessions_payload
+        if session['client_key'] not in {local_session['client_key'] for local_session in twitter_sessions_payload}
     ]
+    hidden_unused_local_sessions = []
+    delivery_session_options = [
+        {
+            'client_key': session['client_key'],
+            'session_name': session['session_name'],
+        }
+        for session in visible_twitter_sessions
+        if session['status'] == 'active'
+    ]
+    delivery_sessions_required = len(delivery_session_options) == 0
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -917,7 +970,8 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'bot_defaults': _serialize_bot_defaults(),
             'guild_presentation': _serialize_guild_presentation(guild_presentation),
             'plan_usage': usage,
-            'twitter_sessions': twitter_sessions_payload,
+            'twitter_sessions': visible_twitter_sessions,
+            'unused_twitter_sessions': hidden_unused_local_sessions,
             'delivery_session_options': delivery_session_options,
             'delivery_sessions_required': delivery_sessions_required,
             'channel_names': resource_names['channels'],

@@ -25,6 +25,7 @@ class AlertDecision:
     should_exclude: bool
     should_force_everyone: bool
     matched_rule_name: Optional[str] = None
+    matched_keywords: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,11 @@ def _matches_phrase(text_lower: str, phrase: str) -> bool:
 def _matches_any(text: str, phrases: list[str]) -> bool:
     text_lower = text.lower()
     return any(_matches_phrase(text_lower, phrase) for phrase in phrases)
+
+
+def _matched_phrases(text: str, phrases: list[str]) -> list[str]:
+    text_lower = text.lower()
+    return [phrase for phrase in phrases if _matches_phrase(text_lower, phrase)]
 
 
 KEYWORD_ALLOWED_PATTERN = re.compile(r'^[0-9A-Za-z -]+$')
@@ -101,22 +107,26 @@ class AlertRuleService:
 
         for rule in rules:
             exclude_keywords = deserialize_keywords(rule['exclude_keywords'])
-            if exclude_keywords and _matches_any(text, exclude_keywords):
+            matched_excludes = _matched_phrases(text, exclude_keywords)
+            if matched_excludes:
                 return AlertDecision(
                     should_exclude=True,
                     should_force_everyone=False,
                     matched_rule_name=rule['rule_name'],
+                    matched_keywords=tuple(matched_excludes),
                 )
 
             trigger_keywords = deserialize_keywords(rule['trigger_keywords'])
             force_everyone = rule['force_everyone']
             if bool(force_everyone):
-                if not trigger_keywords or _matches_any(text, trigger_keywords):
+                matched_triggers = _matched_phrases(text, trigger_keywords) if trigger_keywords else []
+                if not trigger_keywords or matched_triggers:
                     should_force_everyone = bool(force_everyone)
                     return AlertDecision(
                         should_exclude=False,
                         should_force_everyone=should_force_everyone,
                         matched_rule_name=rule['rule_name'],
+                        matched_keywords=tuple(matched_triggers),
                     )
 
         return AlertDecision(

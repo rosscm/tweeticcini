@@ -175,7 +175,6 @@ class AccountTracker():
                         await db.commit()
 
                     for tweet in lastest_tweets:
-                        log.info(f'find a new tweet from {username}')
                         notifications = await get_enabled_notifications_for_user_client(cursor, user['id'], client_used)
                         for data in notifications:
                             channel = self.bot.get_channel(int(data['channel_id']))
@@ -208,6 +207,12 @@ class AccountTracker():
                                     if not text:
                                         text = getattr(tweet, 'content', None) or ''
 
+                                    preview = re.sub(r'\s+', ' ', text).strip()
+                                    if len(preview) > 140:
+                                        preview = f"{preview[:137]}..."
+
+                                    log.info(f"new tweet from {username}: {preview or '[no text]'}")
+
                                     alert_decision = await self.alert_rule_service.resolve_alert_decision(
                                         server_id=str(channel.guild.id),
                                         channel_id=str(channel.id),
@@ -215,9 +220,27 @@ class AccountTracker():
                                         text=text,
                                     )
                                     if alert_decision.should_exclude:
+                                        keyword_detail = ''
+                                        if alert_decision.matched_keywords:
+                                            keyword_detail = f" (keywords: {', '.join(alert_decision.matched_keywords)})"
+                                        if alert_decision.matched_rule_name:
+                                            log.info(
+                                                f"excluded tweet from {username} via rule {alert_decision.matched_rule_name}{keyword_detail}: {preview or '[no text]'}"
+                                            )
+                                        else:
+                                            log.info(f"excluded tweet from {username}{keyword_detail}: {preview or '[no text]'}")
                                         continue
 
                                     if alert_decision.should_force_everyone:
+                                        keyword_detail = ''
+                                        if alert_decision.matched_keywords:
+                                            keyword_detail = f" (keywords: {', '.join(alert_decision.matched_keywords)})"
+                                        if alert_decision.matched_rule_name:
+                                            log.info(
+                                                f"pinging everyone for {username} via rule {alert_decision.matched_rule_name}{keyword_detail}: {preview or '[no text]'}"
+                                            )
+                                        else:
+                                            log.info(f"pinging everyone for {username}{keyword_detail}: {preview or '[no text]'}")
                                         mention = "@everyone "
 
                                     custom_template = data['customized_msg']
