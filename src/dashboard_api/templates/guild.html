@@ -469,11 +469,11 @@
                 <tbody>
                   {% for session in twitter_sessions %}
                   <tr class="data-row">
-                    <td>
+                    <td data-label="Session">
                       <div class="entity-title">{{ session.session_name }}</div>
                       <div class="entity-meta">Key: {{ session.client_key }}</div>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span class="tag {{ 'tag--warning' if session.runtime_state == 'warning' or session.status != 'active' else '' }}">{{ 'Needs attention' if session.runtime_state == 'warning' else 'Active' }}</span>
                       <div class="entity-meta">{{ session.assigned_monitor_count }} assigned monitor{{ '' if session.assigned_monitor_count == 1 else 's' }}</div>
                       {% if session.runtime_error_message %}
@@ -482,7 +482,7 @@
                       <div class="entity-meta entity-meta--warning">{{ session.last_error_message }}</div>
                       {% endif %}
                     </td>
-                    <td>
+                    <td data-label="Activity">
                       <div class="entity-meta">Last healthy poll {{ session.last_poll_success_at or 'not recorded yet' }}</div>
                       <div class="entity-meta">Last connected {{ session.last_validated_at or 'not recorded yet' }}</div>
                       {% if session.last_poll_error_at %}
@@ -491,7 +491,7 @@
                       <div class="entity-meta entity-meta--warning">Last connection error {{ session.last_error_at }}</div>
                       {% endif %}
                     </td>
-                    <td>
+                    <td data-label="Actions">
                       <button
                         type="button"
                         class="button-secondary button-danger delete-twitter-session"
@@ -912,11 +912,11 @@
               <tbody>
                 {% for source in sources %}
                 <tr class="data-row">
-                  <td>
+                  <td data-label="Account">
                     <div class="entity-title">{{ source.username }}</div>
                     <div class="entity-meta">Uses {{ source.client_used }}</div>
                   </td>
-                  <td>
+                  <td data-label="Destination">
                     <div class="destination-block">
                       <span class="meta-label">Channel</span>
                       {% if channel_names.get(source.channel_id) %}
@@ -936,7 +936,7 @@
                       {% endif %}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Delivery">
                     <div class="tag-row">
                       <span class="tag">{{ source.enable_type_label }}</span>
                       <span class="tag">{{ source.media_type_label }}</span>
@@ -955,8 +955,8 @@
                     </div>
                     {% endif %}
                   </td>
-                  <td><span class="count-pill">{{ source.rule_count }}</span></td>
-                  <td>
+                  <td data-label="Rules"><span class="count-pill">{{ source.rule_count }}</span></td>
+                  <td data-label="Actions">
                     <div class="action-stack">
                       <button
                         type="button"
@@ -1109,13 +1109,13 @@
                   data-trigger-keywords="{{ rule.trigger_keywords | join(', ') }}"
                   data-exclude-keywords="{{ rule.exclude_keywords | join(', ') }}"
                 >
-                  <td>
+                  <td data-label="Rule">
                     <div class="entity-title">{{ rule.rule_name }}</div>
                   </td>
-                  <td>{{ rule.source_username or 'all monitors' }}</td>
-                  <td><span class="tag">{{ 'Ping everyone' if rule.escalation_mode == 'everyone' else 'Exclude alerts' }}</span></td>
-                  <td><span class="count-pill">{{ rule.priority }}</span></td>
-                  <td>
+                  <td data-label="Monitor">{{ rule.source_username or 'all monitors' }}</td>
+                  <td data-label="Behavior"><span class="tag">{{ 'Ping everyone' if rule.escalation_mode == 'everyone' else 'Exclude alerts' }}</span></td>
+                  <td data-label="Priority"><span class="count-pill">{{ rule.priority }}</span></td>
+                  <td data-label="Keywords">
                     <div class="keyword-summary-block">
                       <span class="meta-label">Triggers</span>
                       {% if rule.trigger_keywords %}
@@ -1141,7 +1141,7 @@
                       {% endif %}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Actions">
                     <div class="action-stack">
                       <button type="button" class="button-secondary edit-rule" data-rule-name="{{ rule.rule_name }}">Edit</button>
                       <button type="button" class="button-secondary button-danger delete-rule" data-rule-name="{{ rule.rule_name }}">Delete</button>
