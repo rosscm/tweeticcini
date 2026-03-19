@@ -40,6 +40,10 @@ class TwitterSessionPlanLimitError(TwitterSessionValidationError):
     pass
 
 
+class TwitterSessionDuplicateNameError(TwitterSessionValidationError):
+    pass
+
+
 @dataclass(frozen=True)
 class ServerTwitterSessionRecord:
     server_id: str
@@ -96,6 +100,9 @@ class TwitterSessionService:
             if session.is_active and session.status == 'active'
         ]
 
+    async def list_server_twitter_session_keys(self, server_id: str) -> list[str]:
+        return await list_server_twitter_session_keys(self.db_path, server_id)
+
     async def list_all_active_auth_records(self) -> list[TwitterSessionAuthRecord]:
         rows = await list_active_server_twitter_sessions(self.db_path)
         records: list[TwitterSessionAuthRecord] = []
@@ -126,6 +133,7 @@ class TwitterSessionService:
         normalized_input = auth_token.strip()
         if not normalized_input:
             raise TwitterSessionValidationError('Twitter/X session input is required')
+        await self._assert_session_name_available(server_id, normalized_name)
         if await self._would_exceed_session_limit(server_id, normalized_name):
             from src.services.guild_settings_service import GuildSettingsService
 
@@ -176,6 +184,7 @@ class TwitterSessionService:
         normalized_input = session_input.strip()
         if not normalized_input:
             raise TwitterSessionValidationError('Twitter/X session input is required')
+        await self._assert_session_name_available(server_id, normalized_name)
 
         client_key = self._build_client_key(server_id, normalized_name)
         stored_secret = self._normalize_import_secret(normalized_input)
@@ -356,3 +365,10 @@ class TwitterSessionService:
         presentation = await GuildSettingsService(self.db_path).get_presentation_view(server_id)
         sessions = await self.list_server_sessions(server_id)
         return len(sessions) >= presentation.features.max_twitter_sessions
+
+    async def _assert_session_name_available(self, server_id: str, session_name: str) -> None:
+        existing = await get_server_twitter_session(self.db_path, server_id, session_name)
+        if existing is not None and bool(existing['is_active']):
+            raise TwitterSessionDuplicateNameError(
+                'That session label is already in use on this server. Choose a different label instead.'
+            )

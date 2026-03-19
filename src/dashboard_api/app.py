@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import aiohttp
 from fastapi import FastAPI, HTTPException, Request
@@ -30,6 +30,7 @@ from src.services.notifier_service import (
     AddNotifierRequest,
     AutoChangeClientDisabledError,
     DashboardSourceRecord,
+    DuplicateNotifierError,
     NotifierService,
     NotifierServiceError,
     PlanLimitExceededError,
@@ -50,7 +51,6 @@ from src.settings import get_accounts
 class AlertRuleResponse(BaseModel):
     rule_name: str
     source_username: Optional[str]
-    channel_id: Optional[str]
     priority: int
     trigger_keywords: list[str]
     exclude_keywords: list[str]
@@ -145,7 +145,6 @@ def _serialize_rule(rule: AlertRuleRecord) -> AlertRuleResponse:
     return AlertRuleResponse(
         rule_name=rule.rule_name,
         source_username=rule.source_username,
-        channel_id=rule.channel_id,
         priority=rule.priority,
         trigger_keywords=rule.trigger_keywords,
         exclude_keywords=rule.exclude_keywords,
@@ -318,6 +317,16 @@ def _get_discord_oauth_config() -> Optional[dict[str, str]]:
     }
 
 
+def _resolve_discord_redirect_uri(request: Request) -> Optional[str]:
+    oauth = _get_discord_oauth_config()
+    if oauth is None:
+        return None
+    configured = oauth['redirect_uri']
+    path = urlparse(configured).path or '/dashboard/callback'
+    callback_url = request.url_for('dashboard_callback')
+    return str(callback_url.replace(path=path))
+
+
 def _get_public_site_url() -> Optional[str]:
     site_url = os.getenv('PUBLIC_SITE_URL')
     if not site_url:
@@ -325,14 +334,17 @@ def _get_public_site_url() -> Optional[str]:
     return site_url.strip() or None
 
 
-def _build_discord_login_url(state: str) -> Optional[str]:
+def _build_discord_login_url(request: Request, state: str) -> Optional[str]:
     oauth = _get_discord_oauth_config()
     if oauth is None:
+        return None
+    redirect_uri = _resolve_discord_redirect_uri(request)
+    if not redirect_uri:
         return None
     query = urlencode(
         {
             'client_id': oauth['client_id'],
-            'redirect_uri': oauth['redirect_uri'],
+            'redirect_uri': redirect_uri,
             'response_type': 'code',
             'scope': 'identify guilds',
             'prompt': 'consent',
@@ -368,6 +380,17 @@ def _get_session_guild_name(request: Request, guild_id: str) -> Optional[str]:
             name = guild.get('name')
             if name:
                 return str(name)
+    return None
+
+
+def _get_session_guild_icon_url(request: Request, guild_id: str) -> Optional[str]:
+    for guild in _get_session_guilds(request):
+        if str(guild.get('id')) != guild_id:
+            continue
+        icon_hash = guild.get('icon')
+        if not icon_hash:
+            return None
+        return f"https://cdn.discordapp.com/icons/{guild_id}/{icon_hash}.png?size=128"
     return None
 
 
@@ -601,8 +624,8 @@ def _build_status_banner(
     if not delivery_sessions:
         return {
             'level': 'error',
-            'message': 'This server cannot deliver tracked posts yet because no Twitter/X session is connected.',
-            'details': ['Open Sessions and connect at least one session before adding or delivering monitors.'],
+            'message': 'Connect a Twitter/X session before this server can start delivering monitor alerts',
+            'details': ['Open Sessions and connect at least one session before adding or delivering monitors'],
         }
 
     delivery_client_keys = {session['client_key'] for session in delivery_sessions}
@@ -613,29 +636,45 @@ def _build_status_banner(
     if not relevant_client_statuses:
         return {
             'level': 'error',
-            'message': 'Server sessions are connected, but the bot has no active Twitter/X clients loaded yet.',
+            'message': 'A session is connected, but the bot has not brought it online yet.',
             'details': ['Wait a moment for the bot to load the newly connected session and bring delivery polling online.'],
         }
 
     if not log_health['bot_online_recently']:
         return {
             'level': 'warning',
-            'message': 'The dashboard is available, but the bot has not logged itself online in the last 24 hours.',
+            'message': 'The dashboard is up, but the bot has not logged itself online in the last 24 hours.',
             'details': [
-                f'{source_count} tracked sources are configured for this server.',
+                f'{source_count} monitors are configured for this server.',
                 f'{len(delivery_sessions)} Twitter/X session(s) are connected for this server.',
             ],
         }
 
     if warning_clients:
+        warning_messages = [str(row.get('last_error_message') or '') for row in warning_clients]
+        has_rate_limit_warning = any('rate limit' in message.lower() for message in warning_messages)
         return {
             'level': 'warning',
-            'message': 'At least one Twitter/X session has a recent poll error, so alert freshness may be degraded until that session recovers.',
-            'details': [
-                f"Healthy sessions: {len(healthy_clients)}",
-                f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
-                f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
-            ],
+            'message': (
+                'Twitter/X is rate-limiting at least one session right now, so new alerts may be delayed until polling settles back down.'
+                if has_rate_limit_warning
+                else 'At least one Twitter/X session hit a recent polling issue, so new alerts may be a little delayed until it recovers.'
+            ),
+            'details': (
+                [
+                    f"Healthy sessions: {len(healthy_clients)}",
+                    f"Sessions with recent rate limits: {', '.join(row['client_used'] for row in warning_clients)}",
+                    'Single-session servers usually just need to wait for the cooldown to pass.',
+                    'If you use multiple sessions, spread monitors across distinct X accounts when possible.',
+                    f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
+                ]
+                if has_rate_limit_warning
+                else [
+                    f"Healthy sessions: {len(healthy_clients)}",
+                    f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
+                    f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
+                ]
+            ),
         }
 
     if (
@@ -645,7 +684,7 @@ def _build_status_banner(
     ):
         return {
             'level': 'warning',
-            'message': 'The bot appears online, but recent logs show updater, delivery, or task health warnings that are worth reviewing.',
+            'message': 'The bot is online, but recent logs show a few delivery or task warnings.',
             'details': [
                 f"Updater errors since restart: {log_health['updater_error_count_since_last_online']}",
                 f"Delivery errors since restart: {log_health['delivery_error_count_since_last_online']}",
@@ -656,7 +695,7 @@ def _build_status_banner(
     if source_count >= source_limit or rule_count >= rule_limit:
         return {
             'level': 'warning',
-            'message': 'This server is healthy, but it is currently at or near one of its plan limits.',
+            'message': 'Everything looks healthy, but this server is at or near one of its plan limits.',
             'details': [
                 f'Sources: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
@@ -666,7 +705,7 @@ def _build_status_banner(
 
     return {
         'level': 'success',
-        'message': 'The bot looks healthy for this server: sessions are polling, the bot has logged online recently, and no recent dashboard-visible warnings were detected.',
+        'message': 'Everything looks healthy right now. Sessions are polling and the bot has checked in recently.',
         'details': [
             f'Healthy sessions: {len(healthy_clients)}',
             f'Sources: {source_count} / {source_limit}',
@@ -732,7 +771,7 @@ async def dashboard_home(request: Request):
             'title': 'Tweeticcini Dashboard',
             'public_site_url': _get_public_site_url(),
             'oauth_enabled': _get_discord_oauth_config() is not None,
-            'discord_login_url': _build_discord_login_url(state),
+            'discord_login_url': _build_discord_login_url(request, state),
             'discord_user': _get_session_user(request),
             'manageable_guilds': _get_session_guilds(request),
         },
@@ -743,7 +782,7 @@ async def dashboard_home(request: Request):
 async def dashboard_login(request: Request) -> RedirectResponse:
     state = secrets.token_urlsafe(24)
     request.session['discord_oauth_state'] = state
-    login_url = _build_discord_login_url(state)
+    login_url = _build_discord_login_url(request, state)
     if login_url is None:
         raise HTTPException(status_code=503, detail='discord oauth is not configured')
     return RedirectResponse(url=login_url)
@@ -754,6 +793,9 @@ async def dashboard_callback(request: Request, code: str, state: str) -> Redirec
     oauth = _get_discord_oauth_config()
     if oauth is None:
         raise HTTPException(status_code=503, detail='discord oauth is not configured')
+    redirect_uri = _resolve_discord_redirect_uri(request)
+    if redirect_uri is None:
+        raise HTTPException(status_code=503, detail='discord redirect uri is not configured')
     expected_state = request.session.pop('discord_oauth_state', None)
     if not expected_state or state != expected_state:
         raise HTTPException(status_code=400, detail='invalid oauth state')
@@ -766,7 +808,7 @@ async def dashboard_callback(request: Request, code: str, state: str) -> Redirec
                 'client_secret': oauth['client_secret'],
                 'grant_type': 'authorization_code',
                 'code': code,
-                'redirect_uri': oauth['redirect_uri'],
+                'redirect_uri': redirect_uri,
             },
             headers={'Content-Type': 'application/x-www-form-urlencoded'},
         ) as response:
@@ -831,7 +873,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     client_status_map = {row['client_used']: row for row in client_statuses}
     source_status_map = await get_runtime_source_status_map(notifier_service.db_path, guild_id)
     escalation_rule_count = sum(1 for rule in rules if rule.escalation_mode == 'everyone')
-    scoped_rule_count = sum(1 for rule in rules if rule.source_username or rule.channel_id)
+    scoped_rule_count = sum(1 for rule in rules if rule.source_username)
     sources_payload = []
     for source in sources:
         payload = _serialize_source(source).model_dump()
@@ -870,6 +912,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'title': f"Tweeticcini | {active_section.capitalize()} | {(_get_session_guild_name(request, guild_id) or f'Server {guild_id}')}",
             'guild_id': guild_id,
             'guild_name': _get_session_guild_name(request, guild_id) or guild_id,
+            'guild_icon_url': _get_session_guild_icon_url(request, guild_id),
             'discord_user': _get_session_user(request),
             'bot_defaults': _serialize_bot_defaults(),
             'guild_presentation': _serialize_guild_presentation(guild_presentation),
@@ -1047,6 +1090,8 @@ async def create_guild_source(request: Request, guild_id: str, source_request: C
     except PlanLimitExceededError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except TwitterSessionRequiredError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except DuplicateNotifierError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except NotifierServiceError as error:
         raise HTTPException(status_code=500, detail='failed to add source') from error

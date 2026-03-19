@@ -17,39 +17,56 @@
             <div class="brand-name">Dashboard</div>
           </div>
         </div>
-        <h1>Manage Tweeticcini by server</h1>
+        <h1>Pick a server</h1>
         <p class="lede">
-          Manage monitors, alert rules, billing, and appearance across the Discord servers you administer.
+          Jump into any server you manage to set up monitors, tune alerts, and shape how Tweeticcini posts there
         </p>
         {% if oauth_enabled %}
         {% if discord_user %}
         <div class="notice">
-          <div>Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong>.</div>
+          <div>Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
           <div class="notice-actions">
-            <a class="ghost-link" href="/dashboard/logout">Sign Out</a>
-            {% if public_site_url %}
-            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Visit Site</a>
-            {% endif %}
+            <a class="icon-action" href="/dashboard/logout" aria-label="Sign out">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <path d="M16 17l5-5-5-5"></path>
+                <path d="M21 12H9"></path>
+              </svg>
+            </a>
           </div>
         </div>
         {% if manageable_guilds %}
         <div class="stack">
-          <label>Your Servers</label>
+          <label>Your servers</label>
           <div class="guild-list">
             {% for guild in manageable_guilds %}
-            <a class="guild-link" href="/dashboard/guilds/{{ guild.id }}">{{ guild.name }}</a>
+            <a class="guild-link" href="/dashboard/guilds/{{ guild.id }}">
+              <span class="guild-link-icon" aria-hidden="true">
+                {% if guild.icon %}
+                <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=128" alt="">
+                {% else %}
+                <span class="guild-link-fallback">{{ guild.name[:1] }}</span>
+                {% endif %}
+              </span>
+              <span class="guild-link-copy">{{ guild.name }}</span>
+              <span class="guild-link-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m9 18 6-6-6-6"></path>
+                </svg>
+              </span>
+            </a>
             {% endfor %}
           </div>
         </div>
         {% else %}
         <div class="notice">
-          No manageable Discord servers were returned by your account.
+          No servers with dashboard access showed up for this account yet
         </div>
         {% endif %}
         {% else %}
         <div class="stack">
           <a class="oauth-button" href="{{ discord_login_url }}">Sign In With Discord</a>
-          <p class="section-copy">You’ll see the Discord servers where you can manage Tweeticcini.</p>
+          <p class="section-copy">Sign in to see the Discord servers where you can manage Tweeticcini</p>
           {% if public_site_url %}
           <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
           {% endif %}
@@ -57,12 +74,12 @@
         {% endif %}
         {% else %}
         <div class="notice">
-          Discord OAuth is not configured yet. You can still use the manual server picker below for local testing.
+          Discord sign-in is not configured yet, so local testing uses the manual server picker below
         </div>
         <form id="guild-picker" class="stack">
-          <label for="guild-id">Discord server ID</label>
+          <label for="guild-id">Server ID</label>
           <input id="guild-id" name="guild_id" type="text" placeholder="123456789012345678" required>
-          <button type="submit">Open Server Dashboard</button>
+          <button type="submit">Open Dashboard</button>
         </form>
         {% endif %}
       </section>

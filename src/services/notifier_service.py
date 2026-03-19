@@ -14,6 +14,7 @@ from src.repositories.notifier_repository import (
     get_dashboard_source_message,
     get_channel_ids_for_server,
     get_enabled_notifier_user_id,
+    get_enabled_notifier_user_id_for_server,
     get_enabled_notifications_for_user_client,
     get_enabled_user_client_pairs,
     get_enabled_usernames_for_channel,
@@ -113,6 +114,10 @@ class TwitterSessionRequiredError(NotifierServiceError):
     pass
 
 
+class DuplicateNotifierError(NotifierServiceError):
+    pass
+
+
 class NotifierService:
     def __init__(self, db_path=None):
         self.db_path = db_path or get_db_path()
@@ -130,7 +135,16 @@ class NotifierService:
             async with db.cursor() as cursor:
                 try:
                     match_user = await get_user_by_username(cursor, request.username)
-                    existing_notifier_user_id = await get_enabled_notifier_user_id(cursor, request.username, request.channel_id)
+                    existing_notifier_user_id = await get_enabled_notifier_user_id_for_server(
+                        cursor,
+                        request.username,
+                        request.server_id,
+                    )
+
+                    if existing_notifier_user_id is not None:
+                        raise DuplicateNotifierError(
+                            f'{request.username} is already being monitored in this server. Open the existing row if you want to edit it.'
+                        )
 
                     if existing_notifier_user_id is None:
                         presentation = await self.guild_settings_service.get_presentation_view(request.server_id)
@@ -168,7 +182,7 @@ class NotifierService:
         return AddNotifierResult(
             created_or_reactivated=False,
             task_client_used=None,
-            response_message=f'{request.username} is already tracked here. Delivery settings were refreshed.',
+            response_message=f'{request.username} is already tracked here.',
         )
 
     async def remove_notifier(self, request: RemoveNotifierRequest) -> RemoveNotifierResult:

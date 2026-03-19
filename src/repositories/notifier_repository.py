@@ -68,6 +68,24 @@ async def get_enabled_notifier_user_id(cursor, username: str, channel_id: str) -
     return row['user_id'] if row is not None else None
 
 
+async def get_enabled_notifier_user_id_for_server(cursor, username: str, server_id: str) -> Optional[str]:
+    await cursor.execute(
+        '''
+        SELECT notification.user_id
+        FROM notification
+        JOIN user ON notification.user_id = user.id
+        JOIN channel ON notification.channel_id = channel.id
+        WHERE lower(user.username) = lower(?)
+          AND channel.server_id = ?
+          AND notification.enabled = 1
+        LIMIT 1
+        ''',
+        (username, server_id),
+    )
+    row = await cursor.fetchone()
+    return row['user_id'] if row is not None else None
+
+
 async def disable_notification(cursor, user_id: str, channel_id: str) -> None:
     await cursor.execute(
         'UPDATE notification SET enabled = 0 WHERE user_id = ? AND channel_id = ?',

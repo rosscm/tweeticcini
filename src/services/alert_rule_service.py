@@ -31,7 +31,6 @@ class AlertDecision:
 class AlertRuleRecord:
     rule_name: str
     source_username: Optional[str]
-    channel_id: Optional[str]
     priority: int
     trigger_keywords: list[str]
     exclude_keywords: list[str]
@@ -111,7 +110,7 @@ class AlertRuleService:
 
             trigger_keywords = deserialize_keywords(rule['trigger_keywords'])
             force_everyone = rule['force_everyone']
-            if force_everyone is not None:
+            if bool(force_everyone):
                 if not trigger_keywords or _matches_any(text, trigger_keywords):
                     should_force_everyone = bool(force_everyone)
                     return AlertDecision(
@@ -147,8 +146,10 @@ class AlertRuleService:
                 raise ValueError(f'cannot create a rule for untracked source `{source_username}`')
 
         if escalation_mode == 'everyone' and not presentation.features.can_use_everyone_escalation:
-            raise ValueError('`Force everyone` escalation requires the Pro plan')
-        if escalation_mode != 'everyone':
+            raise ValueError('`Ping everyone` requires the Pro plan')
+        if escalation_mode == 'everyone':
+            exclude_keywords = []
+        else:
             trigger_keywords = []
 
         existing_names = await self.get_rule_names(server_id)
@@ -185,7 +186,7 @@ class AlertRuleService:
             rule_name=rule_name,
             existing_rule_name=existing_rule_name,
             source_username=source_username,
-            channel_id=channel_id,
+            channel_id=None,
             priority=priority,
             trigger_keywords=trigger_keywords,
             exclude_keywords=exclude_keywords,
@@ -198,7 +199,6 @@ class AlertRuleService:
             AlertRuleRecord(
                 rule_name=row['rule_name'],
                 source_username=row['source_username'],
-                channel_id=row['channel_id'],
                 priority=row['priority'],
                 trigger_keywords=deserialize_keywords(row['trigger_keywords']),
                 exclude_keywords=deserialize_keywords(row['exclude_keywords']),
@@ -245,7 +245,7 @@ class AlertRuleService:
     def _escalation_mode_to_db_value(escalation_mode: str) -> Optional[int]:
         if escalation_mode == 'everyone':
             return 1
-        return 0
+        return None
 
     @staticmethod
     def _db_value_to_escalation_mode(force_everyone: Optional[int]) -> str:

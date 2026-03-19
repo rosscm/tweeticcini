@@ -2,6 +2,7 @@ import asyncio
 import sys
 import re
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 import aiosqlite
 import discord
@@ -62,7 +63,7 @@ class AccountTracker():
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         bot.loop.create_task(self.setup_tasks())
 
-    async def _load_available_accounts(self) -> dict[str, str]:
+    async def _load_available_accounts(self, required_clients: Optional[set[str]] = None) -> dict[str, str]:
         accounts = {
             account_name: {
                 'mode': 'auth_token',
@@ -81,7 +82,14 @@ class AccountTracker():
         except Exception as exc:
             log.error(f'failed to load stored Twitter/X sessions: {exc}')
             server_session_accounts = {}
-        return {**accounts, **server_session_accounts}
+        combined_accounts = {**accounts, **server_session_accounts}
+        if required_clients is None:
+            return combined_accounts
+        return {
+            client_key: client_config
+            for client_key, client_config in combined_accounts.items()
+            if client_key in required_clients
+        }
 
     async def _authenticate_account(self, account_name: str, account_config: dict[str, str]):
         app = create_twitter_session(account_name)
@@ -103,7 +111,8 @@ class AccountTracker():
                     raise
 
     async def _ensure_twitter_updaters(self, exit_on_failure: bool = False) -> None:
-        latest_accounts = await self._load_available_accounts()
+        required_clients = {client_used for _, client_used in await self.twitter_session_service_pairs()}
+        latest_accounts = await self._load_available_accounts(required_clients)
         self.accounts_data = latest_accounts
         for account_name in latest_accounts.keys():
             self.tweets.setdefault(account_name, [])
@@ -310,8 +319,11 @@ class AccountTracker():
                 deadTasks = [expected_tasks[name] for name in (set(expected_tasks.keys()) - aliveTasks)]
                 log.warning(f'dead tasks : {deadTasks}')
                 for username, client_used in deadTasks:
+                    if client_used not in self.tweets:
+                        log.warning(f'skipping restart for {username}; Twitter/X session {client_used} is not available')
+                        continue
                     self.bot.loop.create_task(self.notification(username, client_used)).set_name(self._task_name(username, client_used))
-                    log.info(f'restart {deadTask} successfully using {users_and_clients[deadTask]}')
+                    log.info(f'restart {username} successfully using {client_used}')
 
             for client in self.accounts_data.keys():
                 if f'TweetsUpdater_{client}' not in taskSet:
