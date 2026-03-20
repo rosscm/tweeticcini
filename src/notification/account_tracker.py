@@ -317,8 +317,14 @@ class AccountTracker():
                                             str(e),
                                             datetime.now(timezone.utc).isoformat(timespec='seconds'),
                                         )
-                                    if not isinstance(e, discord.errors.Forbidden):
-                                        log.error(f'an error occurred at {channel.mention} while sending notification: {e}')
+                                    if isinstance(e, discord.errors.Forbidden):
+                                        channel_label = channel.mention if channel is not None else f"channel {data['channel_id']}"
+                                        log.warning(
+                                            f'missing permission to send the full alert in {channel_label} for {username} using {client_used}: {e}'
+                                        )
+                                    else:
+                                        channel_label = channel.mention if channel is not None else f"channel {data['channel_id']}"
+                                        log.error(f'an error occurred at {channel_label} while sending notification: {e}')
 
     async def tweetsUpdater(self, app):
         updater_name = asyncio.current_task().get_name().split('_', 1)[1]
