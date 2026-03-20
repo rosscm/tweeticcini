@@ -45,6 +45,16 @@ async def update_user_client(cursor, user_id: str, client_used: str) -> None:
     await cursor.execute('UPDATE user SET client_used = ? WHERE id = ?', (client_used, user_id))
 
 
+async def ensure_user_client_state(cursor, user_id: str, client_used: str, latest_tweet: Optional[str] = None) -> None:
+    await cursor.execute(
+        '''
+        INSERT OR IGNORE INTO user_client_state (user_id, client_used, lastest_tweet)
+        VALUES (?, ?, ?)
+        ''',
+        (user_id, client_used, latest_tweet),
+    )
+
+
 async def set_user_enabled(cursor, user_id: str, enabled: bool) -> None:
     await cursor.execute('UPDATE user SET enabled = ? WHERE id = ?', (int(enabled), user_id))
 
@@ -135,6 +145,20 @@ async def update_user_latest_tweet(cursor, username: str, latest_tweet: str) -> 
     await cursor.execute('UPDATE user SET lastest_tweet = ? WHERE username = ?', (latest_tweet, username))
 
 
+async def update_user_latest_tweet_for_client(cursor, username: str, client_used: str, latest_tweet: str) -> None:
+    await cursor.execute(
+        '''
+        INSERT INTO user_client_state (user_id, client_used, lastest_tweet)
+        SELECT id, ?, ?
+        FROM user
+        WHERE lower(username) = lower(?)
+        ON CONFLICT(user_id, client_used) DO UPDATE SET
+            lastest_tweet = excluded.lastest_tweet
+        ''',
+        (client_used, latest_tweet, username),
+    )
+
+
 async def get_enabled_user_client_pairs(db_path) -> list[tuple[str, str]]:
     async with connect_readonly(db_path) as db:
         async with db.execute(
@@ -157,11 +181,24 @@ async def get_all_user_client_map(db_path) -> dict[str, str]:
             return {row[0]: row[1] async for row in cursor}
 
 
-async def get_last_tweet_at(db_path, username: str):
+async def get_last_tweet_at(db_path, username: str, client_used: Optional[str] = None):
     async with connect_readonly(db_path) as db:
-        async with db.execute('SELECT lastest_tweet FROM user WHERE username = ?', (username,)) as cursor:
+        if client_used:
+            query = '''
+                SELECT COALESCE(user_client_state.lastest_tweet, user.lastest_tweet)
+                FROM user
+                LEFT JOIN user_client_state
+                  ON user_client_state.user_id = user.id
+                 AND user_client_state.client_used = ?
+                WHERE lower(user.username) = lower(?)
+            '''
+            params = (client_used, username)
+        else:
+            query = 'SELECT lastest_tweet FROM user WHERE lower(username) = lower(?)'
+            params = (username,)
+        async with db.execute(query, params) as cursor:
             row = await cursor.fetchone()
-    return row[0]
+    return row[0] if row is not None else None
 
 
 async def list_server_notifications(db_path, server_id: str, account: str = '', channel_id: str = ''):

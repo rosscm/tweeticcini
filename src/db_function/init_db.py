@@ -123,6 +123,13 @@ async def ensure_db_schema() -> str:
                 UNIQUE(server_id, session_name),
                 UNIQUE(client_key)
             );
+            CREATE TABLE IF NOT EXISTS user_client_state (
+                user_id TEXT NOT NULL,
+                client_used TEXT NOT NULL,
+                lastest_tweet TEXT DEFAULT NULL,
+                PRIMARY KEY(user_id, client_used),
+                FOREIGN KEY (user_id) REFERENCES user (id)
+            );
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:
@@ -166,6 +173,17 @@ async def ensure_db_schema() -> str:
             if column_name not in guild_columns:
                 await db.execute(f'ALTER TABLE guild_settings ADD COLUMN {column_name} {definition}')
                 log.info(f'added missing guild_settings.{column_name} column')
+
+        await db.execute(
+            '''
+            INSERT OR IGNORE INTO user_client_state (user_id, client_used, lastest_tweet)
+            SELECT DISTINCT notification.user_id, notification.client_used, user.lastest_tweet
+            FROM notification
+            JOIN user ON user.id = notification.user_id
+            WHERE notification.client_used IS NOT NULL
+              AND notification.client_used != ''
+            '''
+        )
 
         await db.commit()
 

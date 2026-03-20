@@ -347,12 +347,12 @@
 
         <div class="overview-grid">
           <div class="default-block">
-            <h3>Alert Setup</h3>
-            <div><span class="meta-label">Ping everyone rules</span> {{ overview.escalation_rule_count }}</div>
-            <div><span class="meta-label">Monitor-specific rules</span> {{ overview.scoped_rule_count }}</div>
-            <div><span class="meta-label">Custom monitor messages</span> {{ overview.custom_message_count }}</div>
-            <div><span class="meta-label">Ping keywords</span> {{ plan_usage.trigger_keyword_count }}</div>
-            <div><span class="meta-label">Exclude keywords</span> {{ plan_usage.exclude_keyword_count }}</div>
+            <h3>Alerts & Filters</h3>
+            <div><span class="meta-label">Priority pings</span> {{ overview.escalation_rule_count }}</div>
+            <div><span class="meta-label">Scoped rules</span> {{ overview.scoped_rule_count }}</div>
+            <div><span class="meta-label">Custom messages</span> {{ overview.custom_message_count }}</div>
+            <div><span class="meta-label">Ping phrases</span> {{ plan_usage.trigger_keyword_count }}</div>
+            <div><span class="meta-label">Muted phrases</span> {{ plan_usage.exclude_keyword_count }}</div>
           </div>
 
           <div class="default-block">

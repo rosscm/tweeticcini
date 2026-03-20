@@ -13,7 +13,7 @@ from configs.load_configs import configs
 from src.repositories.notifier_repository import (
     get_enabled_notifications_for_user_client,
     get_user_by_username,
-    update_user_latest_tweet,
+    update_user_latest_tweet_for_client,
 )
 from src.repositories.runtime_metrics_repository import (
     record_client_poll_error,
@@ -162,7 +162,7 @@ class AccountTracker():
         while True:
             await asyncio.sleep(configs['tweets_check_period'])
 
-            lastest_tweets = await get_tweets(self.tweets[client_used], username)
+            lastest_tweets = await get_tweets(self.tweets[client_used], username, client_used)
             if lastest_tweets is None:
                 continue
 
@@ -171,7 +171,12 @@ class AccountTracker():
                 async with db.cursor() as cursor:
                     user = await get_user_by_username(cursor, username)
                     async with lock:
-                        await update_user_latest_tweet(cursor, username, str(lastest_tweets[-1].created_on))
+                        await update_user_latest_tweet_for_client(
+                            cursor,
+                            username,
+                            client_used,
+                            str(lastest_tweets[-1].created_on),
+                        )
                         await db.commit()
 
                     for tweet in lastest_tweets:

@@ -663,8 +663,10 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'The dashboard is up, but the bot has not logged itself online in the last 24 hours.',
             'details': [
-                f'{source_count} monitors are configured for this server.',
                 f'Connected sessions: {len(delivery_sessions)}',
+                f'Sources: {source_count} / {source_limit}',
+                f'Rules: {rule_count} / {rule_limit}',
+                f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
             ],
         }
 
@@ -780,6 +782,12 @@ async def root() -> RedirectResponse:
 
 @app.get('/dashboard', response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_home(request: Request):
+    requested_guild_id = request.query_params.get('guild_id')
+    if requested_guild_id:
+        request.session['pending_dashboard_guild_id'] = requested_guild_id
+        if requested_guild_id in {str(guild.get('id')) for guild in _get_session_guilds(request)}:
+            return RedirectResponse(url=f'/dashboard/guilds/{requested_guild_id}/overview')
+
     state = secrets.token_urlsafe(24)
     request.session['discord_oauth_state'] = state
     return templates.TemplateResponse(
@@ -798,6 +806,9 @@ async def dashboard_home(request: Request):
 
 @app.get('/dashboard/login', include_in_schema=False)
 async def dashboard_login(request: Request) -> RedirectResponse:
+    requested_guild_id = request.query_params.get('guild_id')
+    if requested_guild_id:
+        request.session['pending_dashboard_guild_id'] = requested_guild_id
     state = secrets.token_urlsafe(24)
     request.session['discord_oauth_state'] = state
     login_url = _build_discord_login_url(request, state)
@@ -861,6 +872,9 @@ async def dashboard_callback(request: Request, code: str, state: str) -> Redirec
         }
         for guild in manageable_guilds
     ]
+    pending_guild_id = request.session.pop('pending_dashboard_guild_id', None)
+    if pending_guild_id and pending_guild_id in {str(guild.get('id')) for guild in manageable_guilds}:
+        return RedirectResponse(url=f'/dashboard/guilds/{pending_guild_id}/overview')
     return RedirectResponse(url='/dashboard')
 
 

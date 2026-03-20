@@ -94,6 +94,7 @@ DATA_PATH=./data
 DISCORD_CLIENT_ID=YourDiscordClientId
 DISCORD_CLIENT_SECRET=YourDiscordClientSecret
 DISCORD_REDIRECT_URI=http://localhost:8000/dashboard/callback
+DASHBOARD_BASE_URL=https://your-dashboard-domain.com
 DASHBOARD_SESSION_SECRET=YourLongRandomSessionSecret
 TWITTER_SESSION_SECRET=YourLongRandomSessionSecret
 STRIPE_PUBLISHABLE_KEY=pk_test_replace_me
@@ -114,6 +115,7 @@ The current recommended flow is:
 Local vs production reminders:
 - local dashboard OAuth should use `http://localhost:8000/dashboard/callback`
 - production OAuth should use your real dashboard domain callback URL
+- set `DASHBOARD_BASE_URL` to your public dashboard origin so the `/dashboard` slash command opens the public site instead of localhost
 - `TWITTER_SESSION_SECRET` should be set anywhere the dashboard or bot will read stored server sessions
 - Stripe test keys and live keys must never be mixed with the wrong `price_...` or webhook secret
 - the production bot and dashboard should share the same `DATA_PATH` target so billing, dashboard, and runtime changes land in one database
@@ -182,6 +184,56 @@ Webhook endpoint:
 - `POST /billing/webhook`
 
 For local testing, Stripe must reach your machine through a public tunnel such as Cloudflare Tunnel or ngrok. For production, point Stripe directly at your real dashboard domain.
+
+### Domain and DNS Notes
+
+Current intended live layout:
+
+- `tweeticcini.com` -> public marketing site on Netlify
+- `dashboard.tweeticcini.com` -> dashboard on the Pi through Cloudflare Tunnel
+
+Real-world setup flow that worked:
+
+1. Buy the domain at the registrar.
+2. Add the domain to Cloudflare using the normal domain onboarding flow.
+3. Let Cloudflare import the existing DNS records from the registrar.
+4. Update the registrar nameservers to the two Cloudflare nameservers.
+5. Wait for Cloudflare to show the domain as active.
+6. In Netlify, add `tweeticcini.com` as the primary custom domain and `www.tweeticcini.com` as a redirecting alias.
+7. Keep DNS managed by Cloudflare, not Netlify.
+
+Cloudflare account note:
+
+- this setup currently uses Cloudflare sign-in through GitHub
+
+Important distinction:
+
+- registrar nameservers should point to Cloudflare
+- Netlify should be added as DNS records inside Cloudflare
+- do not switch the registrar nameservers to Netlify DNS
+
+For the public site in Cloudflare DNS:
+
+- keep the existing MX and TXT records unless email or forwarding is intentionally being removed
+- remove the old Porkbun web/parking records once the new records are ready
+- use Netlify-directed records for the site hostnames
+
+Netlify currently recommends:
+
+- apex/root `tweeticcini.com` -> `apex-loadbalancer.netlify.com`
+- `www.tweeticcini.com` -> `tweeticcini.netlify.app`
+
+While verifying with Netlify:
+
+- keep the Netlify records as `DNS only` in Cloudflare
+- let Netlify finish DNS verification before worrying about extra Cloudflare proxy features
+
+Once the dashboard subdomain is ready, set:
+
+- `DASHBOARD_BASE_URL=https://dashboard.tweeticcini.com`
+- `DISCORD_REDIRECT_URI=https://dashboard.tweeticcini.com/dashboard/callback`
+
+And add the same callback URL in the Discord Developer Portal.
 
 ## ✅ Production Checklist
 

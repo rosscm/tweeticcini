@@ -9,6 +9,7 @@ from src.repositories.notifier_repository import (
     connect_writable,
     disable_notification,
     ensure_channel,
+    ensure_user_client_state,
     get_active_channel_ids_for_server,
     get_active_notifications_for_user,
     get_dashboard_source_message,
@@ -350,6 +351,7 @@ class NotifierService:
             async with lock:
                 await db.execute('BEGIN')
                 await insert_user(cursor, str(target_user.id), request.username, get_utcnow(), request.account_used)
+                await ensure_user_client_state(cursor, str(target_user.id), request.account_used, get_utcnow())
                 await ensure_channel(cursor, request.channel_id, request.server_id)
                 await upsert_notification(
                     cursor,
@@ -365,6 +367,7 @@ class NotifierService:
         else:
             async with lock:
                 await db.execute('BEGIN')
+                await ensure_user_client_state(cursor, match_user['id'], request.account_used, match_user['lastest_tweet'])
                 await ensure_channel(cursor, request.channel_id, request.server_id)
                 await upsert_notification(
                     cursor,
