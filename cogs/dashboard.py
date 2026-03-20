@@ -43,7 +43,7 @@ class Dashboard(Cog_Extension):
             )
             return
 
-        dashboard_url = f'{base_url}/dashboard/guilds/{itn.guild_id}'
+        dashboard_url = f'{base_url}/dashboard?guild_id={itn.guild_id}'
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label='Open Dashboard', url=dashboard_url))
 
