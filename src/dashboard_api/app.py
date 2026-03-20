@@ -626,7 +626,7 @@ def _build_status_banner(
             'level': 'error',
             'message': "Connect a Twitter/X session before this server can start delivering monitor alerts. To get started, open 'Sessions' and connect at least one session before adding monitors.",
             'details': [
-                'Healthy sessions: 0',
+                'Connected sessions: 0',
                 f'Sources: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
@@ -649,11 +649,12 @@ def _build_status_banner(
                 ],
             }
         return {
-            'level': 'error',
+            'level': 'warning',
             'message': 'A session is connected, but the bot has not brought it online yet. Wait a moment for the bot to load the newly connected session and bring delivery polling online.',
             'details': [
                 f'Connected sessions: {len(delivery_sessions)}',
                 f'Sources: {source_count} / {source_limit}',
+                f'Rules: {rule_count} / {rule_limit}',
             ],
         }
 
@@ -663,7 +664,7 @@ def _build_status_banner(
             'message': 'The dashboard is up, but the bot has not logged itself online in the last 24 hours.',
             'details': [
                 f'{source_count} monitors are configured for this server.',
-                f'{len(delivery_sessions)} Twitter/X session(s) are connected for this server.',
+                f'Connected sessions: {len(delivery_sessions)}',
             ],
         }
 
@@ -673,13 +674,13 @@ def _build_status_banner(
         return {
             'level': 'warning',
             'message': (
-                'Twitter/X is rate-limiting at least one session right now, so new alerts may be delayed until polling settles back down.'
+                'X is rate-limiting at least one session right now, so new alerts may be delayed until polling settles back down.'
                 if has_rate_limit_warning
-                else 'At least one Twitter/X session hit a recent polling issue, so new alerts may be a little delayed until it recovers.'
+                else 'At least one session hit a recent polling issue, so new alerts may be a little delayed until it recovers.'
             ),
             'details': (
                 [
-                    f"Healthy sessions: {len(healthy_clients)}",
+                    f"Connected sessions: {len(delivery_sessions)}",
                     f"Sessions with recent rate limits: {', '.join(row['client_used'] for row in warning_clients)}",
                     'Single-session servers usually just need to wait for the cooldown to pass.',
                     'If you use multiple sessions, spread monitors across distinct X accounts when possible.',
@@ -687,7 +688,7 @@ def _build_status_banner(
                 ]
                 if has_rate_limit_warning
                 else [
-                    f"Healthy sessions: {len(healthy_clients)}",
+                    f"Connected sessions: {len(delivery_sessions)}",
                     f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
                     f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
                 ]
@@ -724,7 +725,7 @@ def _build_status_banner(
         'level': 'success',
         'message': 'Everything looks healthy right now. Sessions are watching for new posts and the bot has checked in recently.',
         'details': [
-            f'Healthy sessions: {len(healthy_clients)}',
+            f'Connected sessions: {len(delivery_sessions)}',
             f'Sources: {source_count} / {source_limit}',
             f'Rules: {rule_count} / {rule_limit}',
             f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
@@ -995,10 +996,9 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'custom_message_count': sum(1 for source in sources if source.has_custom_message),
                 'source_names': [source.username for source in sources[:6]],
                 'onboarding': {
-                    'show': delivery_sessions_required or usage['source_count'] == 0 or usage['rule_count'] == 0,
+                    'show': delivery_sessions_required or usage['source_count'] == 0,
                     'sessions_ready': not delivery_sessions_required,
                     'monitors_ready': usage['source_count'] > 0,
-                    'rules_ready': usage['rule_count'] > 0,
                 },
                 'health': {
                     'oauth_enabled': _get_discord_oauth_config() is not None,
@@ -1176,7 +1176,7 @@ async def send_guild_source_test_alert(
         raise HTTPException(status_code=400, detail='custom account messages require the Pro plan')
     role_name = resource_names['roles'].get(test_request.role_id, '').strip() if test_request.role_id else ''
     mention = f'@{role_name} ' if role_name else ''
-    sample_text = 'Queue is live at Pokemon Center'
+    sample_text = 'A new post just went live'
     sample_url = f'https://x.com/{test_request.username}/status/1999999999999999999'
     message = _build_test_alert_message(
         username=test_request.username,

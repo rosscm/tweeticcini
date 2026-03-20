@@ -99,7 +99,7 @@
             {% endif %}
             <a class="ghost-link" href="/dashboard">Change Server</a>
             {% if public_site_url %}
-            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
+            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Plans &amp; Setup</a>
             {% endif %}
           </section>
 
@@ -306,9 +306,6 @@
             <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('monitors_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
               {{ 'Monitor added' if overview.get('onboarding', {}).get('monitors_ready') else 'Add your first monitor' }}
             </a>
-            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('rules_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/rules">
-              {{ 'Rule added' if overview.get('onboarding', {}).get('rules_ready') else 'Add your first rule' }}
-            </a>
           </div>
         </section>
         {% endif %}
@@ -389,7 +386,7 @@
             <h3>Dashboard Readiness</h3>
             <div><span class="meta-label">Discord OAuth</span> {{ 'connected' if overview.health.oauth_enabled else 'disabled' }}</div>
             <div><span class="meta-label">Channel and role lookup</span> {{ 'available' if overview.health.discord_lookup_enabled else 'bot token missing' }}</div>
-            <div><span class="meta-label">Twitter sessions</span> {{ overview.health.healthy_twitter_session_count }} / {{ overview.health.twitter_session_count }} healthy</div>
+            <div><span class="meta-label">Connected sessions</span> {{ overview.health.healthy_twitter_session_count }} / {{ overview.health.twitter_session_count }} healthy</div>
             <div><span class="meta-label">Active embed mode</span> {{ overview.health.active_embed_mode }}</div>
             <div><span class="meta-label">Poll interval</span> {{ overview.health.tweet_check_period }}s</div>
             <div><span class="meta-label">Last bot online log</span> {{ overview.health.last_online_at or 'not seen recently' }}</div>
@@ -426,12 +423,12 @@
             <h3 class="panel-title">Connect Session</h3>
             <form id="twitter-session-form" class="stack">
               <div class="form-banner">
-                Connect a server-owned Twitter/X session here first. Most servers only need one. <strong>Pro</strong> can add more to spread monitors across separate X sessions for extra flexibility.
+                Connect a server-owned Twitter/X session here first. Most servers only need one. <strong>Pro</strong> can add more to spread monitors across separate sessions for extra flexibility.
               </div>
               <div id="twitter-session-status" class="form-banner form-banner--hidden" hidden></div>
               {% if twitter_session_limit_reached %}
               <div class="form-banner form-banner--warning">
-                Session limit reached on the {{ guild_presentation.plan }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Pro</a> to connect more Twitter/X sessions.
+                Session limit reached on the {{ guild_presentation.plan }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Pro</a> to connect more sessions.
               </div>
               {% endif %}
 
@@ -566,7 +563,7 @@
           <h3>Default Message</h3>
           <div class="field-help">Tweeticcini normally uses the first meaningful line from the tweet as the delivered message. The template below is the platform fallback format used when a custom default message is explicitly applied.</div>
           <pre class="message-preview">{{ bot_defaults.default_message }}</pre>
-          <div class="field-help">Headline-style example: <code>Queue is live at Pokemon Center: https://x.com/...</code></div>
+          <div class="field-help">Headline-style example: <code>A new post just went live: https://x.com/...</code></div>
         </div>
       </section>
       {% endif %}
@@ -801,7 +798,7 @@
             <div>
               <p class="eyebrow">Monitors</p>
               <h2>Watch &amp; Route Alerts</h2>
-              <p class="section-copy section-copy--wide">Choose which Twitter/X accounts this server watches, where alerts go, and how each monitor behaves.</p>
+              <p class="section-copy section-copy--wide">Choose which accounts this server watches, where alerts go, and how each monitor behaves.</p>
             </div>
           </div>
 
@@ -813,7 +810,7 @@
 
           {% if delivery_sessions_required %}
           <section class="notice notice--warning">
-            <strong>Twitter/X session required:</strong> connect a Twitter/X session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can deliver alerts.
+            <strong>Twitter/X session required:</strong> connect a session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can deliver alerts.
           </section>
           {% endif %}
 
@@ -827,7 +824,7 @@
                 <input id="source-edit-mode" type="hidden" value="create">
                 <label for="source-username-edit">Twitter/X account</label>
                 <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA" {{ 'disabled' if delivery_sessions_required else '' }}>
-                <div class="field-help">Enter the Twitter/X username exactly as it appears on X, without the <code>@</code> symbol.</div>
+                <div class="field-help">Enter the username exactly as it appears on X, without the <code>@</code> symbol.</div>
 
                 <label for="source-channel-id-edit">Channel ID</label>
                 <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -879,7 +876,7 @@
                 <label for="source-custom-message-edit">Custom message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
                 <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
                 <div class="field-help">Optional. Leave blank to use Tweeticcini's normal headline-style alert message.</div>
-                <div class="field-help">Headline-style example: <code>Queue is live at Pokemon Center: https://x.com/...</code></div>
+                <div class="field-help">Headline-style example: <code>A new post just went live: https://x.com/...</code></div>
                 <div class="field-help">Placeholders: <code>{mention}</code> role mention, <code>{author}</code> account name, <code>{action}</code> post type, <code>{url}</code> tweet link.</div>
                 <div class="field-help">Example result: <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
                 <div class="field-help">Use <strong>Send Test Alert</strong> to post a non-pinging sample alert into the selected channel before saving.</div>
@@ -1016,7 +1013,7 @@
 
           {% if delivery_sessions_required %}
           <section class="notice notice--warning">
-            <strong>Twitter/X session required:</strong> connect a Twitter/X session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can create rules.
+            <strong>Twitter/X session required:</strong> connect a session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can create rules.
           </section>
           {% elif plan_usage.source_count == 0 %}
           <section class="notice notice--warning">
@@ -1032,9 +1029,17 @@
                   Build a rule for one tracked account or apply it across the whole server.<br>
                   Use <code>Exclude alerts</code> rules to suppress noise, or use <code>Ping everyone</code> for high-priority posts that should stand out.
                 </div>
+                <div class="status-detail-list">
+                  <span class="tag tag--soft">Exclude keywords: {{ plan_usage.exclude_keyword_count }} / {{ guild_presentation.features.max_exclude_keywords_total }}</span>
+                  {% if guild_presentation.features.can_use_everyone_escalation %}
+                  <span class="tag tag--soft">Ping keywords: {{ plan_usage.trigger_keyword_count }} / {{ guild_presentation.features.max_trigger_keywords_total }}</span>
+                  {% else %}
+                  <span class="tag tag--soft">Ping everyone unlocks on Pro</span>
+                  {% endif %}
+                </div>
                 <input id="existing-rule-name" type="hidden" value="">
                 <label for="rule-name">Rule label</label>
-                <input id="rule-name" type="text" placeholder="E.g., pokemoncenter-queue" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
+                <input id="rule-name" type="text" placeholder="E.g., ignore off-topic posts" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
                   <div class="field-help">A unique label for this rule inside the current server.</div>
 
                 <label for="source-username">Twitter/X account</label>
@@ -1057,21 +1062,21 @@
                 </select>
                 <div class="field-help">Choose whether this rule should suppress alerts or make high-priority posts stand out.</div>
 
+                <label for="rule-exclude-keywords">Exclude keywords</label>
+                <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., noisy phrase 1, noisy phrase 2, noisy phrase 3" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
+                <div class="field-help">Comma-separated phrases that should suppress alerts when they appear in the tweet text. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.</div>
+                <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
+
                 <label for="rule-trigger-keywords">Trigger keywords</label>
-                <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., queue is live" {{ 'disabled' if (not guild_presentation.features.can_use_everyone_escalation) or delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
+                <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., super important phrase" {{ 'disabled' if (not guild_presentation.features.can_use_everyone_escalation) or delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
                 <div class="field-help" id="rule-trigger-keywords-help">
                   {% if guild_presentation.features.can_use_everyone_escalation %}
-                  Trigger keywords only apply when Rule type is set to <code>Ping everyone</code>. Use only letters, numbers, spaces, and hyphens.
+                  These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.
                   {% else %}
-                  Trigger keywords are only available on <strong>Pro</strong>, because they are used with <code>Ping everyone</code> rules.
+                  These phrases are only available on <strong>Pro</strong>, because they are used with <code>Ping everyone</code> rules.
                   {% endif %}
                 </div>
                 <div class="field-error" id="rule-trigger-keywords-error" hidden></div>
-
-                <label for="rule-exclude-keywords">Exclude keywords</label>
-                <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., lorcana, plush, sleeves" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
-                <div class="field-help">Comma-separated phrases that should suppress alerts when matched. Use only letters, numbers, spaces, and hyphens.</div>
-                <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
 
                 <div class="actions">
                   <button type="submit" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>Save Rule</button>
@@ -1332,11 +1337,11 @@
         }
 
         if (!canUseEveryone) {
-          triggerHelp.innerHTML = 'Trigger keywords are only available on <strong>Pro</strong>, because they are used with <code>Ping everyone</code> rules.';
+          triggerHelp.innerHTML = 'These phrases are only available on <strong>Pro</strong>, because they are used with <code>Ping everyone</code> rules.';
         } else if (!everyoneSelected) {
-          triggerHelp.innerHTML = 'Trigger keywords only apply when Rule type is set to <code>Ping everyone</code>. Use only letters, numbers, spaces, and hyphens.';
+          triggerHelp.innerHTML = 'These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
         } else {
-          triggerHelp.innerHTML = 'Comma-separated phrases that must appear before this <code>Ping everyone</code> rule applies. Use only letters, numbers, spaces, and hyphens.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that must appear before this <code>Ping everyone</code> rule applies. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
         }
       }
 
