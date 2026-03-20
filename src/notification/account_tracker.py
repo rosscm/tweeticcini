@@ -183,6 +183,15 @@ class AccountTracker():
                         notifications = await get_enabled_notifications_for_user_client(cursor, user['id'], client_used)
                         for data in notifications:
                             channel = self.bot.get_channel(int(data['channel_id']))
+                            if channel is None:
+                                try:
+                                    channel = await self.bot.fetch_channel(int(data['channel_id']))
+                                except Exception as exc:
+                                    log.warning(
+                                        f"unable to resolve channel {data['channel_id']} for {username} using {client_used}: {exc}"
+                                    )
+                                    continue
+
                             if channel is not None and is_match_type(tweet, data['enable_type']) and is_match_media_type(tweet, data['enable_media_type']):
                                 try:
                                     presentation = await self.guild_settings_service.get_presentation_view(str(channel.guild.id))
