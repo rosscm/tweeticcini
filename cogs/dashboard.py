@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from urllib.parse import urlparse
 
 import discord
@@ -8,7 +9,7 @@ from discord.ext import commands
 from core.classes import Cog_Extension
 
 
-def _get_dashboard_base_url() -> str | None:
+def _get_dashboard_base_url() -> Optional[str]:
     explicit_url = os.getenv('DASHBOARD_BASE_URL', '').strip()
     if explicit_url:
         return explicit_url.rstrip('/')
@@ -47,11 +48,7 @@ class Dashboard(Cog_Extension):
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label='Open Dashboard', url=dashboard_url))
 
-        await itn.response.send_message(
-            'Open the Tweeticcini dashboard to manage sessions, monitors, rules, and alert appearance for this server.',
-            ephemeral=True,
-            view=view,
-        )
+        await itn.response.send_message(ephemeral=True, view=view)
 
 
 async def setup(bot: commands.Bot):

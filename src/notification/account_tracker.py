@@ -166,6 +166,7 @@ class AccountTracker():
             if lastest_tweets is None:
                 continue
 
+            log.info(f'found {len(lastest_tweets)} new tweet(s) for {username} using {client_used}')
             async with aiosqlite.connect(self.db_path) as db:
                 db.row_factory = aiosqlite.Row
                 async with db.cursor() as cursor:
@@ -181,6 +182,7 @@ class AccountTracker():
 
                     for tweet in lastest_tweets:
                         notifications = await get_enabled_notifications_for_user_client(cursor, user['id'], client_used)
+                        log.info(f'found {len(notifications)} notification target(s) for {username} using {client_used}')
                         for data in notifications:
                             channel = self.bot.get_channel(int(data['channel_id']))
                             if channel is None:
@@ -192,7 +194,16 @@ class AccountTracker():
                                     )
                                     continue
 
-                            if channel is not None and is_match_type(tweet, data['enable_type']) and is_match_media_type(tweet, data['enable_media_type']):
+                            matches_type = is_match_type(tweet, data['enable_type'])
+                            matches_media = is_match_media_type(tweet, data['enable_media_type'])
+                            if not matches_type or not matches_media:
+                                log.info(
+                                    f"skipping {username} delivery to {data['channel_id']} using {client_used}: "
+                                    f"type_match={matches_type} media_match={matches_media}"
+                                )
+                                continue
+
+                            if channel is not None:
                                 try:
                                     presentation = await self.guild_settings_service.get_presentation_view(str(channel.guild.id))
                                     url = re.sub('twitter', presentation.effective.fx_domain_name, tweet.url) if presentation.effective.embed_type == 'fx_twitter' else tweet.url
@@ -355,8 +366,20 @@ class AccountTracker():
             await self._ensure_twitter_updaters()
             users_and_clients = await self.twitter_session_service_pairs()
             expected_tasks = {self._task_name(username, client_used): (username, client_used) for username, client_used in users_and_clients}
-            taskSet = {task.get_name() for task in asyncio.all_tasks()}
+            all_tasks = list(asyncio.all_tasks())
+            taskSet = {task.get_name() for task in all_tasks}
             aliveTasks = taskSet & set(expected_tasks.keys())
+            staleTaskNames = [name for name in taskSet if '::' in name and name not in expected_tasks]
+
+            for task in all_tasks:
+                task_name = task.get_name()
+                if task_name not in staleTaskNames:
+                    continue
+                try:
+                    task.cancel()
+                    log.info(f'removed stale task {task_name}')
+                except Exception as e:
+                    log.warning(f'failed to remove stale task {task_name}: {e}')
 
             if aliveTasks != set(expected_tasks.keys()):
                 deadTasks = [expected_tasks[name] for name in (set(expected_tasks.keys()) - aliveTasks)]

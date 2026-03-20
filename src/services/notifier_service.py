@@ -11,6 +11,7 @@ from src.repositories.notifier_repository import (
     ensure_channel,
     ensure_user_client_state,
     get_active_channel_ids_for_server,
+    get_client_used_for_user,
     get_active_notifications_for_user,
     get_dashboard_source_message,
     get_channel_ids_for_server,
@@ -161,6 +162,7 @@ class NotifierService:
                     async with lock:
                         await db.execute('BEGIN')
                         await ensure_channel(cursor, request.channel_id, request.server_id)
+                        await ensure_user_client_state(cursor, match_user['id'], request.account_used, match_user['lastest_tweet'])
                         await upsert_notification(
                             cursor,
                             match_user['id'],
@@ -172,6 +174,8 @@ class NotifierService:
                             request.force_everyone,
                         )
                         await db.commit()
+
+                    await self._ensure_remote_notification_enabled(request)
                 except NotifierServiceError:
                     await db.rollback()
                     raise
@@ -182,8 +186,8 @@ class NotifierService:
 
         return AddNotifierResult(
             created_or_reactivated=False,
-            task_client_used=None,
-            response_message=f'{request.username} is already tracked here.',
+            task_client_used=request.account_used,
+            response_message=f'successfully add notifier of {request.username} under {request.account_used}!',
         )
 
     async def remove_notifier(self, request: RemoveNotifierRequest) -> RemoveNotifierResult:
@@ -206,18 +210,22 @@ class NotifierService:
                             response_message=f"can't find notifier {request.username} in <#{request.channel_id}>!",
                         )
 
+                    client_used = await get_client_used_for_user(cursor, match_notifier['user_id'])
                     async with lock:
                         await db.execute('BEGIN')
                         await disable_notification(cursor, match_notifier['user_id'], request.channel_id)
                         active_notifiers = await get_active_notifications_for_user(cursor, match_notifier['user_id'])
+                        active_notifiers_for_client = (
+                            await get_enabled_notifications_for_user_client(cursor, match_notifier['user_id'], client_used or '')
+                            if client_used
+                            else []
+                        )
                         if not active_notifiers:
                             await set_user_enabled(cursor, match_notifier['user_id'], False)
                         await db.commit()
 
-                    client_used = None
-                    if not active_notifiers:
-                        client_notifications = await get_enabled_notifications_for_user_client(cursor, match_notifier['user_id'], '')
-                        client_used = client_notifications[0]['client_used'] if client_notifications else None
+                    if active_notifiers_for_client:
+                        client_used = None
                 except NotifierServiceError:
                     await db.rollback()
                     raise
@@ -228,7 +236,7 @@ class NotifierService:
 
         return RemoveNotifierResult(
             removed=True,
-            removed_last_notifier=not active_notifiers,
+            removed_last_notifier=not active_notifiers_for_client,
             client_used=client_used,
             response_message=f'successfully remove notifier of {request.username}!',
         )
@@ -382,15 +390,40 @@ class NotifierService:
                 await set_user_enabled(cursor, match_user['id'], True)
                 await db.commit()
 
-        await app.follow_user(target_user)
+        follow_status = await app.follow_user(target_user)
+        if follow_status:
+            log.info(f'successfully followed {request.username} using {request.account_used}')
+        else:
+            log.warning(f'unable to confirm follow for {request.username} using {request.account_used}')
+
         status = await app.enable_user_notification(target_user)
         if status:
-            log.info(f'successfully turned on notification for {request.username}')
+            log.info(f'successfully turned on notification for {request.username} using {request.account_used}')
         else:
-            log.warning(f'unable to turn on notification for {request.username}')
+            log.warning(f'unable to turn on notification for {request.username} using {request.account_used}')
 
         return AddNotifierResult(
             created_or_reactivated=True,
             task_client_used=request.account_used,
             response_message=f'successfully add notifier of {request.username} under {request.account_used}!',
         )
+
+    async def _ensure_remote_notification_enabled(self, request: AddNotifierRequest) -> None:
+        app = create_twitter_session(request.account_used)
+        await app.connect()
+        try:
+            target_user = await app.get_user_info(request.username)
+        except Exception as e:
+            raise UserNotFoundError from e
+
+        follow_status = await app.follow_user(target_user)
+        if follow_status:
+            log.info(f'successfully followed {request.username} using {request.account_used}')
+        else:
+            log.warning(f'unable to confirm follow for {request.username} using {request.account_used}')
+
+        notification_status = await app.enable_user_notification(target_user)
+        if notification_status:
+            log.info(f'successfully turned on notification for {request.username} using {request.account_used}')
+        else:
+            log.warning(f'unable to turn on notification for {request.username} using {request.account_used}')

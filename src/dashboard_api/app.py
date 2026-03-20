@@ -17,7 +17,7 @@ from starlette.templating import Jinja2Templates
 
 from configs.load_configs import configs
 from src.db_function.init_db import ensure_db_schema
-from src.log import get_log_path
+from src.log import get_log_path, setup_logger
 from src.notification.account_tracker import build_headline_notification_message, build_notification_message
 from src.repositories.runtime_metrics_repository import (
     get_runtime_source_status_map,
@@ -46,6 +46,8 @@ from src.services.twitter_session_service import (
     TwitterSessionValidationError,
 )
 from src.settings import get_accounts
+
+log = setup_logger(__name__)
 
 
 class AlertRuleResponse(BaseModel):
@@ -1139,7 +1141,7 @@ async def delete_guild_twitter_session(request: Request, guild_id: str, session_
 async def create_guild_source(request: Request, guild_id: str, source_request: CreateDashboardSourceRequest) -> DashboardSourceResponse:
     _require_guild_access(request, guild_id)
     try:
-        await notifier_service.add_notifier(
+        result = await notifier_service.add_notifier(
             AddNotifierRequest(
                 username=source_request.username,
                 server_id=guild_id,
@@ -1163,6 +1165,10 @@ async def create_guild_source(request: Request, guild_id: str, source_request: C
         raise HTTPException(status_code=400, detail=str(error)) from error
     except NotifierServiceError as error:
         raise HTTPException(status_code=500, detail='failed to add source') from error
+
+    log.info(
+        f"dashboard added monitor {source_request.username} in server {guild_id} using {source_request.account_used}: {result.response_message}"
+    )
 
     sources = await notifier_service.list_dashboard_sources(guild_id)
     for source in sources:
@@ -1453,6 +1459,8 @@ async def delete_guild_source(request: Request, guild_id: str, username: str, ch
             guild_name=guild_id,
         )
     )
+    if result.removed_last_notifier and result.client_used and (configs['auto_unfollow'] or configs['auto_turn_off_notification']):
+        await notifier_service.disable_remote_notification(username, result.client_used)
     return {'deleted': result.removed}
 
 

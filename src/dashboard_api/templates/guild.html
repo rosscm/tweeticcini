@@ -825,6 +825,7 @@
                 <label for="source-username-edit">Twitter/X account</label>
                 <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA" {{ 'disabled' if delivery_sessions_required else '' }}>
                 <div class="field-help">Enter the username exactly as it appears on X, without the <code>@</code> symbol.</div>
+                <div class="field-help"><strong>The Twitter/X account(s) you connected on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> must be following this monitor account with post notifications turned on, or Tweeticcini will not see their posts.</strong></div>
 
                 <label for="source-channel-id-edit">Channel ID</label>
                 <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -871,7 +872,7 @@
                   <option value="">Connect a session first</option>
                   {% endif %}
                 </select>
-                <div class="field-help">Choose which connected Twitter/X session this monitor should use.</div>
+                <div class="field-help">Choose which connected Twitter/X session this monitor should use. The Twitter/X account behind that session must be following this monitor account with post notifications turned on.</div>
 
                 <label for="source-custom-message-edit">Custom message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
                 <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
