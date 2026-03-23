@@ -91,15 +91,35 @@ class BillingService:
         )
         return str(session.url)
 
-    def create_billing_portal_session(self, customer_id: str, return_url: str) -> str:
+    def create_billing_portal_session(
+        self,
+        customer_id: str,
+        return_url: str,
+        subscription_id: Optional[str] = None,
+    ) -> str:
         if not self.secret_key:
             raise BillingConfigurationError('Stripe secret key is not configured')
         stripe = self._load_stripe()
         stripe.api_key = self.secret_key
-        session = stripe.billing_portal.Session.create(
-            customer=customer_id,
-            return_url=return_url,
-        )
+        session_kwargs = {
+            'customer': customer_id,
+            'return_url': return_url,
+        }
+        if subscription_id:
+            session_kwargs['flow_data'] = {
+                'type': 'subscription_cancel',
+                'subscription_cancel': {
+                    'subscription': subscription_id,
+                },
+                'after_completion': {
+                    'type': 'redirect',
+                    'redirect': {
+                        'return_url': return_url,
+                    },
+                },
+            }
+
+        session = stripe.billing_portal.Session.create(**session_kwargs)
         return str(session.url)
 
     def construct_webhook_event(self, payload: bytes, signature: Optional[str]):

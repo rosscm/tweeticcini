@@ -1356,6 +1356,7 @@ async def create_guild_portal_session(request: Request, guild_id: str) -> dict[s
         portal_url = billing_service.create_billing_portal_session(
             customer_id=entitlement.external_customer_id,
             return_url=str(request.url_for('dashboard_guild_billing', guild_id=guild_id)),
+            subscription_id=entitlement.external_subscription_id,
         )
     except BillingConfigurationError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
