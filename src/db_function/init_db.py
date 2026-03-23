@@ -67,6 +67,7 @@ async def ensure_db_schema() -> str:
                 external_customer_id TEXT DEFAULT NULL,
                 external_subscription_id TEXT DEFAULT NULL,
                 current_period_end TEXT DEFAULT NULL,
+                cancel_at_period_end INTEGER DEFAULT 0,
                 trial_ends_at TEXT DEFAULT NULL,
                 is_test INTEGER DEFAULT 1,
                 updated_at TEXT DEFAULT NULL
@@ -180,6 +181,17 @@ async def ensure_db_schema() -> str:
             if column_name not in guild_columns:
                 await db.execute(f'ALTER TABLE guild_settings ADD COLUMN {column_name} {definition}')
                 log.info(f'added missing guild_settings.{column_name} column')
+
+        async with db.execute("PRAGMA table_info(guild_entitlement)") as cursor:
+            entitlement_columns = {row[1] async for row in cursor}
+
+        entitlement_column_definitions = {
+            'cancel_at_period_end': 'INTEGER DEFAULT 0',
+        }
+        for column_name, definition in entitlement_column_definitions.items():
+            if column_name not in entitlement_columns:
+                await db.execute(f'ALTER TABLE guild_entitlement ADD COLUMN {column_name} {definition}')
+                log.info(f'added missing guild_entitlement.{column_name} column')
 
         await db.execute(
             '''

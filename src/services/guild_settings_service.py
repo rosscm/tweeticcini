@@ -79,6 +79,7 @@ class GuildEntitlementView:
     external_customer_id: Optional[str]
     external_subscription_id: Optional[str]
     current_period_end: Optional[str]
+    cancel_at_period_end: bool
     trial_ends_at: Optional[str]
     is_test: bool
 
@@ -180,6 +181,7 @@ class GuildSettingsService:
                 external_customer_id=row['external_customer_id'],
                 external_subscription_id=row['external_subscription_id'],
                 current_period_end=row['current_period_end'],
+                cancel_at_period_end=bool(row['cancel_at_period_end']),
                 trial_ends_at=row['trial_ends_at'],
                 is_test=bool(row['is_test']),
             )
@@ -195,6 +197,7 @@ class GuildSettingsService:
                 external_customer_id=row['external_customer_id'],
                 external_subscription_id=row['external_subscription_id'],
                 current_period_end=row['current_period_end'],
+                cancel_at_period_end=bool(row['cancel_at_period_end']),
                 trial_ends_at=row['trial_ends_at'],
                 is_test=bool(row['is_test']),
             )
@@ -211,6 +214,7 @@ class GuildSettingsService:
             external_customer_id=row['external_customer_id'] if row is not None else None,
             external_subscription_id=row['external_subscription_id'] if row is not None else None,
             current_period_end=row['current_period_end'] if row is not None else None,
+            cancel_at_period_end=bool(row['cancel_at_period_end']) if row is not None else False,
             trial_ends_at=row['trial_ends_at'] if row is not None else None,
             is_test=bool(row['is_test']) if row is not None else True,
         )
@@ -224,6 +228,7 @@ class GuildSettingsService:
         external_customer_id: Optional[str] = None,
         external_subscription_id: Optional[str] = None,
         current_period_end: Optional[str] = None,
+        cancel_at_period_end: bool = False,
         trial_ends_at: Optional[str] = None,
         is_test: bool = False,
     ) -> GuildPresentationView:
@@ -240,6 +245,7 @@ class GuildSettingsService:
             external_customer_id=external_customer_id if external_customer_id is not None else (current['external_customer_id'] if current is not None else None),
             external_subscription_id=external_subscription_id if external_subscription_id is not None else (current['external_subscription_id'] if current is not None else None),
             current_period_end=current_period_end,
+            cancel_at_period_end=int(cancel_at_period_end),
             trial_ends_at=trial_ends_at,
             is_test=int(is_test),
             updated_at=get_utcnow(),

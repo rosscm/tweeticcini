@@ -18,6 +18,7 @@ async def get_guild_entitlement_row(db_path, server_id: str):
                 external_customer_id,
                 external_subscription_id,
                 current_period_end,
+                cancel_at_period_end,
                 trial_ends_at,
                 is_test,
                 updated_at
@@ -39,6 +40,7 @@ async def upsert_guild_entitlement(
     external_customer_id,
     external_subscription_id,
     current_period_end,
+    cancel_at_period_end,
     trial_ends_at,
     is_test: int,
     updated_at,
@@ -55,10 +57,11 @@ async def upsert_guild_entitlement(
                 external_customer_id,
                 external_subscription_id,
                 current_period_end,
+                cancel_at_period_end,
                 trial_ends_at,
                 is_test,
                 updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(server_id) DO UPDATE SET
                 subscribed_plan = excluded.subscribed_plan,
                 manual_plan_override = excluded.manual_plan_override,
@@ -67,6 +70,7 @@ async def upsert_guild_entitlement(
                 external_customer_id = excluded.external_customer_id,
                 external_subscription_id = excluded.external_subscription_id,
                 current_period_end = excluded.current_period_end,
+                cancel_at_period_end = excluded.cancel_at_period_end,
                 trial_ends_at = excluded.trial_ends_at,
                 is_test = excluded.is_test,
                 updated_at = excluded.updated_at
@@ -80,6 +84,7 @@ async def upsert_guild_entitlement(
                 external_customer_id,
                 external_subscription_id,
                 current_period_end,
+                cancel_at_period_end,
                 trial_ends_at,
                 is_test,
                 updated_at,

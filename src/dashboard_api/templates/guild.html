@@ -583,7 +583,7 @@
             </section>
             {% elif has_active_pro_entitlement and guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
-              <strong>Premium is active:</strong> this server has an active subscription. Visit <strong>Manage Subscription</strong> to make changes{% if guild_presentation.entitlement.current_period_end %} before {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
+              <strong>Premium is active:</strong> this server has an active subscription. Visit <strong>Manage Subscription</strong> to make changes{% if guild_presentation.entitlement.current_period_end and guild_presentation.entitlement.cancel_at_period_end %}. Cancels on {{ guild_presentation.entitlement.current_period_end }}{% elif guild_presentation.entitlement.current_period_end %} before {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
             </section>
             {% elif is_past_due %}
             <section class="notice notice--warning notice--compact">

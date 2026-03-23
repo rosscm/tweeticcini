@@ -295,6 +295,7 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
             'external_customer_id': view.entitlement.external_customer_id,
             'external_subscription_id': view.entitlement.external_subscription_id,
             'current_period_end': view.entitlement.current_period_end,
+            'cancel_at_period_end': view.entitlement.cancel_at_period_end,
             'trial_ends_at': view.entitlement.trial_ends_at,
             'is_test': view.entitlement.is_test,
         },
@@ -1388,6 +1389,7 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 billing_provider='stripe',
                 external_customer_id=data_object.get('customer'),
                 external_subscription_id=data_object.get('subscription'),
+                cancel_at_period_end=False,
                 is_test=False,
             )
 
@@ -1407,6 +1409,7 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
             period_end_timestamp = data_object.get('current_period_end')
             if period_end_timestamp:
                 current_period_end = datetime.fromtimestamp(period_end_timestamp).isoformat(sep=' ', timespec='seconds')
+            cancel_at_period_end = bool(data_object.get('cancel_at_period_end'))
             await guild_settings_service.set_subscription_entitlement(
                 server_id=str(guild_id),
                 subscribed_plan=(metadata.get('plan') or 'pro') if mapped_status in {'active', 'trialing', 'past_due'} else None,
@@ -1415,6 +1418,7 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 external_customer_id=data_object.get('customer'),
                 external_subscription_id=data_object.get('id'),
                 current_period_end=current_period_end,
+                cancel_at_period_end=cancel_at_period_end,
                 is_test=False,
             )
 
