@@ -61,7 +61,7 @@ async def upsert_guild_settings(
                 built_in_legacy_logo_override,
                 fx_domain_name_override,
                 fx_original_url_button_override
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(server_id) DO UPDATE SET
                 plan = excluded.plan,
                 default_message_override = excluded.default_message_override,
