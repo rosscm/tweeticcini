@@ -787,7 +787,6 @@ GUILD_SECTIONS = {
     'rules': 'Rules',
     'appearance': 'Appearance',
     'billing': 'Billing',
-    'platform': 'Platform',
 }
 
 
@@ -1016,6 +1015,16 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         session['client_key']: session['session_name']
         for session in visible_twitter_sessions
     }
+    top_destination_names = []
+    seen_channel_ids = set()
+    for source in sources_payload:
+        channel_id = source['channel_id']
+        if channel_id in seen_channel_ids:
+            continue
+        seen_channel_ids.add(channel_id)
+        top_destination_names.append(resource_names['channels'].get(channel_id, channel_id))
+        if len(top_destination_names) == 4:
+            break
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -1060,6 +1069,18 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'scoped_rule_count': scoped_rule_count,
                 'custom_message_count': sum(1 for source in sources if source.has_custom_message),
                 'source_names': [source.username for source in sources[:6]],
+                'current_style_label': 'Headline-style' if guild_presentation.effective.use_headline_message else 'Template message',
+                'top_destination_names': top_destination_names,
+                'session_breakdown': [
+                    {
+                        'session_name': session_display_names.get(client_key, client_key),
+                        'count': count,
+                    }
+                    for client_key, count in sorted(
+                        assigned_monitor_counts.items(),
+                        key=lambda item: (session_display_names.get(item[0], item[0]).lower(), item[0]),
+                    )
+                ],
                 'onboarding': {
                     'show': delivery_sessions_required or usage['source_count'] == 0,
                     'sessions_ready': not delivery_sessions_required,
@@ -1123,12 +1144,12 @@ async def dashboard_guild_billing(request: Request, guild_id: str):
 
 @app.get('/dashboard/guilds/{guild_id}/platform', response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_guild_platform(request: Request, guild_id: str):
-    return await _render_guild_dashboard(request, guild_id, 'platform')
+    return RedirectResponse(url=f'/dashboard/guilds/{guild_id}/overview')
 
 
 @app.get('/dashboard/guilds/{guild_id}/defaults', include_in_schema=False)
 async def dashboard_guild_defaults_redirect(guild_id: str):
-    return RedirectResponse(url=f'/dashboard/guilds/{guild_id}/platform')
+    return RedirectResponse(url=f'/dashboard/guilds/{guild_id}/overview')
 
 
 @app.get('/health')

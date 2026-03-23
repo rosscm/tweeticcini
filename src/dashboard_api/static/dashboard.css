@@ -1228,6 +1228,10 @@ button:hover,
   margin-top: 10px;
 }
 
+.keyword-summary-block {
+  position: relative;
+}
+
 .keyword-summary {
   margin-top: 4px;
   color: var(--muted);
@@ -1258,6 +1262,17 @@ button:hover,
   line-height: 1.55;
   max-height: 160px;
   overflow: auto;
+}
+
+.keyword-details[open] .keyword-list {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 6;
+  width: min(560px, 70vw);
+  min-width: 320px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+  background: rgba(22, 27, 38, 0.98);
 }
 
 .meta-label {
@@ -1526,6 +1541,13 @@ code {
     display: block;
     width: auto;
     margin-bottom: 10px;
+  }
+
+  .keyword-details[open] .keyword-list {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    box-shadow: none;
   }
 
   .action-stack {

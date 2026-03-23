@@ -94,7 +94,7 @@ DATA_PATH=./data
 DISCORD_CLIENT_ID=YourDiscordClientId
 DISCORD_CLIENT_SECRET=YourDiscordClientSecret
 DISCORD_REDIRECT_URI=http://localhost:8000/dashboard/callback
-DASHBOARD_BASE_URL=https://your-dashboard-domain.com
+DASHBOARD_BASE_URL=https://app.tweeticcini.com
 DASHBOARD_SESSION_SECRET=YourLongRandomSessionSecret
 TWITTER_SESSION_SECRET=YourLongRandomSessionSecret
 STRIPE_PUBLISHABLE_KEY=pk_test_replace_me
@@ -190,7 +190,7 @@ For local testing, Stripe must reach your machine through a public tunnel such a
 Current intended live layout:
 
 - `tweeticcini.com` -> public marketing site on Netlify
-- `dashboard.tweeticcini.com` -> dashboard on the Pi through Cloudflare Tunnel
+- `app.tweeticcini.com` -> dashboard on the Pi through Cloudflare Tunnel
 
 Real-world setup flow that worked:
 
@@ -228,10 +228,14 @@ While verifying with Netlify:
 - keep the Netlify records as `DNS only` in Cloudflare
 - let Netlify finish DNS verification before worrying about extra Cloudflare proxy features
 
-Once the dashboard subdomain is ready, set:
+Once the dashboard subdomain is ready, point the tunnel route at the Pi dashboard service:
 
-- `DASHBOARD_BASE_URL=https://dashboard.tweeticcini.com`
-- `DISCORD_REDIRECT_URI=https://dashboard.tweeticcini.com/dashboard/callback`
+- `app.tweeticcini.com` -> `http://localhost:8080`
+
+Then set:
+
+- `DASHBOARD_BASE_URL=https://app.tweeticcini.com`
+- `DISCORD_REDIRECT_URI=https://app.tweeticcini.com/dashboard/callback`
 
 And add the same callback URL in the Discord Developer Portal.
 
@@ -291,6 +295,66 @@ git clone https://github.com/rosscm/tweeticcini.git
 cd tweeticcini
 python bot.py
 ```
+
+### Example systemd services
+
+Example unit files live in:
+
+- [deploy/systemd/tweeticcini-bot.service](/Users/rossc10/projects/tweeticcini/deploy/systemd/tweeticcini-bot.service)
+- [deploy/systemd/tweeticcini-dashboard.service](/Users/rossc10/projects/tweeticcini/deploy/systemd/tweeticcini-dashboard.service)
+
+They assume:
+
+- repo path: `/home/pi/Documents/GitHub/tweeticcini`
+- venv path: `/home/pi/Documents/GitHub/tweeticcini/.venv`
+- service user: `pi`
+- dashboard port: `8080`
+- shared env file: `/home/pi/Documents/GitHub/tweeticcini/.env`
+
+Update those paths if your Pi layout differs.
+
+### Install the services on the Pi
+
+Copy the unit files into systemd:
+
+```bash
+sudo cp deploy/systemd/tweeticcini-bot.service /etc/systemd/system/
+sudo cp deploy/systemd/tweeticcini-dashboard.service /etc/systemd/system/
+sudo systemctl daemon-reload
+```
+
+Enable and start them:
+
+```bash
+sudo systemctl enable tweeticcini-bot
+sudo systemctl enable tweeticcini-dashboard
+sudo systemctl restart tweeticcini-bot
+sudo systemctl restart tweeticcini-dashboard
+```
+
+Useful checks:
+
+```bash
+sudo systemctl status tweeticcini-bot
+sudo systemctl status tweeticcini-dashboard
+journalctl -u tweeticcini-bot -f
+journalctl -u tweeticcini-dashboard -f
+```
+
+### Public dashboard stack on the Pi
+
+For the public dashboard to stay live after reboots, all of these should be running:
+
+- `tweeticcini-bot.service`
+- `tweeticcini-dashboard.service`
+- `cloudflared`
+
+The typical flow is:
+
+- `cloudflared` accepts public traffic for `https://app.tweeticcini.com`
+- it forwards requests to `http://localhost:8080`
+- `tweeticcini-dashboard.service` serves the FastAPI dashboard there
+- `tweeticcini-bot.service` handles runtime polling and Discord delivery
 
 # 📜 License
 

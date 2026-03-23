@@ -70,18 +70,6 @@
                   <path d="M3 10.5h18"></path>
                   <path d="M7 15h3"></path>
                 </svg>
-                {% elif section_id == 'platform' %}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 3v3"></path>
-                  <path d="M12 18v3"></path>
-                  <path d="m4.9 4.9 2.1 2.1"></path>
-                  <path d="m17 17 2.1 2.1"></path>
-                  <path d="M3 12h3"></path>
-                  <path d="M18 12h3"></path>
-                  <path d="m4.9 19.1 2.1-2.1"></path>
-                  <path d="M17 7l2.1-2.1"></path>
-                  <circle cx="12" cy="12" r="4"></circle>
-                </svg>
                 {% else %}
                 <svg viewBox="0 0 24 24" fill="currentColor">
                   <circle cx="12" cy="12" r="2"></circle>
@@ -150,18 +138,6 @@
                 <path d="M3 10.5h18"></path>
                 <path d="M7 15h3"></path>
               </svg>
-              {% elif active_section == 'platform' %}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3v3"></path>
-                <path d="M12 18v3"></path>
-                <path d="m4.9 4.9 2.1 2.1"></path>
-                <path d="m17 17 2.1 2.1"></path>
-                <path d="M3 12h3"></path>
-                <path d="M18 12h3"></path>
-                <path d="m4.9 19.1 2.1-2.1"></path>
-                <path d="M17 7l2.1-2.1"></path>
-                <circle cx="12" cy="12" r="4"></circle>
-              </svg>
               {% endif %}
             </span>
             <div class="mobile-nav-current-copy">
@@ -229,18 +205,6 @@
                 <rect x="3" y="6" width="18" height="12" rx="2"></rect>
                 <path d="M3 10.5h18"></path>
                 <path d="M7 15h3"></path>
-              </svg>
-              {% elif section_id == 'platform' %}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3v3"></path>
-                <path d="M12 18v3"></path>
-                <path d="m4.9 4.9 2.1 2.1"></path>
-                <path d="m17 17 2.1 2.1"></path>
-                <path d="M3 12h3"></path>
-                <path d="M18 12h3"></path>
-                <path d="m4.9 19.1 2.1-2.1"></path>
-                <path d="M17 7l2.1-2.1"></path>
-                <circle cx="12" cy="12" r="4"></circle>
               </svg>
               {% else %}
               <svg viewBox="0 0 24 24" fill="currentColor">
@@ -325,7 +289,7 @@
             <strong>{{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }}</strong>
           </div>
           <div class="plan-tile">
-            <span class="meta-label">Presentation</span>
+            <span class="meta-label">Appearance</span>
             <strong>{{ 'customizable' if guild_presentation.features.can_customize_presentation else 'default only' }}</strong>
           </div>
         </div>
@@ -347,12 +311,11 @@
 
         <div class="overview-grid">
           <div class="default-block">
-            <h3>Alerts & Filters</h3>
-            <div><span class="meta-label">Priority pings</span> {{ overview.escalation_rule_count }}</div>
-            <div><span class="meta-label">Scoped rules</span> {{ overview.scoped_rule_count }}</div>
-            <div><span class="meta-label">Custom messages</span> {{ overview.custom_message_count }}</div>
-            <div><span class="meta-label">Ping phrases</span> {{ plan_usage.trigger_keyword_count }}</div>
-            <div><span class="meta-label">Muted phrases</span> {{ plan_usage.exclude_keyword_count }}</div>
+            <h3>Alert Setup</h3>
+            <div><span class="meta-label">Current style</span> {{ overview.current_style_label }}</div>
+            <div><span class="meta-label">Rules</span> {{ plan_usage.rule_count }} total, {{ overview.scoped_rule_count }} scoped</div>
+            <div><span class="meta-label">Priority pings</span> {{ overview.escalation_rule_count }} rule{{ '' if overview.escalation_rule_count == 1 else 's' }}, {{ plan_usage.trigger_keyword_count }} ping phrase{{ '' if plan_usage.trigger_keyword_count == 1 else 's' }}</div>
+            <div><span class="meta-label">Custom setup</span> {{ overview.custom_message_count }} custom message{{ '' if overview.custom_message_count == 1 else 's' }}, {{ plan_usage.exclude_keyword_count }} muted phrase{{ '' if plan_usage.exclude_keyword_count == 1 else 's' }}</div>
           </div>
 
           <div class="default-block">
@@ -375,24 +338,8 @@
             <h3>Quick Actions</h3>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage monitors</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules">Edit alert rules</a></div>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust presentation</a></div>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust appearance</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Manage billing</a></div>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/platform">Review platform settings</a></div>
-          </div>
-        </div>
-
-        <div class="overview-health">
-          <div class="default-block">
-            <h3>Dashboard Readiness</h3>
-            <div><span class="meta-label">Discord OAuth</span> {{ 'connected' if overview.health.oauth_enabled else 'disabled' }}</div>
-            <div><span class="meta-label">Channel and role lookup</span> {{ 'available' if overview.health.discord_lookup_enabled else 'bot token missing' }}</div>
-            <div><span class="meta-label">Connected sessions</span> {{ overview.health.healthy_twitter_session_count }} / {{ overview.health.twitter_session_count }} healthy</div>
-            <div><span class="meta-label">Active embed mode</span> {{ overview.health.active_embed_mode }}</div>
-            <div><span class="meta-label">Poll interval</span> {{ overview.health.tweet_check_period }}s</div>
-            <div><span class="meta-label">Last bot online log</span> {{ overview.health.last_online_at or 'not seen recently' }}</div>
-            <div><span class="meta-label">Updater errors</span> {{ overview.health.updater_error_count }}</div>
-            <div><span class="meta-label">Delivery errors</span> {{ overview.health.delivery_error_count }}</div>
-            <div><span class="meta-label">Task warnings</span> {{ overview.health.dead_task_warning_count }}</div>
           </div>
         </div>
       </section>
@@ -506,63 +453,6 @@
               </table>
             </div>
           </div>
-        </div>
-      </section>
-      {% endif %}
-
-      {% if active_section == 'platform' %}
-      <section class="card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Platform</p>
-            <h2>Shared Defaults</h2>
-            <p class="section-copy">Read-only reference for the shared bot defaults that shape how Tweeticcini behaves across every server.</p>
-          </div>
-        </div>
-
-        <section class="notice notice--plain">
-          <strong>Shared defaults:</strong> use this page to understand the bot-wide baseline. Session routing, monitors, rules, and appearance are still managed from the server pages.
-        </section>
-
-        <div class="defaults-grid">
-          <div class="default-block">
-            <h3>Polling</h3>
-            <div><span class="meta-label">Tweet Check</span> {{ bot_defaults.tweets_check_period }}s</div>
-            <div><span class="meta-label">Retry Delay</span> {{ bot_defaults.tweets_updater_retry_delay }}m</div>
-            <div><span class="meta-label">Task Check</span> {{ bot_defaults.tasks_monitor_check_period }}m</div>
-            <div><span class="meta-label">Task Log</span> {{ bot_defaults.tasks_monitor_log_period }}h</div>
-            <div><span class="meta-label">Auth Retries</span> {{ bot_defaults.auth_max_attempts }}</div>
-          </div>
-
-          <div class="default-block">
-            <h3>Automation</h3>
-            <div><span class="meta-label">Auto Change Client</span> {{ 'on' if bot_defaults.auto_change_client else 'off' }}</div>
-            <div><span class="meta-label">Auto Turn Off</span> {{ 'on' if bot_defaults.auto_turn_off_notification else 'off' }}</div>
-            <div><span class="meta-label">Auto Unfollow</span> {{ 'on' if bot_defaults.auto_unfollow else 'off' }}</div>
-            <div><span class="meta-label">Emoji Format</span> {{ 'on' if bot_defaults.emoji_auto_format else 'off' }}</div>
-          </div>
-
-          <div class="default-block">
-            <h3>Presence</h3>
-            <div><span class="meta-label">Activity</span> {{ bot_defaults.activity_type }}</div>
-            <div><span class="meta-label">Text</span> <code>{{ bot_defaults.activity_name }}</code></div>
-          </div>
-
-          <div class="default-block">
-            <h3>Embeds</h3>
-            <div><span class="meta-label">Type</span> {{ bot_defaults.embed_type }}</div>
-            <div><span class="meta-label">FX Image</span> {{ 'on' if bot_defaults.built_in_fx_image else 'off' }}</div>
-            <div><span class="meta-label">Video Button</span> {{ 'on' if bot_defaults.built_in_video_link_button else 'off' }}</div>
-            <div><span class="meta-label">Legacy Logo</span> {{ 'on' if bot_defaults.built_in_legacy_logo else 'off' }}</div>
-            <div><span class="meta-label">FX Domain</span> {{ bot_defaults.fx_domain_name }}</div>
-            <div><span class="meta-label">Original URL</span> {{ 'on' if bot_defaults.fx_original_url_button else 'off' }}</div>
-          </div>
-        </div>
-        <div class="default-message-block">
-          <h3>Default Message</h3>
-          <div class="field-help">Tweeticcini normally uses the first meaningful line from the post as the delivered message. The template below is the fallback format used when a custom default message is explicitly applied.</div>
-          <pre class="message-preview">{{ bot_defaults.default_message }}</pre>
-          <div class="field-help">Headline-style example: <code>A new post just went live: https://x.com/...</code></div>
         </div>
       </section>
       {% endif %}
@@ -707,7 +597,7 @@
             <div class="form-banner">
               Use Checkout to start or upgrade this server. Once Stripe is linked, use Customer Portal for billing changes.
               <br>
-              Free and Pro use the same core polling speed. Pro unlocks more control, customization, and higher limits.
+              Free and Pro both use {{ bot_defaults.tweets_check_period }}s tweet checks. Pro unlocks more control, customization, and higher limits.
             </div>
             <div class="actions">
               <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Checkout</button>
@@ -837,7 +727,7 @@
                 <div class="field-help">Enter the username exactly as it appears on Twitter/X, without the <code>@</code> symbol.</div>
                 <div class="field-help"><strong>When you save a monitor, Tweeticcini will try to make the selected Twitter/X session follow this account and turn on post notifications automatically. If that change doesn't apply cleanly, alerts may not start until that session is following the account with notifications enabled.</strong></div>
 
-                <label for="source-channel-id-edit">Channel ID</label>
+                <label for="source-channel-id-edit">Channel name</label>
                 <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
                   <option value="">Select a channel</option>
                   {% for channel in channel_options %}
@@ -891,8 +781,8 @@
                 <details class="helper-details">
                   <summary>How message style works</summary>
                   <div class="field-help" style="margin-top: 0.55rem;">Checked: this monitor uses headline-style. If you also enter a custom message, the custom message wins.</div>
-                  <div class="field-help">Examples: headline-style <code>@Restocks Queue is live: https://x.com/...</code>; template <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
-                  <div class="field-help">Placeholders: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>.</div>
+                  <div class="field-help" style="margin-top: 0.55rem;">Examples: headline-style <code>@Restocks Queue is live: https://x.com/...</code>; template <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
+                  <div class="field-help" style="margin-top: 0.55rem;">Placeholders: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>.</div>
                 </details>
                 <div class="field-help">Use <strong>Send Test Alert</strong> to preview a non-pinging sample.</div>
 
@@ -1564,7 +1454,7 @@
         presentationForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           if (presentationForm.classList.contains('is-locked')) {
-            setStatus('Unlock a paid plan to customize alert presentation.', true);
+            setStatus('Unlock a paid plan to customize alert appearance.', true);
             return;
           }
 

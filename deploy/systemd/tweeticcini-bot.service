@@ -1,0 +1,16 @@
+[Unit]
+Description=Tweeticcini Discord bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/Documents/GitHub/tweeticcini
+EnvironmentFile=/home/pi/Documents/GitHub/tweeticcini/.env
+ExecStart=/home/pi/Documents/GitHub/tweeticcini/.venv/bin/python bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
