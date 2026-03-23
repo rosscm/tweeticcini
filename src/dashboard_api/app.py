@@ -203,6 +203,23 @@ def _format_dashboard_timestamp(timestamp_text: Optional[str]) -> Optional[str]:
     return parsed.strftime('%Y-%m-%d %H:%M')
 
 
+def _format_billing_date(timestamp_text: Optional[str]) -> Optional[str]:
+    if not timestamp_text:
+        return None
+    try:
+        normalized = timestamp_text.replace('Z', '+00:00')
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        try:
+            parsed = datetime.strptime(timestamp_text, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            return timestamp_text
+
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone()
+    return parsed.strftime('%B %d, %Y')
+
+
 def _has_recent_dashboard_activity(timestamps: list[Optional[str]], hours: int = 24) -> bool:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     for timestamp_text in timestamps:
@@ -294,9 +311,9 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
             'billing_provider': view.entitlement.billing_provider,
             'external_customer_id': view.entitlement.external_customer_id,
             'external_subscription_id': view.entitlement.external_subscription_id,
-            'current_period_end': view.entitlement.current_period_end,
+            'current_period_end': _format_billing_date(view.entitlement.current_period_end),
             'cancel_at_period_end': view.entitlement.cancel_at_period_end,
-            'trial_ends_at': view.entitlement.trial_ends_at,
+            'trial_ends_at': _format_billing_date(view.entitlement.trial_ends_at),
             'is_test': view.entitlement.is_test,
         },
         'features': {
@@ -1389,13 +1406,18 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
             data_object.get('subscription'),
         )
         if guild_id:
+            trial_ends_at = None
+            trial_end_timestamp = data_object.get('trial_end')
+            if trial_end_timestamp:
+                trial_ends_at = datetime.fromtimestamp(trial_end_timestamp).isoformat(sep=' ', timespec='seconds')
             await guild_settings_service.set_subscription_entitlement(
                 server_id=str(guild_id),
                 subscribed_plan=metadata.get('plan') or 'pro',
-                entitlement_status='active',
+                entitlement_status='trialing' if trial_ends_at else 'active',
                 billing_provider='stripe',
                 external_customer_id=data_object.get('customer'),
                 external_subscription_id=data_object.get('subscription'),
+                trial_ends_at=trial_ends_at,
                 is_test=False,
             )
 
@@ -1413,6 +1435,7 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
             )
             cancel_at_period_end = bool(data_object.get('cancel_at_period_end'))
             current_period_end = None
+            trial_ends_at = None
 
             # Stripe's subscription payload shape varies by API version. For pending
             # cancellations, `cancel_at` is the most useful date. Otherwise fall back
@@ -1429,13 +1452,17 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
 
             if period_end_timestamp:
                 current_period_end = datetime.fromtimestamp(period_end_timestamp).isoformat(sep=' ', timespec='seconds')
+            trial_end_timestamp = data_object.get('trial_end')
+            if trial_end_timestamp:
+                trial_ends_at = datetime.fromtimestamp(trial_end_timestamp).isoformat(sep=' ', timespec='seconds')
             log.info(
-                'stripe webhook %s for guild %s: status=%s cancel_at_period_end=%s current_period_end=%s',
+                'stripe webhook %s for guild %s: status=%s cancel_at_period_end=%s current_period_end=%s trial_ends_at=%s',
                 event_type,
                 guild_id,
                 status,
                 cancel_at_period_end,
                 current_period_end,
+                trial_ends_at,
             )
             await guild_settings_service.set_subscription_entitlement(
                 server_id=str(guild_id),
@@ -1446,6 +1473,7 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 external_subscription_id=data_object.get('id'),
                 current_period_end=current_period_end,
                 cancel_at_period_end=cancel_at_period_end,
+                trial_ends_at=trial_ends_at,
                 is_test=False,
             )
 

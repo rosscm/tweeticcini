@@ -5,6 +5,7 @@ from typing import Optional
 PLAN_PRICE_ENV = {
     'pro': 'STRIPE_PRICE_ID_PRO',
 }
+DEFAULT_TRIAL_DAYS = 7
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,7 @@ class BillingService:
                 'plan': plan,
             },
             subscription_data={
+                'trial_period_days': DEFAULT_TRIAL_DAYS,
                 'metadata': {
                     'guild_id': guild_id,
                     'guild_name': guild_name,
