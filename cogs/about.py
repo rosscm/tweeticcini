@@ -28,6 +28,8 @@ class About(Cog_Extension):
             )
             return
 
+        await itn.response.defer(ephemeral=True)
+
         presentation = await self.guild_settings_service.get_presentation_view(str(itn.guild_id))
         sources = await self.notifier_service.list_dashboard_sources(str(itn.guild_id))
         rules = await self.alert_rule_service.list_rules(str(itn.guild_id))
@@ -99,7 +101,7 @@ class About(Cog_Extension):
                 )
             )
 
-        await itn.response.send_message(embed=embed, view=view, ephemeral=True)
+        await itn.followup.send(embed=embed, view=view, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

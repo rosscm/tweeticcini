@@ -110,10 +110,13 @@ async def upload_data(ctx: commands.context.Context):
 @bot.event
 async def on_tree_error(itn: discord.Interaction, error: app_commands.AppCommandError):
     message = str(error)
-    if itn.response.is_done():
-        await itn.followup.send(message, ephemeral=True)
-    else:
-        await itn.response.send_message(message, ephemeral=True)
+    try:
+        if itn.response.is_done():
+            await itn.followup.send(message, ephemeral=True)
+        else:
+            await itn.response.send_message(message, ephemeral=True)
+    except (discord.NotFound, discord.HTTPException):
+        pass
     log.warning(f'an error occurred but was handled by the tree error handler, error message : {error}')
 
 
