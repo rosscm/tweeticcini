@@ -559,10 +559,6 @@
         <section class="notice notice--warning">
           <strong>Billing attention needed:</strong> this subscription is currently marked <strong>past due</strong>.
         </section>
-        {% elif guild_presentation.entitlement.entitlement_status == 'canceled' %}
-        <section class="notice notice--warning">
-          <strong>Subscription canceled:</strong> this server no longer has an active subscription-backed entitlement, so it is now using default plan behavior unless an override is active.
-        </section>
         {% endif %}
 
         {% set has_active_pro_entitlement = guild_presentation.entitlement.entitlement_status in ['active', 'trialing', 'past_due'] and (guild_presentation.entitlement.subscribed_plan == 'pro' or guild_presentation.plan == 'pro') %}
@@ -575,35 +571,27 @@
             {% set is_canceled = guild_presentation.entitlement.entitlement_status == 'canceled' %}
             {% if is_trialing %}
             <section class="notice notice--success notice--compact">
-              <strong>Trialing Premium{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}. {{ 'Cancels when trial ends.' if guild_presentation.entitlement.cancel_at_period_end else 'Renews automatically.' }}</strong>
-            </section>
-            {% elif has_active_pro_entitlement and not guild_presentation.entitlement.external_customer_id %}
-            <section class="notice notice--success notice--compact">
-              <strong>Premium is active:</strong> this server already has an active Premium entitlement. Subscription is being tracked through a legacy or support-managed setup.
-            </section>
-            {% elif has_active_pro_entitlement and guild_presentation.entitlement.external_customer_id %}
-            <section class="notice notice--success notice--compact">
-              <strong>Premium is active:</strong> this server has an active subscription. Visit <strong>Manage Subscription</strong> to make changes.
-              {% if guild_presentation.entitlement.current_period_end %}
-              <div class="status-detail-list">
-                <span class="tag tag--soft">
-                  {{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }}
-                  {{ guild_presentation.entitlement.current_period_end }}
-                </span>
-              </div>
-              {% endif %}
+              <strong>Trialing Premium</strong>{% if guild_presentation.entitlement.trial_ends_at %} through <strong>{{ guild_presentation.entitlement.trial_ends_at }}</strong>{% endif %}. <strong>{{ 'Cancels when trial ends.' if guild_presentation.entitlement.cancel_at_period_end else 'Renews automatically.' }}</strong>
             </section>
             {% elif is_past_due %}
             <section class="notice notice--warning notice--compact">
-              <strong>Billing attention needed:</strong> this subscription is past due. Use Manage Subscription if billing is linked through Stripe.
+              <strong>Billing attention needed.</strong> This subscription is past due. Visit <strong>Manage Subscription</strong> to update billing details{% if guild_presentation.entitlement.current_period_end %}. <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }} {{ guild_presentation.entitlement.current_period_end }}</strong>{% endif %}.
+            </section>
+            {% elif has_active_pro_entitlement and not guild_presentation.entitlement.external_customer_id %}
+            <section class="notice notice--success notice--compact">
+              <strong>Premium is active.</strong> This subscription is being tracked through a legacy or support-managed setup.
+            </section>
+            {% elif has_active_pro_entitlement and guild_presentation.entitlement.external_customer_id %}
+            <section class="notice notice--success notice--compact">
+              <strong>Premium is active.</strong> This server has an active subscription. <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }}{% if guild_presentation.entitlement.current_period_end %} {{ guild_presentation.entitlement.current_period_end }}{% endif %}.</strong> Visit <strong>Manage Subscription</strong> to make changes.
             </section>
             {% elif is_canceled %}
             <section class="notice notice--warning notice--compact">
-              <strong>Subscription canceled:</strong> this server is currently using default plan behavior unless another support override is active.
+              <strong>Premium subscription canceled.</strong> This server is currently using the default plan.
             </section>
             {% else %}
             <section class="notice notice--plain notice--compact">
-              <strong>Free plan is active:</strong> this server is currently using the default plan. Start Checkout whenever you're ready to activate Premium.
+              <strong>Free plan is active.</strong> Start Checkout when you're ready to upgrade to Premium.
             </section>
             {% endif %}
             {% if has_active_pro_entitlement %}
