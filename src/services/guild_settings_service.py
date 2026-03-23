@@ -104,6 +104,7 @@ class GuildSettingsService:
 
         effective = EffectiveGuildPresentationSettings(
             default_message=row['default_message_override'] or defaults.default_message,
+            use_headline_message=defaults.use_headline_message if row['use_headline_message_override'] is None else bool(row['use_headline_message_override']),
             bot_display_name=row['bot_display_name_override'] or defaults.bot_display_name,
             emoji_auto_format=defaults.emoji_auto_format if row['emoji_auto_format_override'] is None else bool(row['emoji_auto_format_override']),
             embed_type=row['embed_type_override'] or defaults.embed_type,
@@ -148,6 +149,7 @@ class GuildSettingsService:
                 server_id=server_id,
                 plan=normalized_override or PLAN_FREE,
                 default_message_override=legacy_row['default_message_override'] if legacy_row is not None else None,
+                use_headline_message_override=legacy_row['use_headline_message_override'] if legacy_row is not None else None,
                 bot_display_name_override=legacy_row['bot_display_name_override'] if legacy_row is not None else None,
                 emoji_auto_format_override=legacy_row['emoji_auto_format_override'] if legacy_row is not None else None,
                 embed_type_override=legacy_row['embed_type_override'] if legacy_row is not None else None,
@@ -248,6 +250,7 @@ class GuildSettingsService:
         self,
         server_id: str,
         default_message: str,
+        use_headline_message: bool,
         bot_display_name: str,
         emoji_auto_format: bool,
         embed_type: str,
@@ -272,6 +275,7 @@ class GuildSettingsService:
             server_id=server_id,
             plan=current.plan,
             default_message_override=None if normalized_message == defaults.default_message else normalized_message,
+            use_headline_message_override=None if use_headline_message == defaults.use_headline_message else int(use_headline_message),
             bot_display_name_override=normalized_bot_display_name or None,
             emoji_auto_format_override=None if emoji_auto_format == defaults.emoji_auto_format else int(emoji_auto_format),
             embed_type_override=None if sanitized_embed_type == defaults.embed_type else sanitized_embed_type,
@@ -303,6 +307,7 @@ class GuildSettingsService:
             row[column] is not None
             for column in (
                 'default_message_override',
+                'use_headline_message_override',
                 'bot_display_name_override',
                 'emoji_auto_format_override',
                 'embed_type_override',

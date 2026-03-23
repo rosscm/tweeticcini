@@ -23,14 +23,24 @@ async def upsert_notification(
     enable_type: str,
     media_type: str,
     force_everyone: bool,
+    use_headline_message_override: Optional[bool] = None,
 ) -> None:
     await cursor.execute(
         '''
         INSERT OR REPLACE INTO notification
-        (user_id, channel_id, client_used, role_id, enable_type, enable_media_type, force_everyone)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (user_id, channel_id, client_used, role_id, enable_type, enable_media_type, force_everyone, use_headline_message_override)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''',
-        (user_id, channel_id, client_used, role_id, enable_type, media_type, int(force_everyone)),
+        (
+            user_id,
+            channel_id,
+            client_used,
+            role_id,
+            enable_type,
+            media_type,
+            int(force_everyone),
+            None if use_headline_message_override is None else int(use_headline_message_override),
+        ),
     )
 
 
@@ -249,6 +259,7 @@ async def list_dashboard_sources(db_path, server_id: str):
                 notification.enable_type,
                 notification.enable_media_type,
                 notification.customized_msg,
+                notification.use_headline_message_override,
                 COUNT(alert_rule.id) AS rule_count
             FROM user
             JOIN notification ON user.id = notification.user_id
@@ -273,7 +284,8 @@ async def list_dashboard_sources(db_path, server_id: str):
                 notification.role_id,
                 notification.enable_type,
                 notification.enable_media_type,
-                notification.customized_msg
+                notification.customized_msg,
+                notification.use_headline_message_override
             ORDER BY user.username ASC, channel.id ASC
             ''',
             (server_id,),
@@ -289,27 +301,36 @@ async def update_notification_settings(
     role_id: str,
     enable_type: str,
     media_type: str,
+    use_headline_message_override: Optional[bool],
 ) -> bool:
     async with connect_writable(db_path) as db:
         cursor = await db.execute(
             '''
             UPDATE notification
-            SET client_used = ?, role_id = ?, enable_type = ?, enable_media_type = ?
+            SET client_used = ?, role_id = ?, enable_type = ?, enable_media_type = ?, use_headline_message_override = ?
             WHERE channel_id = ?
               AND user_id = (SELECT id FROM user WHERE username = ?)
             ''',
-            (client_used, role_id, enable_type, media_type, channel_id, username),
+            (
+                client_used,
+                role_id,
+                enable_type,
+                media_type,
+                None if use_headline_message_override is None else int(use_headline_message_override),
+                channel_id,
+                username,
+            ),
         )
         await db.commit()
         return cursor.rowcount > 0
 
 
-async def get_dashboard_source_message(db_path, username: str, channel_id: str) -> Optional[str]:
+async def get_dashboard_source_message(db_path, username: str, channel_id: str) -> Optional[aiosqlite.Row]:
     async with connect_readonly(db_path) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             '''
-            SELECT notification.customized_msg
+            SELECT notification.customized_msg, notification.use_headline_message_override
             FROM notification
             JOIN user ON user.id = notification.user_id
             WHERE user.username = ?
@@ -319,9 +340,7 @@ async def get_dashboard_source_message(db_path, username: str, channel_id: str) 
             (username, channel_id),
         ) as cursor:
             row = await cursor.fetchone()
-    if row is None:
-        return None
-    return row['customized_msg']
+    return row
 
 
 async def get_enabled_client_names(db_path) -> list[str]:

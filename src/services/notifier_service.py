@@ -48,6 +48,7 @@ class AddNotifierRequest:
     media_type: str
     account_used: str
     force_everyone: bool
+    use_headline_message_override: Optional[bool] = None
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,7 @@ class DashboardSourceRecord:
     role_id: str
     enable_type: str
     media_type: str
+    use_headline_message_override: Optional[bool]
     has_custom_message: bool
     rule_count: int
 
@@ -90,6 +92,7 @@ class DashboardSourceMessageRecord:
     username: str
     channel_id: str
     customized_msg: Optional[str]
+    use_headline_message_override: Optional[bool]
 
 
 class NotifierServiceError(Exception):
@@ -172,6 +175,7 @@ class NotifierService:
                             request.enable_type,
                             request.media_type,
                             request.force_everyone,
+                            request.use_headline_message_override,
                         )
                         await db.commit()
 
@@ -254,13 +258,16 @@ class NotifierService:
                     await db.commit()
 
     async def get_dashboard_source_message(self, username: str, channel_id: str) -> Optional[DashboardSourceMessageRecord]:
-        customized_msg = await get_dashboard_source_message(self.db_path, username, channel_id)
-        if customized_msg is None:
+        row = await get_dashboard_source_message(self.db_path, username, channel_id)
+        if row is None:
             return None
         return DashboardSourceMessageRecord(
             username=username,
             channel_id=channel_id,
-            customized_msg=customized_msg,
+            customized_msg=row['customized_msg'],
+            use_headline_message_override=(
+                None if row['use_headline_message_override'] is None else bool(row['use_headline_message_override'])
+            ),
         )
 
     async def set_dashboard_source_message(self, server_id: str, username: str, channel_id: str, customized_msg: str) -> bool:
@@ -322,6 +329,9 @@ class NotifierService:
                 role_id=row['role_id'] or '',
                 enable_type=row['enable_type'],
                 media_type=row['enable_media_type'],
+                use_headline_message_override=(
+                    None if row['use_headline_message_override'] is None else bool(row['use_headline_message_override'])
+                ),
                 has_custom_message=bool(row['customized_msg']),
                 rule_count=int(row['rule_count'] or 0),
             )
@@ -336,6 +346,7 @@ class NotifierService:
         role_id: str,
         enable_type: str,
         media_type: str,
+        use_headline_message_override: Optional[bool],
     ) -> bool:
         return await update_notification_settings(
             self.db_path,
@@ -345,6 +356,7 @@ class NotifierService:
             role_id=role_id,
             enable_type=enable_type,
             media_type=media_type,
+            use_headline_message_override=use_headline_message_override,
         )
 
     async def _create_or_reactivate_notifier(self, db, cursor, match_user, request: AddNotifierRequest) -> AddNotifierResult:
@@ -370,6 +382,7 @@ class NotifierService:
                     request.enable_type,
                     request.media_type,
                     request.force_everyone,
+                    request.use_headline_message_override,
                 )
                 await db.commit()
         else:
@@ -386,6 +399,7 @@ class NotifierService:
                     request.enable_type,
                     request.media_type,
                     request.force_everyone,
+                    request.use_headline_message_override,
                 )
                 await set_user_enabled(cursor, match_user['id'], True)
                 await db.commit()

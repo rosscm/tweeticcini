@@ -592,9 +592,16 @@
               </div>
               {% endif %}
 
+              <label for="presentation-use-headline-message">Message style</label>
+              <select id="presentation-use-headline-message" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
+                <option value="false" {{ 'selected' if not guild_presentation.effective.use_headline_message else '' }}>Template message</option>
+                <option value="true" {{ 'selected' if guild_presentation.effective.use_headline_message else '' }}>Headline-style message</option>
+              </select>
+              <div class="field-help"><code>Headline-style message</code> pulls tweet text into the delivered alert, which makes banner notifications much more informative at a glance.</div>
+
               <label for="presentation-default-message">Default message</label>
               <textarea id="presentation-default-message" rows="4" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>{{ guild_presentation.effective.default_message }}</textarea>
-              <div class="field-help">By default, Tweeticcini uses the tweet headline as the delivered message. Set a default message here only if you want this server to override that baseline.</div>
+              <div class="field-help">This template is the classic Tweetcord-style format. Use <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, and <code>{url}</code> to shape how alerts read.</div>
 
               <label for="presentation-bot-display-name">Bot display name</label>
               <input id="presentation-bot-display-name" type="text" value="{{ guild_presentation.effective.bot_display_name }}" placeholder="E.g., Stock Pinger" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
@@ -872,15 +879,15 @@
                   <option value="">Connect a session first</option>
                   {% endif %}
                 </select>
-                <div class="field-help">Choose which connected Twitter/X session this monitor should use. The Twitter/X account behind that session must be following this monitor account with post notifications turned on.</div>
+                <div class="field-help">Choose which connected Twitter/X session this monitor should use.</div>
 
                 <label for="source-custom-message-edit">Custom message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
                 <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
-                <div class="field-help">Optional. Leave blank to use Tweeticcini's normal headline-style alert message.</div>
-                <div class="field-help">Headline-style example: <code>A new post just went live: https://x.com/...</code></div>
-                <div class="field-help">Placeholders: <code>{mention}</code> role mention, <code>{author}</code> account name, <code>{action}</code> post type, <code>{url}</code> tweet link.</div>
-                <div class="field-help">Example result: <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
-                <div class="field-help">Use <strong>Send Test Alert</strong> to post a non-pinging sample alert into the selected channel before saving.</div>
+                <div class="field-help">Optional. Leave blank to use the server default from <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">'Appearance'</a>.</div>
+                <label class="checkbox-row"><input id="source-use-headline-message-override-edit" type="checkbox" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}> Use headline-style for this monitor</label>
+                <div class="field-help">Checked: this monitor uses headline-style. If you also enter a custom message, the custom message wins.</div>
+                <div class="field-help">Examples: headline-style <code>@Restocks Queue is live: https://x.com/...</code>; template <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
+                <div class="field-help">Placeholders: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>. Use <strong>Send Test Alert</strong> to preview a non-pinging sample.</div>
 
                 <div class="actions">
                   <button type="submit" {{ 'disabled' if delivery_sessions_required else '' }}>Save Monitor</button>
@@ -938,7 +945,15 @@
                     <div class="tag-row">
                       <span class="tag">{{ source.enable_type_label }}</span>
                       <span class="tag">{{ source.media_type_label }}</span>
-                      <span class="tag {{ 'tag--accent' if source.has_custom_message else '' }}">{{ 'Custom message' if source.has_custom_message else 'Default message' }}</span>
+                      <span class="tag {{ 'tag--accent' if source.has_custom_message else '' }}">
+                        {% if source.has_custom_message %}
+                        Custom message
+                        {% elif source.use_headline_message_override is sameas true %}
+                        Headline-style
+                        {% else %}
+                        Server default
+                        {% endif %}
+                      </span>
                       <span class="tag {{ 'tag--warning' if source.runtime_state == 'warning' else '' }}">{{ 'Needs attention' if source.runtime_state == 'warning' else ('Healthy' if source.runtime_state == 'healthy' else 'No runtime data') }}</span>
                     </div>
                     <div class="entity-meta">
@@ -965,6 +980,7 @@
                         data-role-id="{{ source.role_id }}"
                         data-enable-type="{{ source.enable_type }}"
                         data-media-type="{{ source.media_type }}"
+                        data-use-headline-message-override="{{ 'true' if source.use_headline_message_override is sameas true else '' }}"
                         data-has-custom-message="{{ 'true' if source.has_custom_message else 'false' }}"
                       >
                         Edit
@@ -1532,6 +1548,7 @@
               method: 'PUT',
               body: JSON.stringify({
                 default_message: document.getElementById('presentation-default-message').value,
+                use_headline_message: document.getElementById('presentation-use-headline-message').value === 'true',
                 bot_display_name: document.getElementById('presentation-bot-display-name').value,
                 emoji_auto_format: document.getElementById('presentation-emoji-auto-format').value === 'true',
                 embed_type: document.getElementById('presentation-embed-type').value,
@@ -1618,6 +1635,9 @@
       });
 
       const sourceForm = document.getElementById('source-form');
+      function getSourceHeadlineOverrideValue() {
+        return document.getElementById('source-use-headline-message-override-edit').checked ? true : null;
+      }
       if (sourceForm) {
         sourceForm.addEventListener('submit', async function (event) {
           event.preventDefault();
@@ -1639,6 +1659,7 @@
               role_id: document.getElementById('source-role-id-edit').value.trim(),
               enable_type: document.getElementById('source-enable-type-edit').value,
               media_type: document.getElementById('source-media-type-edit').value,
+              use_headline_message_override: getSourceHeadlineOverrideValue(),
             };
             const customMessage = document.getElementById('source-custom-message-edit').value;
             const customMessageLocked = document.getElementById('source-custom-message-edit').disabled;
@@ -1719,6 +1740,7 @@
                 customized_msg: document.getElementById('source-custom-message-edit').disabled
                   ? ''
                   : document.getElementById('source-custom-message-edit').value,
+                use_headline_message_override: getSourceHeadlineOverrideValue(),
               }),
             });
             setFormStatus('source-form-status', `Sent a non-pinging test alert to #${result.channel_name}.`);
@@ -1740,9 +1762,15 @@
           document.getElementById('source-enable-type-edit').value = button.dataset.enableType;
           document.getElementById('source-media-type-edit').value = button.dataset.mediaType;
           document.getElementById('source-account-used-edit').value = button.dataset.clientUsed || '';
+          document.getElementById('source-use-headline-message-override-edit').checked = button.dataset.useHeadlineMessageOverride === 'true';
           try {
             const messageData = await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(button.dataset.username)}/${encodeURIComponent(button.dataset.channelId)}/message`);
             document.getElementById('source-custom-message-edit').value = messageData.customized_msg || '';
+            if (typeof messageData.use_headline_message_override === 'boolean') {
+              document.getElementById('source-use-headline-message-override-edit').checked = messageData.use_headline_message_override;
+            } else if (!button.dataset.useHeadlineMessageOverride) {
+              document.getElementById('source-use-headline-message-override-edit').checked = false;
+            }
           } catch (error) {
             document.getElementById('source-custom-message-edit').value = '';
           }
@@ -1761,6 +1789,7 @@
           document.getElementById('source-role-id-edit').value = '';
           document.getElementById('source-enable-type-edit').value = '11';
           document.getElementById('source-media-type-edit').value = '11';
+          document.getElementById('source-use-headline-message-override-edit').checked = false;
           document.getElementById('source-custom-message-edit').value = '';
           resetSourceFieldValidation();
           setFormStatus('source-form-status');

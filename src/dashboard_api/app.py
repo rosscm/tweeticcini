@@ -1,7 +1,7 @@
 import os
 import secrets
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional
@@ -76,6 +76,7 @@ class DashboardSourceResponse(BaseModel):
     role_id: str
     enable_type: str
     media_type: str
+    use_headline_message_override: Optional[bool] = None
     enable_type_label: str
     media_type_label: str
     has_custom_message: bool
@@ -87,6 +88,7 @@ class UpdateDashboardSourceRequest(BaseModel):
     role_id: str = ''
     enable_type: str = '11'
     media_type: str = '11'
+    use_headline_message_override: Optional[bool] = None
 
 
 class CreateDashboardSourceRequest(BaseModel):
@@ -96,6 +98,7 @@ class CreateDashboardSourceRequest(BaseModel):
     enable_type: str = '11'
     media_type: str = '11'
     account_used: str
+    use_headline_message_override: Optional[bool] = None
 
 
 class UpdateDashboardSourceMessageRequest(BaseModel):
@@ -107,6 +110,7 @@ class SendDashboardSourceTestRequest(BaseModel):
     channel_id: str
     role_id: str = ''
     customized_msg: str = ''
+    use_headline_message_override: Optional[bool] = None
 
 
 class UpdateGuildPlanRequest(BaseModel):
@@ -134,6 +138,7 @@ class ConnectTwitterSessionRequest(BaseModel):
 
 class UpdateGuildPresentationRequest(BaseModel):
     default_message: str
+    use_headline_message: bool = False
     bot_display_name: str = ''
     emoji_auto_format: bool = True
     embed_type: str = 'built_in'
@@ -173,6 +178,7 @@ def _serialize_source(source: DashboardSourceRecord) -> DashboardSourceResponse:
         role_id=source.role_id,
         enable_type=source.enable_type,
         media_type=source.media_type,
+        use_headline_message_override=source.use_headline_message_override,
         enable_type_label=enable_type_label,
         media_type_label=media_type_label,
         has_custom_message=source.has_custom_message,
@@ -195,6 +201,25 @@ def _format_dashboard_timestamp(timestamp_text: Optional[str]) -> Optional[str]:
     if parsed.tzinfo is not None:
         parsed = parsed.astimezone()
     return parsed.strftime('%Y-%m-%d %H:%M')
+
+
+def _has_recent_dashboard_activity(timestamps: list[Optional[str]], hours: int = 24) -> bool:
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    for timestamp_text in timestamps:
+        if not timestamp_text:
+            continue
+        normalized = timestamp_text.replace('Z', '+00:00')
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        else:
+            parsed = parsed.astimezone(timezone.utc)
+        if parsed >= cutoff:
+            return True
+    return False
 
 
 def _serialize_twitter_session(
@@ -285,6 +310,7 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
         'has_overrides': view.has_overrides,
         'effective': {
             'default_message': view.effective.default_message,
+            'use_headline_message': view.effective.use_headline_message,
             'bot_display_name': view.effective.bot_display_name,
             'emoji_auto_format': view.effective.emoji_auto_format,
             'embed_type': view.effective.embed_type,
@@ -479,11 +505,12 @@ def _build_test_alert_message(
     mention: str,
     customized_msg: str,
     default_message: str,
+    use_headline_message: bool,
+    monitor_use_headline_message_override: Optional[bool],
     sample_text: str,
     url: str,
 ) -> str:
     tweet = _build_test_tweet(username, sample_text, url)
-    uses_server_message_override = default_message.strip() != configs['default_message'].strip()
 
     if customized_msg.strip():
         try:
@@ -491,12 +518,20 @@ def _build_test_alert_message(
         except KeyError:
             return build_headline_notification_message(mention, sample_text, url)
 
-    if uses_server_message_override:
+    effective_use_headline_message = (
+        monitor_use_headline_message_override
+        if monitor_use_headline_message_override is not None
+        else use_headline_message
+    )
+
+    if effective_use_headline_message:
+        return build_headline_notification_message(mention, sample_text, url)
+
+    if default_message.strip():
         try:
             return build_notification_message(default_message, mention, tweet, url)
         except KeyError:
             return build_headline_notification_message(mention, sample_text, url)
-
     return build_headline_notification_message(mention, sample_text, url)
 
 
@@ -617,6 +652,7 @@ def _build_status_banner(
     guild_presentation: GuildPresentationView,
     log_health: dict[str, object],
     client_statuses: list[dict[str, object]],
+    recent_delivery_activity: bool = False,
 ) -> dict[str, object]:
     source_limit = guild_presentation.features.max_sources
     rule_limit = guild_presentation.features.max_rules
@@ -638,6 +674,9 @@ def _build_status_banner(
     relevant_client_statuses = [row for row in client_statuses if row['client_used'] in delivery_client_keys]
     healthy_clients = [row for row in relevant_client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']]
     warning_clients = [row for row in relevant_client_statuses if row['last_poll_error_at']]
+    recent_polling_activity = _has_recent_dashboard_activity(
+        [row.get('last_poll_success_at') for row in relevant_client_statuses]
+    )
 
     if not relevant_client_statuses:
         if source_count == 0:
@@ -660,7 +699,7 @@ def _build_status_banner(
             ],
         }
 
-    if not log_health['bot_online_recently']:
+    if not log_health['bot_online_recently'] and not recent_delivery_activity and not recent_polling_activity:
         return {
             'level': 'warning',
             'message': 'The dashboard is up, but the bot has not logged itself online in the last 24 hours.',
@@ -668,7 +707,6 @@ def _build_status_banner(
                 f'Connected sessions: {len(delivery_sessions)}',
                 f'Sources: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
-                f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
             ],
         }
 
@@ -688,13 +726,11 @@ def _build_status_banner(
                     f"Sessions with recent rate limits: {', '.join(row['client_used'] for row in warning_clients)}",
                     'Single-session servers usually just need to wait for the cooldown to pass.',
                     'If you use multiple sessions, spread monitors across distinct X accounts when possible.',
-                    f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
                 ]
                 if has_rate_limit_warning
                 else [
                     f"Connected sessions: {len(delivery_sessions)}",
                     f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
-                    f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
                 ]
             ),
         }
@@ -721,7 +757,6 @@ def _build_status_banner(
             'details': [
                 f'Sources: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
-                f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
             ],
         }
 
@@ -732,7 +767,6 @@ def _build_status_banner(
             f'Connected sessions: {len(delivery_sessions)}',
             f'Sources: {source_count} / {source_limit}',
             f'Rules: {rule_count} / {rule_limit}',
-            f"Last bot online log: {log_health['last_online_at'] or 'unknown'}",
         ],
     }
 
@@ -975,6 +1009,9 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         if session['status'] == 'active'
     ]
     delivery_sessions_required = len(delivery_session_options) == 0
+    recent_delivery_activity = _has_recent_dashboard_activity(
+        [payload.get('last_delivery_success_at_raw') for payload in sources_payload]
+    )
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -1005,7 +1042,14 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'portal_configured': billing_context.portal_configured,
                 'available_price_plans': billing_context.available_price_plans,
             },
-            'status_banner': _build_status_banner(delivery_session_options, usage, guild_presentation, log_health, client_statuses),
+            'status_banner': _build_status_banner(
+                delivery_session_options,
+                usage,
+                guild_presentation,
+                log_health,
+                client_statuses,
+                recent_delivery_activity=recent_delivery_activity,
+            ),
             'overview': {
                 'escalation_rule_count': escalation_rule_count,
                 'scoped_rule_count': scoped_rule_count,
@@ -1140,6 +1184,9 @@ async def delete_guild_twitter_session(request: Request, guild_id: str, session_
 @app.post('/guilds/{guild_id}/sources', response_model=DashboardSourceResponse)
 async def create_guild_source(request: Request, guild_id: str, source_request: CreateDashboardSourceRequest) -> DashboardSourceResponse:
     _require_guild_access(request, guild_id)
+    presentation = await guild_settings_service.get_presentation_view(guild_id)
+    if source_request.use_headline_message_override is not None and not presentation.features.can_customize_source_messages:
+        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Pro plan')
     try:
         result = await notifier_service.add_notifier(
             AddNotifierRequest(
@@ -1151,6 +1198,7 @@ async def create_guild_source(request: Request, guild_id: str, source_request: C
                 media_type=source_request.media_type,
                 account_used=source_request.account_used,
                 force_everyone=False,
+                use_headline_message_override=source_request.use_headline_message_override,
             )
         )
     except UserNotFoundError as error:
@@ -1194,6 +1242,8 @@ async def send_guild_source_test_alert(
     presentation = await guild_settings_service.get_presentation_view(guild_id)
     if test_request.customized_msg.strip() and not presentation.features.can_customize_source_messages:
         raise HTTPException(status_code=400, detail='custom account messages require the Pro plan')
+    if test_request.use_headline_message_override is not None and not presentation.features.can_customize_source_messages:
+        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Pro plan')
     role_name = resource_names['roles'].get(test_request.role_id, '').strip() if test_request.role_id else ''
     mention = f'@{role_name} ' if role_name else ''
     sample_text = 'A new post just went live'
@@ -1203,6 +1253,8 @@ async def send_guild_source_test_alert(
         mention=mention,
         customized_msg=test_request.customized_msg,
         default_message=presentation.effective.default_message,
+        use_headline_message=presentation.effective.use_headline_message,
+        monitor_use_headline_message_override=test_request.use_headline_message_override,
         sample_text=sample_text,
         url=sample_url,
     )
@@ -1355,6 +1407,7 @@ async def update_guild_presentation(
             await guild_settings_service.update_presentation(
                 server_id=guild_id,
                 default_message=presentation_request.default_message,
+                use_headline_message=presentation_request.use_headline_message,
                 bot_display_name=presentation_request.bot_display_name,
                 emoji_auto_format=presentation_request.emoji_auto_format,
                 embed_type=presentation_request.embed_type,
@@ -1378,6 +1431,9 @@ async def update_guild_source(
     source_request: UpdateDashboardSourceRequest,
 ) -> DashboardSourceResponse:
     _require_guild_access(request, guild_id)
+    presentation = await guild_settings_service.get_presentation_view(guild_id)
+    if source_request.use_headline_message_override is not None and not presentation.features.can_customize_source_messages:
+        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Pro plan')
     updated = await notifier_service.update_dashboard_source(
         username=username,
         channel_id=channel_id,
@@ -1385,6 +1441,7 @@ async def update_guild_source(
         role_id=source_request.role_id,
         enable_type=source_request.enable_type,
         media_type=source_request.media_type,
+        use_headline_message_override=source_request.use_headline_message_override,
     )
     if not updated:
         raise RuntimeError(f'failed to update source {username} in channel {channel_id}')
@@ -1405,6 +1462,7 @@ async def get_guild_source_message(request: Request, guild_id: str, username: st
         'username': username,
         'channel_id': channel_id,
         'customized_msg': None if record is None else record.customized_msg,
+        'use_headline_message_override': None if record is None else record.use_headline_message_override,
     }
 
 

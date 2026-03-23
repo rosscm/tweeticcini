@@ -39,6 +39,7 @@ async def ensure_db_schema() -> str:
                 enable_media_type TEXT DEFAULT 11,
                 customized_msg TEXT DEFAULT NULL,
                 force_everyone INTEGER DEFAULT 0,
+                use_headline_message_override INTEGER DEFAULT NULL,
                 FOREIGN KEY (user_id) REFERENCES user (id),
                 FOREIGN KEY (channel_id) REFERENCES channel (id),
                 PRIMARY KEY(user_id, channel_id)
@@ -47,6 +48,7 @@ async def ensure_db_schema() -> str:
                 server_id TEXT PRIMARY KEY,
                 plan TEXT DEFAULT 'free',
                 default_message_override TEXT DEFAULT NULL,
+                use_headline_message_override INTEGER DEFAULT NULL,
                 emoji_auto_format_override INTEGER DEFAULT NULL,
                 bot_display_name_override TEXT DEFAULT NULL,
                 embed_type_override TEXT DEFAULT NULL,
@@ -154,12 +156,17 @@ async def ensure_db_schema() -> str:
             await db.execute('ALTER TABLE notification ADD COLUMN force_everyone INTEGER DEFAULT 0')
             log.info('added missing notification.force_everyone column')
 
+        if 'use_headline_message_override' not in columns:
+            await db.execute('ALTER TABLE notification ADD COLUMN use_headline_message_override INTEGER DEFAULT NULL')
+            log.info('added missing notification.use_headline_message_override column')
+
         async with db.execute("PRAGMA table_info(guild_settings)") as cursor:
             guild_columns = {row[1] async for row in cursor}
 
         guild_column_definitions = {
             'plan': "TEXT DEFAULT 'free'",
             'default_message_override': 'TEXT DEFAULT NULL',
+            'use_headline_message_override': 'INTEGER DEFAULT NULL',
             'bot_display_name_override': 'TEXT DEFAULT NULL',
             'emoji_auto_format_override': 'INTEGER DEFAULT NULL',
             'embed_type_override': 'TEXT DEFAULT NULL',
