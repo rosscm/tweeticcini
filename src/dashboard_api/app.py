@@ -1406,6 +1406,12 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
             data_object.get('subscription'),
         )
         if guild_id:
+            current_entitlement = await guild_settings_service.get_entitlement_view(str(guild_id))
+            incoming_subscription_id = data_object.get('subscription')
+            is_new_subscription = (
+                bool(incoming_subscription_id)
+                and incoming_subscription_id != current_entitlement.external_subscription_id
+            )
             trial_ends_at = None
             trial_end_timestamp = data_object.get('trial_end')
             if trial_end_timestamp:
@@ -1416,8 +1422,10 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 entitlement_status='trialing' if trial_ends_at else 'active',
                 billing_provider='stripe',
                 external_customer_id=data_object.get('customer'),
-                external_subscription_id=data_object.get('subscription'),
-                trial_ends_at=trial_ends_at,
+                external_subscription_id=incoming_subscription_id,
+                current_period_end='' if is_new_subscription else None,
+                cancel_at_period_end=False if is_new_subscription else None,
+                trial_ends_at=trial_ends_at if trial_ends_at is not None else ('' if is_new_subscription else None),
                 is_test=False,
             )
 
