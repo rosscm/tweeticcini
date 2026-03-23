@@ -517,6 +517,7 @@ body {
   gap: 10px;
   justify-content: flex-start;
   margin-top: 6px;
+  margin-bottom: 14px;
   min-width: 0;
 }
 
@@ -1121,6 +1122,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  margin-top: 18px;
 }
 
 button,

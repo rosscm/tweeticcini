@@ -786,7 +786,7 @@ GUILD_SECTIONS = {
     'sources': 'Monitors',
     'rules': 'Rules',
     'appearance': 'Appearance',
-    'billing': 'Billing',
+    'billing': 'Premium',
 }
 
 
@@ -1029,7 +1029,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         request=request,
         name='guild.html',
         context={
-            'title': f"Tweeticcini | {active_section.capitalize()} | {(_get_session_guild_name(request, guild_id) or f'Server {guild_id}')}",
+            'title': f"Tweeticcini | {GUILD_SECTIONS.get(active_section, active_section.capitalize())} | {(_get_session_guild_name(request, guild_id) or f'Server {guild_id}')}",
             'guild_id': guild_id,
             'guild_name': _get_session_guild_name(request, guild_id) or guild_id,
             'guild_icon_url': _get_session_guild_icon_url(request, guild_id),
@@ -1212,7 +1212,7 @@ async def create_guild_source(request: Request, guild_id: str, source_request: C
     _require_guild_access(request, guild_id)
     presentation = await guild_settings_service.get_presentation_view(guild_id)
     if source_request.use_headline_message_override is not None and not presentation.features.can_customize_source_messages:
-        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Pro plan')
+        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Premium plan')
     try:
         result = await notifier_service.add_notifier(
             AddNotifierRequest(
@@ -1267,9 +1267,9 @@ async def send_guild_source_test_alert(
 
     presentation = await guild_settings_service.get_presentation_view(guild_id)
     if test_request.customized_msg.strip() and not presentation.features.can_customize_source_messages:
-        raise HTTPException(status_code=400, detail='custom account messages require the Pro plan')
+        raise HTTPException(status_code=400, detail='custom account messages require the Premium plan')
     if test_request.use_headline_message_override is not None and not presentation.features.can_customize_source_messages:
-        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Pro plan')
+        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Premium plan')
     role_name = resource_names['roles'].get(test_request.role_id, '').strip() if test_request.role_id else ''
     mention = f'@{role_name} ' if role_name else ''
     sample_text = 'A new post just went live'
@@ -1459,7 +1459,7 @@ async def update_guild_source(
     _require_guild_access(request, guild_id)
     presentation = await guild_settings_service.get_presentation_view(guild_id)
     if source_request.use_headline_message_override is not None and not presentation.features.can_customize_source_messages:
-        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Pro plan')
+        raise HTTPException(status_code=400, detail='monitor-level message style overrides require the Premium plan')
     updated = await notifier_service.update_dashboard_source(
         username=username,
         channel_id=channel_id,

@@ -19,10 +19,10 @@
         </div>
         <h1>Choose a server</h1>
         <p class="lede">
-          Choose a server to connect Twitter/X sessions, set up live monitors, tune alerts, and shape how Tweeticcini posts there.
+          Pick a server to connect Twitter/X sessions, set up monitors, fine-tune alerts, and customize how Tweeticcini posts.
         </p>
         {% if public_site_url and oauth_enabled and not discord_user %}
-        <p class="section-copy">Need the plan details first? Open <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Plans &amp; Setup</a>, then come back here when you're ready to get everything set up.</p>
+        <p class="section-copy">Need a quick overview first? Open <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Plans &amp; Setup</a> to review how the bot works, then come back when you're ready to configure a server.</p>
         {% endif %}
         {% if oauth_enabled %}
         {% if discord_user %}

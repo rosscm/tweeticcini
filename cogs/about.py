@@ -19,7 +19,7 @@ class About(Cog_Extension):
         self.alert_rule_service = AlertRuleService()
         self.twitter_session_service = TwitterSessionService()
 
-    @app_commands.command(name='about', description='Show a compact Tweeticcini summary for this server')
+    @app_commands.command(name='about', description='Show a compact summary for this server')
     async def about(self, itn: discord.Interaction):
         if itn.guild_id is None or itn.guild is None:
             await itn.response.send_message(
@@ -48,7 +48,7 @@ class About(Cog_Extension):
             name='Server',
             value=(
                 f'**{itn.guild.name}**\n'
-                f'Plan: `{presentation.plan.capitalize()}` via `{entitlement_source}`\n'
+                f'Plan: `{"Premium" if presentation.plan == "pro" else "Free"}` via `{entitlement_source}`\n'
                 f'Default style: `{style_label}`'
             ),
             inline=False,

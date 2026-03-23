@@ -21,7 +21,7 @@
             </div>
             <div class="page-title-row">
               <h1>{{ guild_name }}</h1>
-              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
+              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan</span>
             </div>
             <p class="lede lede--wide">Tweeticcini keeps watch on Twitter/X so the right posts land in the right channels, right when your server needs them ✨</p>
           </section>
@@ -66,9 +66,8 @@
                 </svg>
                 {% elif section_id == 'billing' %}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="6" width="18" height="12" rx="2"></rect>
-                  <path d="M3 10.5h18"></path>
-                  <path d="M7 15h3"></path>
+                  <path d="M5 18 3.5 7.5l4.7 3.2L12 4l3.8 6.7 4.7-3.2L19 18Z"></path>
+                  <path d="M6.5 18h11"></path>
                 </svg>
                 {% else %}
                 <svg viewBox="0 0 24 24" fill="currentColor">
@@ -157,7 +156,7 @@
             <p class="eyebrow">Navigation</p>
             <div class="mobile-nav-title">{{ guild_name }}</div>
             <div class="mobile-nav-title-row">
-              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
+              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan</span>
             </div>
           </div>
           <button type="button" class="mobile-drawer-close" id="mobile-nav-close" aria-label="Close menu">×</button>
@@ -202,9 +201,8 @@
               </svg>
               {% elif section_id == 'billing' %}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="6" width="18" height="12" rx="2"></rect>
-                <path d="M3 10.5h18"></path>
-                <path d="M7 15h3"></path>
+                <path d="M5 18 3.5 7.5l4.7 3.2L12 4l3.8 6.7 4.7-3.2L19 18Z"></path>
+                <path d="M6.5 18h11"></path>
               </svg>
               {% else %}
               <svg viewBox="0 0 24 24" fill="currentColor">
@@ -277,7 +275,7 @@
         <div class="plan-summary">
           <div class="plan-tile">
             <span class="meta-label">Current plan</span>
-            <strong class="plan-name">{{ guild_presentation.plan }}</strong>
+            <strong class="plan-name">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }}</strong>
             <div class="plan-tile-copy">via {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</div>
           </div>
           <div class="plan-tile">
@@ -370,12 +368,12 @@
             <h3 class="panel-title">Connect Session</h3>
             <form id="twitter-session-form" class="stack">
               <div class="form-banner">
-                Connect a server-owned Twitter/X session here first. Most servers only need one. <strong>Pro</strong> can add more to spread monitors across separate sessions for extra flexibility.
+                Connect a Twitter/X session here first. This is the account Tweeticcini will use to watch for new posts.
               </div>
               <div id="twitter-session-status" class="form-banner form-banner--hidden" hidden></div>
               {% if twitter_session_limit_reached %}
               <div class="form-banner form-banner--warning">
-                Session limit reached on the {{ guild_presentation.plan }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Pro</a> to connect more sessions.
+                Session limit reached on the {{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to connect more sessions, spread monitors across them, and add extra flexibility as your setup grows.
               </div>
               {% endif %}
 
@@ -386,7 +384,7 @@
               <label for="twitter-session-auth-token">Auth token</label>
               <textarea id="twitter-session-auth-token" rows="7" placeholder="E.g., 53f95f4c8a2d7b1e9c0f4a6d3b8e1f7a2c9d4e6f1b3a5c7d9e0f2a4b6c8d1e3" {{ 'disabled' if twitter_session_limit_reached else '' }}></textarea>
               <div class="field-help">Paste the raw value of your current <code>x.com</code> <code>auth_token</code> cookie. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
-              <div class="field-help">To find <code>auth_token</code>, sign in to Twitter/X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value for <code>auth_token</code>.</div>
+              <div class="field-help">Do this on desktop. Sign in to Twitter/X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value named <code>auth_token</code>. Need help opening the cookies panel? <a class="inline-link" href="https://developer.chrome.com/docs/devtools/storage/cookies/" target="_blank" rel="noreferrer">How to view cookies in DevTools</a>.</div>
 
               <div class="actions">
                 <button type="submit" {{ 'disabled' if twitter_session_limit_reached else '' }}>Connect Session</button>
@@ -473,7 +471,7 @@
             <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
               {% if not guild_presentation.features.can_customize_presentation %}
               <div class="form-banner">
-                This server is currently using Tweeticcini's shared default look. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Pro</a> to customize the message, bot name, emoji style, and alert image.
+                This server is currently using Tweeticcini's shared default look. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to customize the message, bot name, emoji style, and alert image.
               </div>
               {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
               <div class="form-banner">
@@ -541,87 +539,110 @@
       <section class="card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Billing</p>
-            <h2>Plans &amp; Checkout</h2>
-            <p class="section-copy section-copy--wide">Manage this server's plan, checkout flow, and billing access. Internal tools live below in a separate section.</p>
+            <p class="eyebrow">Premium</p>
+            <h2>Plan Management</h2>
+            <p class="section-copy section-copy--wide">Check this server's plan status, start checkout when needed, and manage billing when a subscription is linked.</p>
           </div>
         </div>
 
         {% if request.query_params.get('checkout') == 'success' %}
         <section class="notice notice--success">
-          <strong>Checkout started successfully:</strong> Stripe returned to the Billing page. Once the webhook is configured and delivered, this server's entitlement will update automatically.
+          <strong>Checkout launched:</strong> Stripe returned you to the dashboard. Once the webhook is configured and delivered, this server's plan will update automatically.
         </section>
         {% elif request.query_params.get('checkout') == 'canceled' %}
         <section class="notice notice--plain">
-          <strong>Checkout canceled:</strong> no billing changes were applied.
+          <strong>Checkout canceled:</strong> no billing changes were made.
         </section>
         {% endif %}
 
         {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
         <section class="notice notice--warning">
-          <strong>Manual override active:</strong> this server is currently using a support/testing override, so the effective plan may not match the subscription state below.
+          <strong>Manual override active:</strong> this server is currently using a support or testing override, so the plan shown here may not match its billing-backed state.
         </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
         <section class="notice notice--success">
-          <strong>Trial active:</strong> this server is currently trialing the <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong> plan{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
+          <strong>Trial active:</strong> this server is currently trialing <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong>{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
         </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'past_due' %}
         <section class="notice notice--warning">
-          <strong>Billing attention needed:</strong> this server is marked <strong>past due</strong>.
+          <strong>Billing attention needed:</strong> this subscription is currently marked <strong>past due</strong>.
         </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'canceled' %}
         <section class="notice notice--warning">
-          <strong>Subscription canceled:</strong> this server no longer has an active subscription-backed entitlement, so it will fall back to default plan behavior unless an internal override is present.
-        </section>
-        {% elif guild_presentation.entitlement.entitlement_status == 'active' %}
-        <section class="notice notice--success">
-          <strong>Subscription active:</strong> this server has an active entitlement for <strong>{{ (guild_presentation.entitlement.subscribed_plan or guild_presentation.plan) | capitalize }}</strong>{% if guild_presentation.entitlement.current_period_end %}, currently paid through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
-          <div class="status-detail-list">
-            <span class="tag tag--soft">Source: {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</span>
-            {% if guild_presentation.entitlement.billing_provider %}
-            <span class="tag tag--soft">Billing provider: {{ guild_presentation.entitlement.billing_provider }}</span>
-            {% endif %}
-          </div>
+          <strong>Subscription canceled:</strong> this server no longer has an active subscription-backed entitlement, so it is now using default plan behavior unless an override is active.
         </section>
         {% endif %}
 
+        {% set has_active_pro_entitlement = guild_presentation.entitlement.entitlement_status in ['active', 'trialing', 'past_due'] and (guild_presentation.entitlement.subscribed_plan == 'pro' or guild_presentation.plan == 'pro') %}
+
         <div class="workspace-grid workspace-grid--appearance">
           <div class="workspace-panel">
-            <h3 class="panel-title">Current Subscription</h3>
+            <h3 class="panel-title">Current plan</h3>
+            {% set is_trialing = guild_presentation.entitlement.entitlement_status == 'trialing' %}
+            {% set is_past_due = guild_presentation.entitlement.entitlement_status == 'past_due' %}
+            {% set is_canceled = guild_presentation.entitlement.entitlement_status == 'canceled' %}
+            {% if has_active_pro_entitlement and not guild_presentation.entitlement.external_customer_id %}
+            <section class="notice notice--success notice--compact">
+              <strong>Premium is active:</strong> this server already has an active Premium entitlement. Subscription is being tracked through a legacy or support-managed setup.
+            </section>
+            {% elif has_active_pro_entitlement and guild_presentation.entitlement.external_customer_id %}
+            <section class="notice notice--success notice--compact">
+              <strong>Premium is active:</strong> this server has an active Stripe-backed Premium subscription{% if guild_presentation.entitlement.current_period_end %} through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
+            </section>
+            {% elif is_past_due %}
+            <section class="notice notice--warning notice--compact">
+              <strong>Billing attention needed:</strong> this subscription is past due. Use Manage Subscription if billing is linked through Stripe.
+            </section>
+            {% elif is_canceled %}
+            <section class="notice notice--warning notice--compact">
+              <strong>Subscription canceled:</strong> this server is currently using default plan behavior unless another support override is active.
+            </section>
+            {% elif is_trialing %}
+            <section class="notice notice--success notice--compact">
+              <strong>Trial active:</strong> this server is currently trialing Premium{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
+            </section>
+            {% else %}
+            <section class="notice notice--plain notice--compact">
+              <strong>Free plan is active:</strong> this server is currently using the default plan. Start Checkout whenever you're ready to activate Premium.
+            </section>
+            {% endif %}
+            {% if has_active_pro_entitlement %}
+            <div class="actions">
+              <button type="button" id="open-billing-portal" {{ 'disabled' if not guild_presentation.entitlement.external_customer_id else '' }}>Manage Subscription</button>
+            </div>
+            {% else %}
+            <div class="actions">
+              <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Checkout</button>
+            </div>
+            {% endif %}
             {% if guild_presentation.entitlement.external_customer_id %}
             <div class="field-help">Customer ID: <code>{{ guild_presentation.entitlement.external_customer_id }}</code></div>
             {% endif %}
             {% if guild_presentation.entitlement.external_subscription_id %}
             <div class="field-help">Subscription ID: <code>{{ guild_presentation.entitlement.external_subscription_id }}</code></div>
             {% endif %}
-            <div class="form-banner">
-              Use Checkout to start or upgrade this server. Once Stripe is linked, use Customer Portal for billing changes.
-              <br>
-              Free and Pro both use {{ bot_defaults.tweets_check_period }}s tweet checks. Pro unlocks more control, customization, and higher limits.
-            </div>
-            <div class="actions">
-              <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Checkout</button>
-              <button type="button" class="button-secondary" id="open-billing-portal" {{ 'disabled' if not guild_presentation.entitlement.external_customer_id }}>Open Customer Portal</button>
-            </div>
+            {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
+            <div class="field-help">This server is currently using a manual support or testing override.</div>
+            {% endif %}
           </div>
 
           <div class="workspace-panel workspace-panel--wide">
-            <h3 class="panel-title">Billing Readiness</h3>
+            <h3 class="panel-title">Stripe Setup</h3>
             <div class="default-block">
               <div><span class="meta-label">Stripe secret key</span> {{ 'configured' if billing_context.secret_configured else 'missing' }}</div>
               <div><span class="meta-label">Webhook secret</span> {{ 'configured' if billing_context.webhook_configured else 'missing' }}</div>
               <div><span class="meta-label">Publishable key</span> {{ 'configured' if billing_context.publishable_configured else 'missing' }}</div>
-              <div><span class="meta-label">Portal support</span> {{ 'configured' if billing_context.portal_configured else 'ready after customer link' }}</div>
+              <div><span class="meta-label">Customer portal</span> {{ 'configured' if billing_context.portal_configured else 'ready after customer link' }}</div>
               <div><span class="meta-label">Available prices</span> {{ billing_context.available_price_plans | join(', ') or 'none' }}</div>
             </div>
             {% if not billing_context.secret_configured or 'pro' not in billing_context.available_price_plans %}
             <section class="notice notice--warning notice--compact">
-              <strong>Checkout is not fully ready yet:</strong> add <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_PRICE_ID_PRO</code> to enable subscription checkout from this page.
+              <strong>Checkout is not ready yet:</strong> add <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_PRICE_ID_PRO</code> to enable checkout from this page.
             </section>
             {% endif %}
             {% if not billing_context.webhook_configured %}
             <section class="notice notice--plain notice--compact">
-              <strong>Webhook note:</strong> without <code>STRIPE_WEBHOOK_SECRET</code>, Stripe events cannot update this server's entitlement automatically.
+              <strong>Webhook reminder:</strong> without <code>STRIPE_WEBHOOK_SECRET</code>, Stripe events cannot update this server's plan automatically.
             </section>
             {% endif %}
           </div>
@@ -634,13 +655,13 @@
               <h3 class="panel-title">Manual Override</h3>
               <form id="plan-form" class="stack">
                 <div class="form-banner">
-                  Support/testing override. In production this should be driven by billing state, not by server admins directly.
+                  Internal support and testing override. In production, this should be driven by billing state instead.
                 </div>
                 <label for="guild-plan">Manual plan override</label>
                 <select id="guild-plan">
                   <option value="">No override</option>
                   <option value="free" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'free' else '' }}>Free</option>
-                  <option value="pro" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'pro' else '' }}>Pro</option>
+                  <option value="pro" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'pro' else '' }}>Premium</option>
                 </select>
                 <div class="actions">
                   <button type="submit">Save Override</button>
@@ -653,7 +674,7 @@
               <h3 class="panel-title">Subscription Simulation</h3>
               <form id="entitlement-form" class="stack">
                 <div class="form-banner">
-                  Internal entitlement testing surface for simulating billing-backed states.
+                  Internal testing surface for simulating billing-backed subscription states.
                 </div>
                 <label for="entitlement-status">Entitlement status</label>
                 <select id="entitlement-status">
@@ -668,7 +689,7 @@
                 <select id="entitlement-plan">
                   <option value="">No subscribed plan</option>
                   <option value="free" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'free' else '' }}>Free</option>
-                  <option value="pro" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'pro' else '' }}>Pro</option>
+                  <option value="pro" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'pro' else '' }}>Premium</option>
                 </select>
 
                 <label for="entitlement-provider">Billing provider</label>
@@ -704,7 +725,7 @@
 
           {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
           <section class="notice notice--warning">
-            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ guild_presentation.plan }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Pro</a> to add more.
+            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to add more.
           </section>
           {% endif %}
 
@@ -725,7 +746,7 @@
                 <label for="source-username-edit">Twitter/X account</label>
                 <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA" {{ 'disabled' if delivery_sessions_required else '' }}>
                 <div class="field-help">Enter the username exactly as it appears on Twitter/X, without the <code>@</code> symbol.</div>
-                <div class="field-help"><strong>When you save a monitor, Tweeticcini will try to make the selected Twitter/X session follow this account and turn on post notifications automatically. If that change doesn't apply cleanly, alerts may not start until that session is following the account with notifications enabled.</strong></div>
+                <div class="field-help"><strong>When you save a monitor, Tweeticcini will try to follow this account and turn on notifications for the selected Twitter/X session. If that doesn't apply cleanly, alerts may not start until that session is following the account with notifications enabled.</strong></div>
 
                 <label for="source-channel-id-edit">Channel name</label>
                 <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -774,7 +795,7 @@
                 </select>
                 <div class="field-help">Choose which connected Twitter/X session this monitor should use.</div>
 
-                <label for="source-custom-message-edit">Custom alert message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
+                <label for="source-custom-message-edit">Custom alert message {{ '(Premium)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
                 <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
                 <div class="field-help">Optional. Leave blank to use the server default from <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">'Appearance'</a>.</div>
                 <label class="checkbox-row"><input id="source-use-headline-message-override-edit" type="checkbox" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}> Use headline-style for this monitor</label>
@@ -952,7 +973,7 @@
                   {% if guild_presentation.features.can_use_everyone_escalation %}
                   <span class="tag tag--soft">Ping keywords: {{ plan_usage.trigger_keyword_count }} / {{ guild_presentation.features.max_trigger_keywords_total }}</span>
                   {% else %}
-                  <span class="tag tag--soft">Ping everyone unlocks on Pro</span>
+                  <span class="tag tag--soft">Ping everyone unlocks on Premium</span>
                   {% endif %}
                 </div>
                 <input id="existing-rule-name" type="hidden" value="">
@@ -976,7 +997,7 @@
                 <label for="escalation-mode">Rule type</label>
                 <select id="escalation-mode" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
                   <option value="role_only">Exclude alerts</option>
-                  <option value="everyone" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}>Ping everyone{{ ' (Pro)' if not guild_presentation.features.can_use_everyone_escalation else '' }}</option>
+                  <option value="everyone" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}>Ping everyone{{ ' (Premium)' if not guild_presentation.features.can_use_everyone_escalation else '' }}</option>
                 </select>
                 <div class="field-help">Choose whether this rule should suppress alerts or make high-priority posts stand out.</div>
 
@@ -991,7 +1012,7 @@
                   {% if guild_presentation.features.can_use_everyone_escalation %}
                   These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.
                   {% else %}
-                  These phrases are only available on <strong>Pro</strong>, because they are used with <code>Ping everyone</code> rules.
+                  These phrases are only available on <strong>Premium</strong>, because they are used with <code>Ping everyone</code> rules.
                   {% endif %}
                 </div>
                 <div class="field-error" id="rule-trigger-keywords-error" hidden></div>
@@ -1255,7 +1276,7 @@
         }
 
         if (!canUseEveryone) {
-          triggerHelp.innerHTML = 'These phrases are only available on <strong>Pro</strong>, because they are used with <code>Ping everyone</code> rules.';
+          triggerHelp.innerHTML = 'These phrases are only available on <strong>Premium</strong>, because they are used with <code>Ping everyone</code> rules.';
         } else if (!everyoneSelected) {
           triggerHelp.innerHTML = 'These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
         } else {
@@ -1581,7 +1602,7 @@
             const customMessage = document.getElementById('source-custom-message-edit').value;
             const customMessageLocked = document.getElementById('source-custom-message-edit').disabled;
             if (customMessageLocked && customMessage.trim()) {
-              setStatus('Custom account messages require the Pro plan.', true);
+              setStatus('Custom account messages require the Premium plan.', true);
               return;
             }
             if (mode === 'edit') {

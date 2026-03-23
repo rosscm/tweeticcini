@@ -27,7 +27,7 @@ def _get_dashboard_base_url() -> Optional[str]:
 
 class Dashboard(Cog_Extension):
     @app_commands.default_permissions(administrator=True)
-    @app_commands.command(name='dashboard', description='Open the Tweeticcini dashboard for this server')
+    @app_commands.command(name='dashboard', description='Get a link to the configuration dashboard')
     async def dashboard(self, itn: discord.Interaction):
         base_url = _get_dashboard_base_url()
         if not base_url:
