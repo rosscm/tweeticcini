@@ -117,6 +117,10 @@ async def on_tree_error(itn: discord.Interaction, error: app_commands.AppCommand
             await itn.response.send_message(message, ephemeral=True)
     except (discord.NotFound, discord.HTTPException):
         pass
+
+    if 'Unknown interaction' in message:
+        return
+
     log.warning(f'an error occurred but was handled by the tree error handler, error message : {error}')
 
 

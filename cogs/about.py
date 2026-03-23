@@ -37,57 +37,48 @@ class About(Cog_Extension):
 
         active_sessions = [session for session in sessions if session.is_active and session.status == 'active']
         style_label = 'Headline-style' if presentation.effective.use_headline_message else 'Template'
+        entitlement_source = presentation.entitlement.plan_source.replace('_', ' ')
 
         embed = discord.Embed(
             title='About Tweeticcini',
-            description='A quick server snapshot for your current setup.',
+            description='A quick server snapshot for how this server is configured right now.',
             color=0x4F7CAC,
         )
         embed.add_field(
             name='Server',
-            value=itn.guild.name,
+            value=(
+                f'**{itn.guild.name}**\n'
+                f'Plan: `{presentation.plan.capitalize()}` via `{entitlement_source}`\n'
+                f'Default style: `{style_label}`'
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name='Usage',
+            value=(
+                f'Monitors: `{len(sources)} / {presentation.features.max_sources}`\n'
+                f'Rules: `{len(rules)} / {presentation.features.max_rules}`\n'
+                f'Sessions: `{len(active_sessions)} / {presentation.features.max_twitter_sessions}`'
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name='Runtime',
+            value=(
+                f'Tweet checks: `Every {configs["tweets_check_period"]}s`\n'
+                f'Bot reach: `{len(self.bot.guilds)}` server{"" if len(self.bot.guilds) == 1 else "s"}'
+            ),
             inline=True,
         )
         embed.add_field(
-            name='Plan',
-            value=presentation.plan.capitalize(),
+            name='Next step',
+            value='Use `/dashboard` for monitors, billing, sessions, and appearance controls.',
             inline=True,
         )
-        embed.add_field(
-            name='Tweet checks',
-            value=f"Every {configs['tweets_check_period']}s",
-            inline=True,
-        )
-        embed.add_field(
-            name='Monitors',
-            value=f'{len(sources)} / {presentation.features.max_sources}',
-            inline=True,
-        )
-        embed.add_field(
-            name='Rules',
-            value=f'{len(rules)} / {presentation.features.max_rules}',
-            inline=True,
-        )
-        embed.add_field(
-            name='Sessions',
-            value=f'{len(active_sessions)} / {presentation.features.max_twitter_sessions}',
-            inline=True,
-        )
-        embed.add_field(
-            name='Default style',
-            value=style_label,
-            inline=True,
-        )
-        embed.add_field(
-            name='Bot reach',
-            value=f'{len(self.bot.guilds)} server{"" if len(self.bot.guilds) == 1 else "s"}',
-            inline=True,
-        )
-        embed.add_field(
-            name='Source',
-            value='Dashboard-first setup',
-            inline=True,
-        )
+        if itn.guild.icon:
+            embed.set_thumbnail(url=itn.guild.icon.url)
+        if self.bot.user and self.bot.user.display_avatar:
+            embed.set_author(name='Tweeticcini', icon_url=self.bot.user.display_avatar.url)
         embed.set_footer(text='Use /dashboard for full setup and billing controls.')
 
         view = None
