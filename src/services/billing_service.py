@@ -143,3 +143,10 @@ class BillingService:
         stripe = self._load_stripe()
         stripe.api_key = self.secret_key
         return stripe.Webhook.construct_event(payload, signature, self.webhook_secret)
+
+    def get_subscription(self, subscription_id: str):
+        if not self.secret_key:
+            raise BillingConfigurationError('Stripe secret key is not configured')
+        stripe = self._load_stripe()
+        stripe.api_key = self.secret_key
+        return stripe.Subscription.retrieve(subscription_id)

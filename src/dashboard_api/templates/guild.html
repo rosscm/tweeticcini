@@ -541,7 +541,7 @@
           <div>
             <p class="eyebrow">Premium</p>
             <h2>Plan Management</h2>
-            <p class="section-copy section-copy--wide">Review this server's plan, start Premium when you're ready, and manage billing from one place.</p>
+            <p class="section-copy section-copy--wide">View this server's current plan, start Premium when needed, and manage billing for active subscriptions.</p>
           </div>
         </div>
 
@@ -579,7 +579,7 @@
             </section>
             {% elif has_active_pro_entitlement and guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
-              <strong>Premium is active.</strong> <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }}{% if guild_presentation.entitlement.current_period_end %} {{ guild_presentation.entitlement.current_period_end }}{% endif %}.</strong> Visit <strong>Manage Subscription</strong> to make changes.
+              <strong>Premium is active.</strong>{% if guild_presentation.entitlement.current_period_end %} <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }} {{ guild_presentation.entitlement.current_period_end }}.</strong>{% endif %} Visit <strong>Manage Subscription</strong> to make changes.
             </section>
             {% elif is_canceled %}
             <section class="notice notice--warning notice--compact">

@@ -1412,19 +1412,59 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 bool(incoming_subscription_id)
                 and incoming_subscription_id != current_entitlement.external_subscription_id
             )
+            status = 'active'
+            cancel_at_period_end = False
+            current_period_end = None
             trial_ends_at = None
-            trial_end_timestamp = data_object.get('trial_end')
-            if trial_end_timestamp:
-                trial_ends_at = datetime.fromtimestamp(trial_end_timestamp).isoformat(sep=' ', timespec='seconds')
+
+            if incoming_subscription_id:
+                try:
+                    subscription = billing_service.get_subscription(incoming_subscription_id)
+                except Exception as error:
+                    log.warning(
+                        'failed to retrieve Stripe subscription %s after checkout completion for guild %s: %s',
+                        incoming_subscription_id,
+                        guild_id,
+                        error,
+                    )
+                    subscription = None
+
+                if subscription:
+                    status = subscription.get('status') or status
+                    cancel_at_period_end = bool(subscription.get('cancel_at_period_end'))
+                    period_end_timestamp = (
+                        subscription.get('cancel_at')
+                        if cancel_at_period_end
+                        else subscription.get('current_period_end')
+                    )
+                    if not period_end_timestamp:
+                        items = subscription.get('items', {}).get('data', [])
+                        if items:
+                            period_end_timestamp = items[0].get('current_period_end')
+                    if period_end_timestamp:
+                        current_period_end = datetime.fromtimestamp(period_end_timestamp).isoformat(sep=' ', timespec='seconds')
+                    trial_end_timestamp = subscription.get('trial_end')
+                    if trial_end_timestamp:
+                        trial_ends_at = datetime.fromtimestamp(trial_end_timestamp).isoformat(sep=' ', timespec='seconds')
+            else:
+                trial_end_timestamp = data_object.get('trial_end')
+                if trial_end_timestamp:
+                    trial_ends_at = datetime.fromtimestamp(trial_end_timestamp).isoformat(sep=' ', timespec='seconds')
+
+            mapped_status = (
+                'trialing' if status == 'trialing' or trial_ends_at
+                else 'past_due' if status == 'past_due'
+                else 'active'
+            )
             await guild_settings_service.set_subscription_entitlement(
                 server_id=str(guild_id),
                 subscribed_plan=metadata.get('plan') or 'pro',
-                entitlement_status='trialing' if trial_ends_at else 'active',
+                entitlement_status=mapped_status,
                 billing_provider='stripe',
                 external_customer_id=data_object.get('customer'),
                 external_subscription_id=incoming_subscription_id,
-                current_period_end='' if is_new_subscription else None,
-                cancel_at_period_end=False if is_new_subscription else None,
+                current_period_end=current_period_end if current_period_end is not None else ('' if is_new_subscription else None),
+                cancel_at_period_end=cancel_at_period_end if incoming_subscription_id else (False if is_new_subscription else None),
                 trial_ends_at=trial_ends_at if trial_ends_at is not None else ('' if is_new_subscription else None),
                 is_test=False,
             )
