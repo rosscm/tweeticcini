@@ -1381,6 +1381,13 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
     if event_type == 'checkout.session.completed':
         metadata = data_object.get('metadata', {}) or {}
         guild_id = metadata.get('guild_id') or data_object.get('client_reference_id')
+        log.info(
+            'stripe webhook %s for guild %s: customer=%s subscription=%s',
+            event_type,
+            guild_id,
+            data_object.get('customer'),
+            data_object.get('subscription'),
+        )
         if guild_id:
             await guild_settings_service.set_subscription_entitlement(
                 server_id=str(guild_id),
@@ -1410,6 +1417,14 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
             if period_end_timestamp:
                 current_period_end = datetime.fromtimestamp(period_end_timestamp).isoformat(sep=' ', timespec='seconds')
             cancel_at_period_end = bool(data_object.get('cancel_at_period_end'))
+            log.info(
+                'stripe webhook %s for guild %s: status=%s cancel_at_period_end=%s current_period_end=%s',
+                event_type,
+                guild_id,
+                status,
+                cancel_at_period_end,
+                current_period_end,
+            )
             await guild_settings_service.set_subscription_entitlement(
                 server_id=str(guild_id),
                 subscribed_plan=(metadata.get('plan') or 'pro') if mapped_status in {'active', 'trialing', 'past_due'} else None,
