@@ -716,7 +716,7 @@ def _build_status_banner(
         return {
             'level': 'warning',
             'message': (
-                'X is rate-limiting at least one session right now, so new alerts may be delayed until polling settles back down.'
+                'Twitter/X is rate-limiting at least one session right now, so new alerts may be delayed until polling settles back down.'
                 if has_rate_limit_warning
                 else 'At least one session hit a recent polling issue, so new alerts may be a little delayed until it recovers.'
             ),
@@ -725,7 +725,7 @@ def _build_status_banner(
                     f"Connected sessions: {len(delivery_sessions)}",
                     f"Sessions with recent rate limits: {', '.join(row['client_used'] for row in warning_clients)}",
                     'Single-session servers usually just need to wait for the cooldown to pass.',
-                    'If you use multiple sessions, spread monitors across distinct X accounts when possible.',
+                    'If you use multiple sessions, spread monitors across distinct Twitter/X accounts when possible.',
                 ]
                 if has_rate_limit_warning
                 else [
@@ -1012,6 +1012,10 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     recent_delivery_activity = _has_recent_dashboard_activity(
         [payload.get('last_delivery_success_at_raw') for payload in sources_payload]
     )
+    session_display_names = {
+        session['client_key']: session['session_name']
+        for session in visible_twitter_sessions
+    }
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -1026,6 +1030,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'plan_usage': usage,
             'twitter_sessions': visible_twitter_sessions,
             'unused_twitter_sessions': hidden_unused_local_sessions,
+            'session_display_names': session_display_names,
             'delivery_session_options': delivery_session_options,
             'delivery_sessions_required': delivery_sessions_required,
             'channel_names': resource_names['channels'],

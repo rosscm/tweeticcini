@@ -23,7 +23,7 @@
               <h1>{{ guild_name }}</h1>
               <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ guild_presentation.plan }} plan</span>
             </div>
-            <p class="lede lede--wide">Tweeticcini keeps watch on X so the right posts land in the right channels, right when your server needs them ✨</p>
+            <p class="lede lede--wide">Tweeticcini keeps watch on Twitter/X so the right posts land in the right channels, right when your server needs them ✨</p>
           </section>
 
           <nav class="guild-subnav guild-subnav--sidebar">
@@ -439,7 +439,7 @@
               <label for="twitter-session-auth-token">Auth token</label>
               <textarea id="twitter-session-auth-token" rows="7" placeholder="E.g., 53f95f4c8a2d7b1e9c0f4a6d3b8e1f7a2c9d4e6f1b3a5c7d9e0f2a4b6c8d1e3" {{ 'disabled' if twitter_session_limit_reached else '' }}></textarea>
               <div class="field-help">Paste the raw value of your current <code>x.com</code> <code>auth_token</code> cookie. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
-              <div class="field-help">To find <code>auth_token</code>, sign in to X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value for <code>auth_token</code>.</div>
+              <div class="field-help">To find <code>auth_token</code>, sign in to Twitter/X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value for <code>auth_token</code>.</div>
 
               <div class="actions">
                 <button type="submit" {{ 'disabled' if twitter_session_limit_reached else '' }}>Connect Session</button>
@@ -472,7 +472,7 @@
                     </td>
                     <td data-label="Status">
                       <span class="tag {{ 'tag--warning' if session.runtime_state == 'warning' or session.status != 'active' else '' }}">{{ 'Needs attention' if session.runtime_state == 'warning' else 'Active' }}</span>
-                      <div class="entity-meta">{{ session.assigned_monitor_count }} assigned monitor{{ '' if session.assigned_monitor_count == 1 else 's' }}</div>
+                      <div class="entity-meta">{{ session.assigned_monitor_count }} monitor{{ '' if session.assigned_monitor_count == 1 else 's' }} assigned</div>
                       {% if session.runtime_error_message %}
                       <div class="entity-meta entity-meta--warning">{{ session.runtime_error_message }}</div>
                       {% elif session.last_error_message %}
@@ -481,7 +481,6 @@
                     </td>
                     <td data-label="Activity">
                       <div class="entity-meta">Last healthy poll {{ session.last_poll_success_at or 'not recorded yet' }}</div>
-                      <div class="entity-meta">Last connected {{ session.last_validated_at or 'not recorded yet' }}</div>
                       {% if session.last_poll_error_at %}
                       <div class="entity-meta entity-meta--warning">Last runtime error {{ session.last_poll_error_at }}</div>
                       {% elif session.last_error_at %}
@@ -561,7 +560,7 @@
         </div>
         <div class="default-message-block">
           <h3>Default Message</h3>
-          <div class="field-help">Tweeticcini normally uses the first meaningful line from the tweet as the delivered message. The template below is the platform fallback format used when a custom default message is explicitly applied.</div>
+          <div class="field-help">Tweeticcini normally uses the first meaningful line from the post as the delivered message. The template below is the fallback format used when a custom default message is explicitly applied.</div>
           <pre class="message-preview">{{ bot_defaults.default_message }}</pre>
           <div class="field-help">Headline-style example: <code>A new post just went live: https://x.com/...</code></div>
         </div>
@@ -597,11 +596,15 @@
                 <option value="false" {{ 'selected' if not guild_presentation.effective.use_headline_message else '' }}>Template message</option>
                 <option value="true" {{ 'selected' if guild_presentation.effective.use_headline_message else '' }}>Headline-style message</option>
               </select>
-              <div class="field-help"><code>Headline-style message</code> pulls tweet text into the delivered alert, which makes banner notifications much more informative at a glance.</div>
+              <div class="status-detail-list">
+                <span class="tag tag--soft">Current default: {{ 'Headline-style' if guild_presentation.effective.use_headline_message else 'Template message' }}</span>
+              </div>
+              <div class="field-help"><code>Template message</code> uses your default format, like <code>@Role Account posted: https://x.com/...</code>.</div>
+              <div class="field-help"><code>Headline-style message</code> pulls post text into the delivered alert, which makes banner notifications much more informative at a glance.</div>
 
               <label for="presentation-default-message">Default message</label>
               <textarea id="presentation-default-message" rows="4" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>{{ guild_presentation.effective.default_message }}</textarea>
-              <div class="field-help">This template is the classic Tweetcord-style format. Use <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, and <code>{url}</code> to shape how alerts read.</div>
+              <div id="presentation-default-message-help" class="field-help">Use <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, and <code>{url}</code> to shape how alerts read. It only applies when <code>Template message</code> is selected above.</div>
 
               <label for="presentation-bot-display-name">Bot display name</label>
               <input id="presentation-bot-display-name" type="text" value="{{ guild_presentation.effective.bot_display_name }}" placeholder="E.g., Stock Pinger" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
@@ -622,10 +625,10 @@
               <div class="field-help">Choose between Discord embeds generated by the bot or FxTwitter-style routed links.</div>
 
               <div class="checkbox-grid">
-                <label class="checkbox-row"><input id="presentation-built-in-fx-image" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_fx_image else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use combined FX image for multi-image tweets</label>
+                <label class="checkbox-row"><input id="presentation-built-in-fx-image" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_fx_image else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use combined FX image for multi-image posts</label>
                 <label class="checkbox-row"><input id="presentation-built-in-video-button" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_video_link_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show video link button on built-in embeds</label>
                 <label class="checkbox-row"><input id="presentation-built-in-legacy-logo" type="checkbox" {{ 'checked' if guild_presentation.effective.built_in_legacy_logo else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Use legacy Twitter branding in the footer</label>
-                <label class="checkbox-row"><input id="presentation-fx-original-url" type="checkbox" {{ 'checked' if guild_presentation.effective.fx_original_url_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show original tweet link button on FxTwitter mode</label>
+                <label class="checkbox-row"><input id="presentation-fx-original-url" type="checkbox" {{ 'checked' if guild_presentation.effective.fx_original_url_button else '' }} {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}> Show original post link button on FxTwitter mode</label>
               </div>
 
               <label for="presentation-fx-domain-name">FX domain</label>
@@ -831,8 +834,8 @@
                 <input id="source-edit-mode" type="hidden" value="create">
                 <label for="source-username-edit">Twitter/X account</label>
                 <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA" {{ 'disabled' if delivery_sessions_required else '' }}>
-                <div class="field-help">Enter the username exactly as it appears on X, without the <code>@</code> symbol.</div>
-                <div class="field-help"><strong>The Twitter/X account(s) you connected on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> must be following this monitor account with post notifications turned on, or Tweeticcini will not see their posts.</strong></div>
+                <div class="field-help">Enter the username exactly as it appears on Twitter/X, without the <code>@</code> symbol.</div>
+                <div class="field-help"><strong>When you save a monitor, Tweeticcini will try to make the selected Twitter/X session follow this account and turn on post notifications automatically. If that change doesn't apply cleanly, alerts may not start until that session is following the account with notifications enabled.</strong></div>
 
                 <label for="source-channel-id-edit">Channel ID</label>
                 <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -852,7 +855,7 @@
                 </select>
                 <div class="field-help">Optional. If set, Tweeticcini will mention this role when it posts alerts for this account.</div>
 
-                <label for="source-enable-type-edit">Tweet filter</label>
+                <label for="source-enable-type-edit">Post filter</label>
                 <select id="source-enable-type-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
                   <option value="11">All</option>
                   <option value="10">Tweet + Retweet</option>
@@ -881,13 +884,17 @@
                 </select>
                 <div class="field-help">Choose which connected Twitter/X session this monitor should use.</div>
 
-                <label for="source-custom-message-edit">Custom message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
+                <label for="source-custom-message-edit">Custom alert message {{ '(Pro)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
                 <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
                 <div class="field-help">Optional. Leave blank to use the server default from <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">'Appearance'</a>.</div>
                 <label class="checkbox-row"><input id="source-use-headline-message-override-edit" type="checkbox" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}> Use headline-style for this monitor</label>
-                <div class="field-help">Checked: this monitor uses headline-style. If you also enter a custom message, the custom message wins.</div>
-                <div class="field-help">Examples: headline-style <code>@Restocks Queue is live: https://x.com/...</code>; template <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
-                <div class="field-help">Placeholders: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>. Use <strong>Send Test Alert</strong> to preview a non-pinging sample.</div>
+                <details class="helper-details">
+                  <summary>How message style works</summary>
+                  <div class="field-help" style="margin-top: 0.55rem;">Checked: this monitor uses headline-style. If you also enter a custom message, the custom message wins.</div>
+                  <div class="field-help">Examples: headline-style <code>@Restocks Queue is live: https://x.com/...</code>; template <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
+                  <div class="field-help">Placeholders: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>.</div>
+                </details>
+                <div class="field-help">Use <strong>Send Test Alert</strong> to preview a non-pinging sample.</div>
 
                 <div class="actions">
                   <button type="submit" {{ 'disabled' if delivery_sessions_required else '' }}>Save Monitor</button>
@@ -919,7 +926,7 @@
                 <tr class="data-row">
                   <td data-label="Account">
                     <div class="entity-title">{{ source.username }}</div>
-                    <div class="entity-meta">Uses {{ source.client_used }}</div>
+                    <div class="entity-meta">Uses {{ (session_display_names | default({})).get(source.client_used, source.client_used) }}</div>
                   </td>
                   <td data-label="Destination">
                     <div class="destination-block">
@@ -951,10 +958,12 @@
                         {% elif source.use_headline_message_override is sameas true %}
                         Headline-style
                         {% else %}
-                        Server default
+                        Server default style (Appearance)
                         {% endif %}
                       </span>
-                      <span class="tag {{ 'tag--warning' if source.runtime_state == 'warning' else '' }}">{{ 'Needs attention' if source.runtime_state == 'warning' else ('Healthy' if source.runtime_state == 'healthy' else 'No runtime data') }}</span>
+                      {% if source.runtime_state != 'healthy' %}
+                      <span class="tag {{ 'tag--warning' if source.runtime_state == 'warning' else '' }}">{{ 'Needs attention' if source.runtime_state == 'warning' else 'No runtime data' }}</span>
+                      {% endif %}
                     </div>
                     <div class="entity-meta">
                       Last delivery {{ source.last_delivery_success_at or 'not recorded yet' }}
@@ -1081,7 +1090,7 @@
 
                 <label for="rule-exclude-keywords">Exclude keywords</label>
                 <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., noisy phrase 1, noisy phrase 2, noisy phrase 3" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
-                <div class="field-help">Comma-separated phrases that should suppress alerts when they appear in the tweet text. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.</div>
+                <div class="field-help">Comma-separated phrases that should suppress alerts when they appear in the post text. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.</div>
                 <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
 
                 <label for="rule-trigger-keywords">Trigger keywords</label>
@@ -1536,6 +1545,22 @@
 
       const presentationForm = document.getElementById('presentation-form');
       if (presentationForm) {
+        const presentationStyleSelect = document.getElementById('presentation-use-headline-message');
+        const presentationDefaultMessage = document.getElementById('presentation-default-message');
+        const presentationDefaultMessageHelp = document.getElementById('presentation-default-message-help');
+        const syncPresentationDefaultMessageState = function () {
+          if (!presentationStyleSelect || !presentationDefaultMessage) return;
+          if (presentationForm.classList.contains('is-locked')) return;
+          const headlineMode = presentationStyleSelect.value === 'true';
+          presentationDefaultMessage.disabled = headlineMode;
+          if (presentationDefaultMessageHelp) {
+            presentationDefaultMessageHelp.hidden = headlineMode;
+          }
+        };
+        syncPresentationDefaultMessageState();
+        if (presentationStyleSelect) {
+          presentationStyleSelect.addEventListener('change', syncPresentationDefaultMessageState);
+        }
         presentationForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           if (presentationForm.classList.contains('is-locked')) {
