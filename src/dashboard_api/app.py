@@ -1396,7 +1396,6 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 billing_provider='stripe',
                 external_customer_id=data_object.get('customer'),
                 external_subscription_id=data_object.get('subscription'),
-                cancel_at_period_end=False,
                 is_test=False,
             )
 

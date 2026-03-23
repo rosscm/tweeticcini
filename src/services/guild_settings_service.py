@@ -228,7 +228,7 @@ class GuildSettingsService:
         external_customer_id: Optional[str] = None,
         external_subscription_id: Optional[str] = None,
         current_period_end: Optional[str] = None,
-        cancel_at_period_end: bool = False,
+        cancel_at_period_end: Optional[bool] = None,
         trial_ends_at: Optional[str] = None,
         is_test: bool = False,
     ) -> GuildPresentationView:
@@ -244,9 +244,13 @@ class GuildSettingsService:
             billing_provider=billing_provider,
             external_customer_id=external_customer_id if external_customer_id is not None else (current['external_customer_id'] if current is not None else None),
             external_subscription_id=external_subscription_id if external_subscription_id is not None else (current['external_subscription_id'] if current is not None else None),
-            current_period_end=current_period_end,
-            cancel_at_period_end=int(cancel_at_period_end),
-            trial_ends_at=trial_ends_at,
+            current_period_end=current_period_end if current_period_end is not None else (current['current_period_end'] if current is not None else None),
+            cancel_at_period_end=(
+                int(cancel_at_period_end)
+                if cancel_at_period_end is not None
+                else (current['cancel_at_period_end'] if current is not None else 0)
+            ),
+            trial_ends_at=trial_ends_at if trial_ends_at is not None else (current['trial_ends_at'] if current is not None else None),
             is_test=int(is_test),
             updated_at=get_utcnow(),
         )
