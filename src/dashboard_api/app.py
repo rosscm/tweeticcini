@@ -1412,11 +1412,24 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 else 'past_due' if status == 'past_due'
                 else 'none'
             )
+            cancel_at_period_end = bool(data_object.get('cancel_at_period_end'))
             current_period_end = None
-            period_end_timestamp = data_object.get('current_period_end')
+
+            # Stripe's subscription payload shape varies by API version. For pending
+            # cancellations, `cancel_at` is the most useful date. Otherwise fall back
+            # to the subscription or first item period end when available.
+            period_end_timestamp = (
+                data_object.get('cancel_at')
+                if cancel_at_period_end
+                else data_object.get('current_period_end')
+            )
+            if not period_end_timestamp:
+                items = data_object.get('items', {}).get('data', [])
+                if items:
+                    period_end_timestamp = items[0].get('current_period_end')
+
             if period_end_timestamp:
                 current_period_end = datetime.fromtimestamp(period_end_timestamp).isoformat(sep=' ', timespec='seconds')
-            cancel_at_period_end = bool(data_object.get('cancel_at_period_end'))
             log.info(
                 'stripe webhook %s for guild %s: status=%s cancel_at_period_end=%s current_period_end=%s',
                 event_type,
