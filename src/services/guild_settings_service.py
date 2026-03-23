@@ -138,6 +138,7 @@ class GuildSettingsService:
             external_customer_id=entitlement['external_customer_id'] if entitlement is not None else None,
             external_subscription_id=entitlement['external_subscription_id'] if entitlement is not None else None,
             current_period_end=entitlement['current_period_end'] if entitlement is not None else None,
+            cancel_at_period_end=entitlement['cancel_at_period_end'] if entitlement is not None else 0,
             trial_ends_at=entitlement['trial_ends_at'] if entitlement is not None else None,
             is_test=entitlement['is_test'] if entitlement is not None else 1,
             updated_at=get_utcnow(),

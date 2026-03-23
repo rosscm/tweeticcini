@@ -541,7 +541,7 @@
           <div>
             <p class="eyebrow">Premium</p>
             <h2>Plan Management</h2>
-            <p class="section-copy section-copy--wide">Check this server's plan status, start checkout when needed, and manage billing when a subscription is linked.</p>
+            <p class="section-copy section-copy--wide">Review this server's plan, start Premium when you're ready, and manage billing from one place.</p>
           </div>
         </div>
 
@@ -575,10 +575,7 @@
             {% set is_canceled = guild_presentation.entitlement.entitlement_status == 'canceled' %}
             {% if is_trialing %}
             <section class="notice notice--success notice--compact">
-              <strong>Trial active:</strong> this server is currently trialing Premium{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
-              <div class="status-detail-list">
-                <span class="tag tag--soft">Free trial active</span>
-              </div>
+              <strong>Trialing Premium{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}. {{ 'Cancels when trial ends.' if guild_presentation.entitlement.cancel_at_period_end else 'Renews automatically.' }}</strong>
             </section>
             {% elif has_active_pro_entitlement and not guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
@@ -623,26 +620,6 @@
             {% endif %}
           </div>
 
-          <div class="workspace-panel workspace-panel--wide">
-            <h3 class="panel-title">Stripe Setup</h3>
-            <div class="default-block">
-              <div><span class="meta-label">Stripe secret key</span> {{ 'configured' if billing_context.secret_configured else 'missing' }}</div>
-              <div><span class="meta-label">Webhook secret</span> {{ 'configured' if billing_context.webhook_configured else 'missing' }}</div>
-              <div><span class="meta-label">Publishable key</span> {{ 'configured' if billing_context.publishable_configured else 'missing' }}</div>
-              <div><span class="meta-label">Customer portal</span> {{ 'configured' if billing_context.portal_configured else 'ready after customer link' }}</div>
-              <div><span class="meta-label">Available prices</span> {{ billing_context.available_price_plans | join(', ') or 'none' }}</div>
-            </div>
-            {% if not billing_context.secret_configured or 'pro' not in billing_context.available_price_plans %}
-            <section class="notice notice--warning notice--compact">
-              <strong>Checkout is not ready yet:</strong> add <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_PRICE_ID_PRO</code> to enable checkout from this page.
-            </section>
-            {% endif %}
-            {% if not billing_context.webhook_configured %}
-            <section class="notice notice--plain notice--compact">
-              <strong>Webhook reminder:</strong> without <code>STRIPE_WEBHOOK_SECRET</code>, Stripe events cannot update this server's plan automatically.
-            </section>
-            {% endif %}
-          </div>
         </div>
 
         <details class="internal-tools">
