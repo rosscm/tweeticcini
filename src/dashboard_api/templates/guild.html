@@ -545,11 +545,7 @@
           </div>
         </div>
 
-        {% if request.query_params.get('checkout') == 'success' %}
-        <section class="notice notice--success">
-          <strong>Checkout launched:</strong> Stripe returned you to the dashboard. Once the webhook is configured and delivered, this server's plan will update automatically.
-        </section>
-        {% elif request.query_params.get('checkout') == 'canceled' %}
+        {% if request.query_params.get('checkout') == 'canceled' %}
         <section class="notice notice--plain">
           <strong>Checkout canceled:</strong> no billing changes were made.
         </section>
@@ -587,7 +583,7 @@
             </section>
             {% elif has_active_pro_entitlement and guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
-              <strong>Premium is active:</strong> this server has an active Stripe-backed Premium subscription{% if guild_presentation.entitlement.current_period_end %} through {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
+              <strong>Premium is active:</strong> this server has an active subscription. Visit <strong>Manage Subscription</strong> to make changes{% if guild_presentation.entitlement.current_period_end %} before {{ guild_presentation.entitlement.current_period_end }}{% endif %}.
             </section>
             {% elif is_past_due %}
             <section class="notice notice--warning notice--compact">
@@ -614,12 +610,6 @@
             <div class="actions">
               <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Checkout</button>
             </div>
-            {% endif %}
-            {% if guild_presentation.entitlement.external_customer_id %}
-            <div class="field-help">Customer ID: <code>{{ guild_presentation.entitlement.external_customer_id }}</code></div>
-            {% endif %}
-            {% if guild_presentation.entitlement.external_subscription_id %}
-            <div class="field-help">Subscription ID: <code>{{ guild_presentation.entitlement.external_subscription_id }}</code></div>
             {% endif %}
             {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
             <div class="field-help">This server is currently using a manual support or testing override.</div>

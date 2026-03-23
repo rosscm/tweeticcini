@@ -119,7 +119,18 @@ class BillingService:
                 },
             }
 
-        session = stripe.billing_portal.Session.create(**session_kwargs)
+        try:
+            session = stripe.billing_portal.Session.create(**session_kwargs)
+        except stripe.InvalidRequestError as error:
+            # If the subscription is already set to cancel, fall back to the normal
+            # portal so the customer can still review/reactivate billing details.
+            if subscription_id and 'already set to be canceled at period end' in str(error):
+                session = stripe.billing_portal.Session.create(
+                    customer=customer_id,
+                    return_url=return_url,
+                )
+            else:
+                raise
         return str(session.url)
 
     def construct_webhook_event(self, payload: bytes, signature: Optional[str]):
