@@ -555,10 +555,6 @@
         <section class="notice notice--warning">
           <strong>Manual override active:</strong> this server is currently using a support or testing override, so the plan shown here may not match its billing-backed state.
         </section>
-        {% elif guild_presentation.entitlement.entitlement_status == 'past_due' %}
-        <section class="notice notice--warning">
-          <strong>Billing attention needed:</strong> this subscription is currently marked <strong>past due</strong>.
-        </section>
         {% endif %}
 
         {% set has_active_pro_entitlement = guild_presentation.entitlement.entitlement_status in ['active', 'trialing', 'past_due'] and (guild_presentation.entitlement.subscribed_plan == 'pro' or guild_presentation.plan == 'pro') %}
@@ -575,7 +571,7 @@
             </section>
             {% elif is_past_due %}
             <section class="notice notice--warning notice--compact">
-              <strong>Billing attention needed.</strong> This subscription is past due. Visit <strong>Manage Subscription</strong> to update billing details{% if guild_presentation.entitlement.current_period_end %}. <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }} {{ guild_presentation.entitlement.current_period_end }}</strong>{% endif %}.
+              <strong>Billing attention needed.</strong> <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }}{% if guild_presentation.entitlement.current_period_end %} {{ guild_presentation.entitlement.current_period_end }}{% endif %}.</strong> Visit <strong>Manage Subscription</strong> to update billing details.
             </section>
             {% elif has_active_pro_entitlement and not guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
@@ -583,7 +579,7 @@
             </section>
             {% elif has_active_pro_entitlement and guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
-              <strong>Premium is active.</strong> This server has an active subscription. <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }}{% if guild_presentation.entitlement.current_period_end %} {{ guild_presentation.entitlement.current_period_end }}{% endif %}.</strong> Visit <strong>Manage Subscription</strong> to make changes.
+              <strong>Premium is active.</strong> <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }}{% if guild_presentation.entitlement.current_period_end %} {{ guild_presentation.entitlement.current_period_end }}{% endif %}.</strong> Visit <strong>Manage Subscription</strong> to make changes.
             </section>
             {% elif is_canceled %}
             <section class="notice notice--warning notice--compact">
