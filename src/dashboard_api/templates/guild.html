@@ -555,10 +555,6 @@
         <section class="notice notice--warning">
           <strong>Manual override active:</strong> this server is currently using a support or testing override, so the plan shown here may not match its billing-backed state.
         </section>
-        {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
-        <section class="notice notice--success">
-          <strong>Trial active:</strong> this server is currently trialing <strong>{{ guild_presentation.entitlement.subscribed_plan or guild_presentation.plan }}</strong>{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
-        </section>
         {% elif guild_presentation.entitlement.entitlement_status == 'past_due' %}
         <section class="notice notice--warning">
           <strong>Billing attention needed:</strong> this subscription is currently marked <strong>past due</strong>.
@@ -577,7 +573,14 @@
             {% set is_trialing = guild_presentation.entitlement.entitlement_status == 'trialing' %}
             {% set is_past_due = guild_presentation.entitlement.entitlement_status == 'past_due' %}
             {% set is_canceled = guild_presentation.entitlement.entitlement_status == 'canceled' %}
-            {% if has_active_pro_entitlement and not guild_presentation.entitlement.external_customer_id %}
+            {% if is_trialing %}
+            <section class="notice notice--success notice--compact">
+              <strong>Trial active:</strong> this server is currently trialing Premium{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
+              <div class="status-detail-list">
+                <span class="tag tag--soft">Free trial active</span>
+              </div>
+            </section>
+            {% elif has_active_pro_entitlement and not guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
               <strong>Premium is active:</strong> this server already has an active Premium entitlement. Subscription is being tracked through a legacy or support-managed setup.
             </section>
@@ -600,10 +603,6 @@
             {% elif is_canceled %}
             <section class="notice notice--warning notice--compact">
               <strong>Subscription canceled:</strong> this server is currently using default plan behavior unless another support override is active.
-            </section>
-            {% elif is_trialing %}
-            <section class="notice notice--success notice--compact">
-              <strong>Trial active:</strong> this server is currently trialing Premium{% if guild_presentation.entitlement.trial_ends_at %} through {{ guild_presentation.entitlement.trial_ends_at }}{% endif %}.
             </section>
             {% else %}
             <section class="notice notice--plain notice--compact">
