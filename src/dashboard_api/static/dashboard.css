@@ -1299,6 +1299,10 @@ button:hover,
   gap: 8px;
 }
 
+.tag-row--compact {
+  margin-top: 10px;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;

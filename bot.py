@@ -21,6 +21,7 @@ load_dotenv()
 
 intents = discord.Intents(guilds=True, messages=True, message_content=True, emojis=True)
 bot = commands.Bot(command_prefix=configs['prefix'], intents=intents)
+DEFAULT_COGS = ['dashboard', 'about']
 
 
 @bot.event
@@ -53,9 +54,9 @@ async def on_ready():
     await update_presence(bot)
 
     bot.tree.on_error = on_tree_error
-    for filename in os.listdir('./cogs'):
-        if filename.endswith('.py'):
-            await bot.load_extension(f'cogs.{filename[:-3]}')
+
+    for cog_name in DEFAULT_COGS:
+        await bot.load_extension(f'cogs.{cog_name}')
     log.info(f'{bot.user} is online')
     slash = await bot.tree.sync()
     log.info(f'synced {len(slash)} slash commands')

@@ -816,7 +816,7 @@
                 <tr class="data-row">
                   <td data-label="Account">
                     <div class="entity-title">{{ source.username }}</div>
-                    <div class="entity-meta">Uses {{ (session_display_names | default({})).get(source.client_used, source.client_used) }}</div>
+                    <div class="entity-meta">Uses session: {{ (session_display_names | default({})).get(source.client_used, source.client_used) }}</div>
                   </td>
                   <td data-label="Destination">
                     <div class="destination-block">
@@ -855,10 +855,12 @@
                       <span class="tag {{ 'tag--warning' if source.runtime_state == 'warning' else '' }}">{{ 'Needs attention' if source.runtime_state == 'warning' else 'No runtime data' }}</span>
                       {% endif %}
                     </div>
-                    <div class="entity-meta">
-                      Last delivery {{ source.last_delivery_success_at or 'not recorded yet' }}
+                    <div class="tag-row tag-row--compact">
+                      <span class="tag">
+                        Last delivery {{ source.last_delivery_success_at or 'not recorded yet' }}
+                      </span>
                       {% if source.last_matched_rule_name %}
-                      via {{ source.last_matched_rule_name }}
+                      <span class="tag">via {{ source.last_matched_rule_name }}</span>
                       {% endif %}
                     </div>
                     {% if source.last_delivery_error_at %}
