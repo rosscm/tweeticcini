@@ -13,6 +13,7 @@ from src.db_function.init_db import ensure_db_schema
 from src.db_function.repair_db import auto_repair_mismatched_clients
 from src.presence_updater import update_presence
 from src.log import setup_logger
+from src.repositories.guild_cleanup_repository import cleanup_guild_data
 from src.settings import get_db_path
 
 log = setup_logger(__name__)
@@ -131,6 +132,17 @@ async def on_command_error(ctx: commands.context.Context, error: commands.errors
     else:
         await ctx.send(error)
     log.warning(f'an error occurred but was handled by the command error handler, error message : {error}')
+
+
+@bot.event
+async def on_guild_remove(guild: discord.Guild):
+    summary = await cleanup_guild_data(get_db_path(), str(guild.id))
+    log.info(
+        'cleaned up guild %s (%s) after removal: %s',
+        guild.id,
+        guild.name,
+        summary,
+    )
 
 
 if __name__ == '__main__':
