@@ -240,11 +240,18 @@
         </div>
         <p id="status-message" class="status-message status-message--{{ status_banner.level }}">{{ status_banner.message }}</p>
         {% if status_banner.details %}
+        {% set status_note = status_banner.details[0] if status_banner.details[0].startswith('Needs attention:') else None %}
+        {% if status_note %}
+        <p class="section-copy section-copy--wide"><strong>Needs attention:</strong>{{ status_note.replace('Needs attention:', '') }}</p>
+        {% endif %}
+        {% set status_tags = status_banner.details[1:] if status_note else status_banner.details %}
+        {% if status_tags %}
         <div class="status-detail-list">
-          {% for detail in status_banner.details %}
+          {% for detail in status_tags %}
           <span class="tag tag--soft">{{ detail }}</span>
           {% endfor %}
         </div>
+        {% endif %}
         {% endif %}
       </section>
 
