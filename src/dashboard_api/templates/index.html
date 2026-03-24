@@ -43,7 +43,7 @@
           <label>Your servers</label>
           <div class="guild-list">
             {% for guild in manageable_guilds %}
-            <a class="guild-link" href="/dashboard/guilds/{{ guild.id }}">
+            <div class="guild-link-shell {{ 'guild-link-shell--inactive' if guild.bot_present is sameas false else '' }}">
               <span class="guild-link-icon" aria-hidden="true">
                 {% if guild.icon %}
                 <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=128" alt="">
@@ -51,13 +51,37 @@
                 <span class="guild-link-fallback">{{ guild.name[:1] }}</span>
                 {% endif %}
               </span>
-              <span class="guild-link-copy">{{ guild.name }}</span>
-              <span class="guild-link-arrow" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="m9 18 6-6-6-6"></path>
-                </svg>
-              </span>
-            </a>
+              <div class="guild-link-main">
+                <div class="guild-link-topline">
+                  <span class="guild-link-copy">{{ guild.name }}</span>
+                  {% if guild.bot_present %}
+                  <span class="tag tag--soft">Ready</span>
+                  {% elif guild.bot_present is sameas false %}
+                  <span class="tag tag--warning">Invite Tweeticcini first</span>
+                  {% endif %}
+                </div>
+                <div class="guild-link-subcopy">
+                  {% if guild.bot_present %}
+                  Tweeticcini is already in this server.
+                  {% elif guild.bot_present is sameas false %}
+                  This server can be managed once Tweeticcini has been invited.
+                  {% else %}
+                  Open this server to continue setup.
+                  {% endif %}
+                </div>
+              </div>
+              {% if guild.bot_present is sameas false and guild.bot_invite_url %}
+              <a class="button-secondary guild-link-action" href="{{ guild.bot_invite_url }}" target="_blank" rel="noreferrer">Invite</a>
+              {% else %}
+              <a class="guild-link" href="/dashboard/guilds/{{ guild.id }}" aria-label="Open {{ guild.name }}">
+                <span class="guild-link-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m9 18 6-6-6-6"></path>
+                  </svg>
+                </span>
+              </a>
+              {% endif %}
+            </div>
             {% endfor %}
           </div>
         </div>

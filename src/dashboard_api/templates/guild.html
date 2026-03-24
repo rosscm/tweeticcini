@@ -416,20 +416,32 @@
                       <div class="entity-meta">Key: {{ session.client_key }}</div>
                     </td>
                     <td data-label="Status">
-                      <span class="tag {{ 'tag--warning' if session.runtime_state == 'warning' or session.status != 'active' else '' }}">{{ 'Needs attention' if session.runtime_state == 'warning' else 'Active' }}</span>
-                      <div class="entity-meta">{{ session.assigned_monitor_count }} monitor{{ '' if session.assigned_monitor_count == 1 else 's' }} assigned</div>
+                      <div class="tag-row">
+                        <span class="tag {{ 'tag--warning' if session.runtime_state == 'warning' or session.status != 'active' else '' }}">{{ 'Needs attention' if session.runtime_state == 'warning' else 'Active' }}</span>
+                        <span class="tag">{{ session.assigned_monitor_count }} monitor{{ '' if session.assigned_monitor_count == 1 else 's' }} assigned</span>
+                      </div>
                       {% if session.runtime_error_message %}
-                      <div class="entity-meta entity-meta--warning">{{ session.runtime_error_message }}</div>
+                      <div class="tag-row tag-row--compact">
+                        <span class="tag tag--warning">{{ session.runtime_error_message }}</span>
+                      </div>
                       {% elif session.last_error_message %}
-                      <div class="entity-meta entity-meta--warning">{{ session.last_error_message }}</div>
+                      <div class="tag-row tag-row--compact">
+                        <span class="tag tag--warning">{{ session.last_error_message }}</span>
+                      </div>
                       {% endif %}
                     </td>
                     <td data-label="Activity">
-                      <div class="entity-meta">Last healthy poll {{ session.last_poll_success_at or 'not recorded yet' }}</div>
+                      <div class="tag-row tag-row--compact">
+                        <span class="tag">Last healthy poll {{ session.last_poll_success_at or 'not recorded yet' }}</span>
+                      </div>
                       {% if session.last_poll_error_at %}
-                      <div class="entity-meta entity-meta--warning">Last runtime error {{ session.last_poll_error_at }}</div>
+                      <div class="tag-row tag-row--compact">
+                        <span class="tag tag--warning">Last runtime error {{ session.last_poll_error_at }}</span>
+                      </div>
                       {% elif session.last_error_at %}
-                      <div class="entity-meta entity-meta--warning">Last connection error {{ session.last_error_at }}</div>
+                      <div class="tag-row tag-row--compact">
+                        <span class="tag tag--warning">Last connection error {{ session.last_error_at }}</span>
+                      </div>
                       {% endif %}
                     </td>
                     <td data-label="Actions">

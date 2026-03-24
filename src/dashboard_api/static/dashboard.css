@@ -118,11 +118,28 @@ body {
   border-color: rgba(88, 101, 242, 0.38);
 }
 
-.guild-link {
+.guild-link-shell {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+.guild-link-shell:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(88, 101, 242, 0.38);
+}
+
+.guild-link-shell--inactive {
+  opacity: 0.82;
+  background: rgba(255, 255, 255, 0.025);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .guild-link-icon {
@@ -152,12 +169,45 @@ body {
   color: var(--ink);
 }
 
+.guild-link-main {
+  min-width: 0;
+}
+
+.guild-link-topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
 .guild-link-copy {
   min-width: 0;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.guild-link-subcopy {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.guild-link-action {
+  white-space: nowrap;
+}
+
+.guild-link {
+  padding: 0;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
 }
 
 .guild-link-arrow {

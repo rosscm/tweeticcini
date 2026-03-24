@@ -1,3 +1,4 @@
+import asyncio
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -400,6 +401,20 @@ def _build_discord_login_url(request: Request, state: str) -> Optional[str]:
     return f'https://discord.com/api/oauth2/authorize?{query}'
 
 
+def _build_bot_invite_url(guild_id: Optional[str] = None) -> Optional[str]:
+    oauth = _get_discord_oauth_config()
+    if oauth is None:
+        return None
+    query = {
+        'client_id': oauth['client_id'],
+        'scope': 'bot applications.commands',
+    }
+    if guild_id:
+        query['guild_id'] = guild_id
+        query['disable_guild_select'] = 'true'
+    return f"https://discord.com/api/oauth2/authorize?{urlencode(query)}"
+
+
 def _get_manageable_guilds(guilds: list[dict[str, object]]) -> list[dict[str, object]]:
     manageable = []
     for guild in guilds:
@@ -407,6 +422,46 @@ def _get_manageable_guilds(guilds: list[dict[str, object]]) -> list[dict[str, ob
         if permissions & 0x8 or permissions & 0x20:
             manageable.append(guild)
     return sorted(manageable, key=lambda guild: str(guild.get('name', '')).lower())
+
+
+async def _annotate_guild_bot_presence(guilds: list[dict[str, object]]) -> list[dict[str, object]]:
+    bot_token = os.getenv('BOT_TOKEN')
+    if not bot_token:
+        return [
+            {
+                **guild,
+                'bot_present': None,
+                'bot_invite_url': _build_bot_invite_url(str(guild.get('id') or '')) if guild.get('id') else _build_bot_invite_url(),
+            }
+            for guild in guilds
+        ]
+
+    headers = {'Authorization': f'Bot {bot_token}'}
+
+    async with aiohttp.ClientSession(headers=headers) as session:
+        async def _check_guild(guild: dict[str, object]) -> dict[str, object]:
+            guild_id = str(guild.get('id') or '')
+            bot_present = False
+            if guild_id:
+                try:
+                    async with session.get(f'https://discord.com/api/v10/guilds/{guild_id}/members/@me') as response:
+                        bot_present = response.status < 400
+                except Exception:
+                    bot_present = False
+            return {
+                **guild,
+                'bot_present': bot_present,
+                'bot_invite_url': _build_bot_invite_url(guild_id) if guild_id else _build_bot_invite_url(),
+            }
+
+        annotated = await asyncio.gather(*[_check_guild(guild) for guild in guilds])
+    return sorted(
+        annotated,
+        key=lambda guild: (
+            0 if guild.get('bot_present') else 1,
+            str(guild.get('name', '')).lower(),
+        ),
+    )
 
 
 def _get_session_user(request: Request) -> Optional[dict[str, object]]:
@@ -682,8 +737,8 @@ def _build_status_banner(
             'level': 'error',
             'message': "Connect a Twitter/X session before this server can start delivering monitor alerts. To get started, open 'Sessions' and connect at least one session before adding monitors.",
             'details': [
-                'Connected sessions: 0',
-                f'Sources: {source_count} / {source_limit}',
+                'Sessions: 0',
+                f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
         }
@@ -702,8 +757,8 @@ def _build_status_banner(
                 'level': 'warning',
                 'message': "A session is connected and ready. Open 'Monitors' to add the first account for this server.",
                 'details': [
-                    f'Connected sessions: {len(delivery_sessions)}',
-                    f'Sources: {source_count} / {source_limit}',
+                    f'Sessions: {len(delivery_sessions)}',
+                    f'Monitors: {source_count} / {source_limit}',
                     f'Rules: {rule_count} / {rule_limit}',
                 ],
             }
@@ -711,8 +766,8 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'A session is connected, but the bot has not brought it online yet. Wait a moment for the bot to load the newly connected session and bring delivery polling online.',
             'details': [
-                f'Connected sessions: {len(delivery_sessions)}',
-                f'Sources: {source_count} / {source_limit}',
+                f'Sessions: {len(delivery_sessions)}',
+                f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
         }
@@ -722,8 +777,8 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'The dashboard is up, but the bot has not logged itself online in the last 24 hours.',
             'details': [
-                f'Connected sessions: {len(delivery_sessions)}',
-                f'Sources: {source_count} / {source_limit}',
+                f'Sessions: {len(delivery_sessions)}',
+                f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
         }
@@ -740,14 +795,14 @@ def _build_status_banner(
             ),
             'details': (
                 [
-                    f"Connected sessions: {len(delivery_sessions)}",
+                    f"Sessions: {len(delivery_sessions)}",
                     f"Sessions with recent rate limits: {', '.join(row['client_used'] for row in warning_clients)}",
                     'Single-session servers usually just need to wait for the cooldown to pass.',
                     'If you use multiple sessions, spread monitors across distinct Twitter/X accounts when possible.',
                 ]
                 if has_rate_limit_warning
                 else [
-                    f"Connected sessions: {len(delivery_sessions)}",
+                    f"Sessions: {len(delivery_sessions)}",
                     f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
                 ]
             ),
@@ -773,7 +828,7 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'Everything looks healthy, but this server is at or near one of its plan limits.',
             'details': [
-                f'Sources: {source_count} / {source_limit}',
+                f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
         }
@@ -782,8 +837,8 @@ def _build_status_banner(
         'level': 'success',
         'message': 'Everything looks healthy right now. Sessions are watching for new posts and the bot has checked in recently.',
         'details': [
-            f'Connected sessions: {len(delivery_sessions)}',
-            f'Sources: {source_count} / {source_limit}',
+            f'Sessions: {len(delivery_sessions)}',
+            f'Monitors: {source_count} / {source_limit}',
             f'Rules: {rule_count} / {rule_limit}',
         ],
     }
@@ -841,6 +896,11 @@ async def dashboard_home(request: Request):
         if requested_guild_id in {str(guild.get('id')) for guild in _get_session_guilds(request)}:
             return RedirectResponse(url=f'/dashboard/guilds/{requested_guild_id}/overview')
 
+    manageable_guilds = _get_session_guilds(request)
+    if manageable_guilds:
+        manageable_guilds = await _annotate_guild_bot_presence(manageable_guilds)
+        request.session['discord_guilds'] = manageable_guilds
+
     state = secrets.token_urlsafe(24)
     request.session['discord_oauth_state'] = state
     return templates.TemplateResponse(
@@ -852,7 +912,7 @@ async def dashboard_home(request: Request):
             'oauth_enabled': _get_discord_oauth_config() is not None,
             'discord_login_url': _build_discord_login_url(request, state),
             'discord_user': _get_session_user(request),
-            'manageable_guilds': _get_session_guilds(request),
+            'manageable_guilds': manageable_guilds,
         },
     )
 
@@ -909,7 +969,7 @@ async def dashboard_callback(request: Request, code: str, state: str) -> Redirec
             if response.status >= 400:
                 raise HTTPException(status_code=400, detail=f'failed to fetch discord guilds: {guilds_data}')
 
-    manageable_guilds = _get_manageable_guilds(guilds_data)
+    manageable_guilds = await _annotate_guild_bot_presence(_get_manageable_guilds(guilds_data))
     request.session['discord_user'] = {
         'id': user_data.get('id'),
         'username': user_data.get('username'),
