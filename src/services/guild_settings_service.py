@@ -294,6 +294,22 @@ class GuildSettingsService:
                 is_test=bool(row['is_test']),
             )
 
+        if row is not None:
+            return GuildEntitlementView(
+                effective_plan=PLAN_FREE,
+                plan_source='subscription',
+                entitlement_status=row['entitlement_status'] if row['entitlement_status'] else 'none',
+                subscribed_plan=row['subscribed_plan'],
+                manual_plan_override=row['manual_plan_override'],
+                billing_provider=row['billing_provider'],
+                external_customer_id=row['external_customer_id'],
+                external_subscription_id=row['external_subscription_id'],
+                current_period_end=row['current_period_end'],
+                cancel_at_period_end=bool(row['cancel_at_period_end']),
+                trial_ends_at=row['trial_ends_at'],
+                is_test=bool(row['is_test']),
+            )
+
         legacy_plan = self._normalize_plan(legacy_row['plan'] if legacy_row is not None else None)
         plan_source = 'legacy' if legacy_row is not None and legacy_row['plan'] in SUPPORTED_PLANS else 'default'
         return GuildEntitlementView(
