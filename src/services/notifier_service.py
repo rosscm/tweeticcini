@@ -15,6 +15,7 @@ from src.repositories.notifier_repository import (
     get_active_notifications_for_user,
     get_dashboard_source_message,
     get_channel_ids_for_server,
+    get_enabled_notifier_record,
     get_enabled_notifier_user_id,
     get_enabled_notifier_user_id_for_server,
     get_enabled_notifications_for_user_client,
@@ -204,8 +205,15 @@ class NotifierService:
                             f'can\'t find channel <#{request.channel_id}> in {request.guild_name}!'
                         )
 
-                    user_id = await get_enabled_notifier_user_id(cursor, request.username, request.channel_id)
-                    match_notifier = {'user_id': user_id} if user_id is not None else None
+                    row = await get_enabled_notifier_record(cursor, request.username, request.channel_id)
+                    match_notifier = (
+                        {
+                            'user_id': row['user_id'],
+                            'client_used': row['client_used'],
+                        }
+                        if row is not None
+                        else None
+                    )
                     if match_notifier is None:
                         return RemoveNotifierResult(
                             removed=False,
@@ -214,7 +222,7 @@ class NotifierService:
                             response_message=f"can't find notifier {request.username} in <#{request.channel_id}>!",
                         )
 
-                    client_used = await get_client_used_for_user(cursor, match_notifier['user_id'])
+                    client_used = match_notifier['client_used'] or await get_client_used_for_user(cursor, match_notifier['user_id'])
                     async with lock:
                         await db.execute('BEGIN')
                         await disable_notification(cursor, match_notifier['user_id'], request.channel_id)

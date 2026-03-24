@@ -88,6 +88,18 @@ async def get_enabled_notifier_user_id(cursor, username: str, channel_id: str) -
     return row['user_id'] if row is not None else None
 
 
+async def get_enabled_notifier_record(cursor, username: str, channel_id: str):
+    await cursor.execute(
+        '''
+        SELECT notification.user_id, notification.client_used
+        FROM notification, user
+        WHERE username = ? AND channel_id = ? AND user_id = id AND notification.enabled = 1
+        ''',
+        (username, channel_id),
+    )
+    return await cursor.fetchone()
+
+
 async def get_enabled_notifier_user_id_for_server(cursor, username: str, server_id: str) -> Optional[str]:
     await cursor.execute(
         '''
