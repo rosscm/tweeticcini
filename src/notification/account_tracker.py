@@ -250,6 +250,13 @@ class AccountTracker():
                                         source_username=username,
                                         text=text,
                                     )
+                                    if alert_decision.should_force_everyone and not presentation.features.can_use_everyone_escalation:
+                                        matched_rule = f" via rule {alert_decision.matched_rule_name}" if alert_decision.matched_rule_name else ''
+                                        log.info(
+                                            f"skipping delivery for guild {channel.guild.id}{matched_rule}: "
+                                            'ping everyone rules require Premium'
+                                        )
+                                        continue
                                     if alert_decision.should_exclude:
                                         keyword_detail = ''
                                         if alert_decision.matched_keywords:
