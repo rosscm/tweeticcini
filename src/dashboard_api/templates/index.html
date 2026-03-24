@@ -43,7 +43,7 @@
           <label>Your servers</label>
           <div class="guild-list">
             {% for guild in manageable_guilds %}
-            <div class="guild-link-shell {{ 'guild-link-shell--inactive' if guild.bot_present is sameas false else '' }}">
+            <div class="guild-link-shell {{ 'guild-link-shell--ready' if guild.bot_present else '' }} {{ 'guild-link-shell--inactive' if guild.bot_present is sameas false else '' }}">
               <span class="guild-link-icon" aria-hidden="true">
                 {% if guild.icon %}
                 <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=128" alt="">
@@ -54,20 +54,6 @@
               <div class="guild-link-main">
                 <div class="guild-link-topline">
                   <span class="guild-link-copy">{{ guild.name }}</span>
-                  {% if guild.bot_present %}
-                  <span class="tag tag--soft">Ready</span>
-                  {% elif guild.bot_present is sameas false %}
-                  <span class="tag tag--warning">Invite Tweeticcini first</span>
-                  {% endif %}
-                </div>
-                <div class="guild-link-subcopy">
-                  {% if guild.bot_present %}
-                  Tweeticcini is already in this server.
-                  {% elif guild.bot_present is sameas false %}
-                  This server can be managed once Tweeticcini has been invited.
-                  {% else %}
-                  Open this server to continue setup.
-                  {% endif %}
                 </div>
               </div>
               {% if guild.bot_present is sameas false and guild.bot_invite_url %}

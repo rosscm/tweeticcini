@@ -130,10 +130,20 @@ body {
   transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, opacity 140ms ease;
 }
 
+.guild-link-shell--ready {
+  border-color: rgba(110, 185, 130, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 0 0 1px rgba(87, 156, 106, 0.16);
+}
+
 .guild-link-shell:hover {
   transform: translateY(-1px);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(88, 101, 242, 0.38);
+}
+
+.guild-link-shell--ready:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(125, 206, 146, 0.58);
 }
 
 .guild-link-shell--inactive {
@@ -187,13 +197,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.guild-link-subcopy {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.45;
 }
 
 .guild-link-action {
