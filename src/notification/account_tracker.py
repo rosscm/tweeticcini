@@ -206,6 +206,12 @@ class AccountTracker():
                             if channel is not None:
                                 try:
                                     presentation = await self.guild_settings_service.get_presentation_view(str(channel.guild.id))
+                                    log.info(
+                                        f"delivery compliance check for guild {channel.guild.id}: "
+                                        f"plan={presentation.plan} "
+                                        f"non_compliant={presentation.compliance.is_non_compliant} "
+                                        f"reasons={list(presentation.compliance.reason_labels)}"
+                                    )
                                     if presentation.plan == 'free' and presentation.compliance.is_non_compliant:
                                         log.info(
                                             f"skipping delivery for guild {channel.guild.id}: "
