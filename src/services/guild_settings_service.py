@@ -252,7 +252,11 @@ class GuildSettingsService:
                 fx_domain_name_override=legacy_row['fx_domain_name_override'] if legacy_row is not None else None,
                 fx_original_url_button_override=legacy_row['fx_original_url_button_override'] if legacy_row is not None else None,
             )
-        return await self.get_presentation_view(server_id)
+        presentation = await self.get_presentation_view(server_id)
+        if presentation.plan == PLAN_FREE and presentation.has_overrides:
+            await self._clear_presentation_overrides(server_id)
+            presentation = await self.get_presentation_view(server_id)
+        return presentation
 
     async def set_plan(self, server_id: str, plan: str) -> GuildPresentationView:
         normalized_plan = self._normalize_plan(plan)
@@ -362,7 +366,11 @@ class GuildSettingsService:
             is_test=int(is_test),
             updated_at=get_utcnow(),
         )
-        return await self.get_presentation_view(server_id)
+        presentation = await self.get_presentation_view(server_id)
+        if presentation.plan == PLAN_FREE and presentation.has_overrides:
+            await self._clear_presentation_overrides(server_id)
+            presentation = await self.get_presentation_view(server_id)
+        return presentation
 
     async def update_presentation(
         self,
@@ -435,4 +443,24 @@ class GuildSettingsService:
                 'fx_domain_name_override',
                 'fx_original_url_button_override',
             )
+        )
+
+    async def _clear_presentation_overrides(self, server_id: str) -> None:
+        row = await get_guild_settings_row(self.db_path, server_id)
+        if row is None:
+            return
+        await upsert_guild_settings(
+            self.db_path,
+            server_id=server_id,
+            plan=PLAN_FREE,
+            default_message_override=None,
+            use_headline_message_override=None,
+            bot_display_name_override=None,
+            emoji_auto_format_override=None,
+            embed_type_override=None,
+            built_in_fx_image_override=None,
+            built_in_video_link_button_override=None,
+            built_in_legacy_logo_override=None,
+            fx_domain_name_override=None,
+            fx_original_url_button_override=None,
         )
