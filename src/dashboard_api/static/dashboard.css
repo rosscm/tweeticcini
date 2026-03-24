@@ -80,6 +80,10 @@ body {
   margin-top: 10px;
 }
 
+.field-help--spaced {
+  margin-top: 14px;
+}
+
 .notice .status-detail-list {
   margin-top: 12px;
 }
@@ -752,7 +756,7 @@ h2 {
 
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -785,6 +789,12 @@ h2 {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
+}
+
+.overview-card {
+  min-height: 188px;
+  display: flex;
+  flex-direction: column;
 }
 
 .internal-tools {
@@ -828,6 +838,64 @@ h2 {
 
 .default-block div {
   margin-bottom: 10px;
+}
+
+.overview-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.overview-stat-row .meta-label {
+  flex: 0 0 112px;
+}
+
+.overview-stat-row span:last-child {
+  flex: 1 1 auto;
+  text-align: right;
+  color: var(--ink);
+}
+
+.overview-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.overview-account-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 132px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.overview-account-pill {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+
+.overview-delivery-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.overview-delivery-head strong {
+  font-size: 1.05rem;
 }
 
 .default-message-block {
@@ -928,9 +996,13 @@ h2 {
   border: 1px solid var(--line);
 }
 
+.plan-tile-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
 .plan-tile strong {
   display: block;
-  margin-top: 6px;
   font-size: 1.05rem;
 }
 

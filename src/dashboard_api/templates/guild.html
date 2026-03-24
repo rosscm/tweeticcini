@@ -23,7 +23,7 @@
               <h1>{{ guild_name }}</h1>
               <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan</span>
             </div>
-            <p class="lede lede--wide">Tweeticcini keeps watch on Twitter/X so the right posts land in the right channels, right when your server needs them ✨</p>
+            <p class="lede lede--wide">Tweeticcini keeps watch on Twitter/X so the right posts land in the right channels, right when your server needs them 🚀</p>
           </section>
 
           <nav class="guild-subnav guild-subnav--sidebar">
@@ -281,21 +281,21 @@
 
         <div class="plan-summary">
           <div class="plan-tile">
-            <span class="meta-label">Current plan</span>
+            <h3 class="plan-tile-title">Current Plan</h3>
             <strong class="plan-name">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }}</strong>
             <div class="plan-tile-copy">via {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</div>
           </div>
           <div class="plan-tile">
-            <span class="meta-label">Tracked accounts</span>
+            <h3 class="plan-tile-title">Sessions</h3>
+            <strong>{{ delivery_session_options|length }} / {{ guild_presentation.features.max_twitter_sessions }}</strong>
+          </div>
+          <div class="plan-tile">
+            <h3 class="plan-tile-title">Monitors</h3>
             <strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong>
           </div>
           <div class="plan-tile">
-            <span class="meta-label">Alert rules</span>
+            <h3 class="plan-tile-title">Rules</h3>
             <strong>{{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }}</strong>
-          </div>
-          <div class="plan-tile">
-            <span class="meta-label">Appearance</span>
-            <strong>{{ 'customizable' if guild_presentation.features.can_customize_presentation else 'default only' }}</strong>
           </div>
         </div>
 
@@ -315,36 +315,59 @@
         {% endif %}
 
         <div class="overview-grid">
-          <div class="default-block">
-            <h3>Alert Setup</h3>
-            <div><span class="meta-label">Current style</span> {{ overview.current_style_label }}</div>
-            <div><span class="meta-label">Rules</span> {{ plan_usage.rule_count }} total, {{ overview.scoped_rule_count }} scoped</div>
-            <div><span class="meta-label">Priority pings</span> {{ overview.escalation_rule_count }} rule{{ '' if overview.escalation_rule_count == 1 else 's' }}, {{ plan_usage.trigger_keyword_count }} ping phrase{{ '' if plan_usage.trigger_keyword_count == 1 else 's' }}</div>
-            <div><span class="meta-label">Custom setup</span> {{ overview.custom_message_count }} custom message{{ '' if overview.custom_message_count == 1 else 's' }}, {{ plan_usage.exclude_keyword_count }} muted phrase{{ '' if plan_usage.exclude_keyword_count == 1 else 's' }}</div>
+          <div class="default-block overview-card">
+            <h3>Delivery Snapshot</h3>
+            <div class="overview-pill-list">
+              <span class="tag tag--soft">Style: {{ overview.current_style_label }}</span>
+              <span class="tag tag--soft">Scoped rules: {{ overview.scoped_rule_count }}</span>
+              <span class="tag tag--soft">Priority pings: {{ overview.escalation_rule_count }}</span>
+              <span class="tag tag--soft">Custom messages: {{ overview.custom_message_count }}</span>
+              <span class="tag tag--soft">Muted phrases: {{ plan_usage.exclude_keyword_count }}</span>
+              <span class="tag tag--soft">Destinations: {{ overview.top_destination_names | length }}</span>
+            </div>
+            {% if not overview.top_destination_names %}
+            <div class="overview-note">No destinations yet. Add a monitor to start delivering alerts.</div>
+            {% endif %}
           </div>
 
-          <div class="default-block">
-            <h3>Monitoring</h3>
+          <div class="default-block overview-card">
+            <h3>Watched Accounts</h3>
             {% if overview.source_names %}
-            <div class="overview-list">
+            <div class="overview-account-list">
               {% for source_name in overview.source_names %}
-              <span class="tag">{{ source_name }}</span>
+              <span class="overview-account-pill">{{ source_name }}</span>
               {% endfor %}
             </div>
             {% if plan_usage.source_count > overview.source_names | length %}
-            <div class="overview-note">Plus {{ plan_usage.source_count - (overview.source_names | length) }} more monitors.</div>
+            <div class="overview-note">Plus {{ plan_usage.source_count - (overview.source_names | length) }} more account{{ '' if plan_usage.source_count - (overview.source_names | length) == 1 else 's' }}.</div>
             {% endif %}
             {% else %}
             <div class="overview-note">No monitors yet. Add your first monitor from 'Monitors'.</div>
             {% endif %}
           </div>
 
-          <div class="default-block">
+          <div class="default-block overview-card">
+            <h3>Last Delivery</h3>
+            {% if overview.latest_delivery %}
+            <div class="overview-delivery-head">
+              <strong>{{ overview.latest_delivery.username }}</strong>
+              <span class="tag tag--soft">{{ overview.latest_delivery.delivered_at }}</span>
+            </div>
+            <div class="overview-note">Delivered to {{ overview.latest_delivery.channel_name }}{% if overview.latest_delivery.matched_rule_name %} via {{ overview.latest_delivery.matched_rule_name }}{% endif %}.</div>
+            {% if overview.latest_delivery.delivery_url %}
+            <div class="overview-note"><a class="inline-link" href="{{ overview.latest_delivery.delivery_url }}" target="_blank" rel="noreferrer">Open delivered post</a></div>
+            {% endif %}
+            {% else %}
+            <div class="overview-note">No successful deliveries yet for this server.</div>
+            {% endif %}
+          </div>
+
+          <div class="default-block overview-card">
             <h3>Quick Actions</h3>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage monitors</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules">Edit alert rules</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust appearance</a></div>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Manage billing</a></div>
+            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Manage Premium</a></div>
           </div>
         </div>
       </section>
@@ -610,7 +633,7 @@
               <strong>Free plan is active.</strong> Start Checkout when you're ready to upgrade to Premium.
             </section>
             {% if guild_presentation.entitlement.trial_used_at %}
-            <div class="field-help">This server has already used its free trial. Starting checkout will begin a paid subscription.</div>
+            <div class="field-help field-help--spaced">This server has already used its free trial. Starting checkout will begin a paid subscription.</div>
             {% endif %}
             {% endif %}
             {% if has_active_pro_entitlement %}

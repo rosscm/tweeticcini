@@ -742,6 +742,7 @@ def _build_status_banner(
     client_statuses: list[dict[str, object]],
     recent_delivery_activity: bool = False,
 ) -> dict[str, object]:
+    session_limit = guild_presentation.features.max_twitter_sessions
     if guild_presentation.plan == 'free' and guild_presentation.compliance.is_non_compliant:
         reason_labels = {
             'too many sessions': 'Too many connected sessions for Free',
@@ -760,7 +761,7 @@ def _build_status_banner(
             'message': 'This server is over Free plan limits. Delivery is paused until you remove Premium-only setup or reactivate Premium.',
             'details': [
                 f"Needs attention: {'; '.join(blocking_reasons)}",
-                f'Sessions: {guild_presentation.compliance.session_count} / {guild_presentation.features.max_twitter_sessions}',
+                f'Sessions: {guild_presentation.compliance.session_count} / {session_limit}',
                 f'Monitors: {guild_presentation.compliance.source_count} / {guild_presentation.features.max_sources}',
                 f'Rules: {guild_presentation.compliance.rule_count} / {guild_presentation.features.max_rules}',
             ],
@@ -776,7 +777,7 @@ def _build_status_banner(
             'level': 'error',
             'message': "Connect a Twitter/X session before this server can start delivering monitor alerts. To get started, open 'Sessions' and connect at least one session before adding monitors.",
             'details': [
-                'Sessions: 0',
+                f'Sessions: 0 / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
@@ -796,7 +797,7 @@ def _build_status_banner(
                 'level': 'warning',
                 'message': "A session is connected and ready. Open 'Monitors' to add the first account for this server.",
                 'details': [
-                    f'Sessions: {len(delivery_sessions)}',
+                    f'Sessions: {len(delivery_sessions)} / {session_limit}',
                     f'Monitors: {source_count} / {source_limit}',
                     f'Rules: {rule_count} / {rule_limit}',
                 ],
@@ -805,7 +806,7 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'A session is connected, but the bot has not brought it online yet. Wait a moment for the bot to load the newly connected session and bring delivery polling online.',
             'details': [
-                f'Sessions: {len(delivery_sessions)}',
+                f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
@@ -816,7 +817,7 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'The dashboard is up, but the bot has not logged itself online in the last 24 hours.',
             'details': [
-                f'Sessions: {len(delivery_sessions)}',
+                f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
@@ -834,14 +835,14 @@ def _build_status_banner(
             ),
             'details': (
                 [
-                    f"Sessions: {len(delivery_sessions)}",
+                    f"Sessions: {len(delivery_sessions)} / {session_limit}",
                     f"Sessions with recent rate limits: {', '.join(row['client_used'] for row in warning_clients)}",
                     'Single-session servers usually just need to wait for the cooldown to pass.',
                     'If you use multiple sessions, spread monitors across distinct Twitter/X accounts when possible.',
                 ]
                 if has_rate_limit_warning
                 else [
-                    f"Sessions: {len(delivery_sessions)}",
+                    f"Sessions: {len(delivery_sessions)} / {session_limit}",
                     f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
                 ]
             ),
@@ -856,7 +857,7 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'The bot is online, but recent logs show a few delivery or task warnings.',
             'details': [
-                f'Sessions: {len(delivery_sessions)}',
+                f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
@@ -873,14 +874,14 @@ def _build_status_banner(
         }
 
     return {
-        'level': 'success',
-        'message': 'Everything looks healthy right now. Sessions are watching for new posts and the bot has checked in recently.',
-        'details': [
-            f'Sessions: {len(delivery_sessions)}',
-            f'Monitors: {source_count} / {source_limit}',
-            f'Rules: {rule_count} / {rule_limit}',
-        ],
-    }
+            'level': 'success',
+            'message': 'Everything looks healthy right now. Sessions are watching for new posts and the bot has checked in recently.',
+            'details': [
+                f'Sessions: {len(delivery_sessions)} / {session_limit}',
+                f'Monitors: {source_count} / {source_limit}',
+                f'Rules: {rule_count} / {rule_limit}',
+            ],
+        }
 
 
 @asynccontextmanager
@@ -1142,6 +1143,20 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         top_destination_names.append(resource_names['channels'].get(channel_id, channel_id))
         if len(top_destination_names) == 4:
             break
+    latest_delivery = None
+    delivered_sources = [payload for payload in sources_payload if payload.get('last_delivery_success_at_raw')]
+    if delivered_sources:
+        latest_source = max(
+            delivered_sources,
+            key=lambda payload: str(payload.get('last_delivery_success_at_raw') or ''),
+        )
+        latest_delivery = {
+            'username': latest_source['username'],
+            'channel_name': resource_names['channels'].get(latest_source['channel_id'], latest_source['channel_id']),
+            'delivered_at': latest_source.get('last_delivery_success_at'),
+            'matched_rule_name': latest_source.get('last_matched_rule_name'),
+            'delivery_url': latest_source.get('last_delivery_url'),
+        }
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -1188,6 +1203,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'source_names': [source.username for source in sources[:6]],
                 'current_style_label': 'Headline-style' if guild_presentation.effective.use_headline_message else 'Template message',
                 'top_destination_names': top_destination_names,
+                'latest_delivery': latest_delivery,
                 'session_breakdown': [
                     {
                         'session_name': session_display_names.get(client_key, client_key),
