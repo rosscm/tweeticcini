@@ -609,6 +609,9 @@
             <section class="notice notice--plain notice--compact">
               <strong>Free plan is active.</strong> Start Checkout when you're ready to upgrade to Premium.
             </section>
+            {% if guild_presentation.entitlement.trial_used_at %}
+            <div class="field-help">This server has already used its free trial. Starting checkout will begin a paid subscription.</div>
+            {% endif %}
             {% endif %}
             {% if has_active_pro_entitlement %}
             <div class="actions">
