@@ -62,12 +62,24 @@ class BillingService:
         discord_user_id: Optional[str],
         success_url: str,
         cancel_url: str,
+        allow_trial: bool = True,
     ) -> str:
         if not self.secret_key:
             raise BillingConfigurationError('Stripe secret key is not configured')
         stripe = self._load_stripe()
         stripe.api_key = self.secret_key
         price_id = self.get_price_id_for_plan(plan)
+        subscription_data = {
+            'metadata': {
+                'guild_id': guild_id,
+                'guild_name': guild_name,
+                'discord_user_id': discord_user_id or '',
+                'plan': plan,
+            }
+        }
+        if allow_trial:
+            subscription_data['trial_period_days'] = DEFAULT_TRIAL_DAYS
+
         session = stripe.checkout.Session.create(
             mode='subscription',
             success_url=success_url,
@@ -81,15 +93,7 @@ class BillingService:
                 'discord_user_id': discord_user_id or '',
                 'plan': plan,
             },
-            subscription_data={
-                'trial_period_days': DEFAULT_TRIAL_DAYS,
-                'metadata': {
-                    'guild_id': guild_id,
-                    'guild_name': guild_name,
-                    'discord_user_id': discord_user_id or '',
-                    'plan': plan,
-                }
-            },
+            subscription_data=subscription_data,
         )
         return str(session.url)
 

@@ -69,6 +69,7 @@ async def ensure_db_schema() -> str:
                 current_period_end TEXT DEFAULT NULL,
                 cancel_at_period_end INTEGER DEFAULT 0,
                 trial_ends_at TEXT DEFAULT NULL,
+                trial_used_at TEXT DEFAULT NULL,
                 is_test INTEGER DEFAULT 1,
                 updated_at TEXT DEFAULT NULL
             );
@@ -187,6 +188,7 @@ async def ensure_db_schema() -> str:
 
         entitlement_column_definitions = {
             'cancel_at_period_end': 'INTEGER DEFAULT 0',
+            'trial_used_at': 'TEXT DEFAULT NULL',
         }
         for column_name, definition in entitlement_column_definitions.items():
             if column_name not in entitlement_columns:

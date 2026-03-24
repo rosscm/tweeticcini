@@ -88,6 +88,7 @@ class GuildEntitlementView:
     current_period_end: Optional[str]
     cancel_at_period_end: bool
     trial_ends_at: Optional[str]
+    trial_used_at: Optional[str]
     is_test: bool
 
 
@@ -234,6 +235,7 @@ class GuildSettingsService:
             current_period_end=entitlement['current_period_end'] if entitlement is not None else None,
             cancel_at_period_end=entitlement['cancel_at_period_end'] if entitlement is not None else 0,
             trial_ends_at=entitlement['trial_ends_at'] if entitlement is not None else None,
+            trial_used_at=entitlement['trial_used_at'] if entitlement is not None else None,
             is_test=entitlement['is_test'] if entitlement is not None else 1,
             updated_at=get_utcnow(),
         )
@@ -284,6 +286,7 @@ class GuildSettingsService:
                 current_period_end=row['current_period_end'],
                 cancel_at_period_end=bool(row['cancel_at_period_end']),
                 trial_ends_at=row['trial_ends_at'],
+                trial_used_at=row['trial_used_at'],
                 is_test=bool(row['is_test']),
             )
 
@@ -300,6 +303,7 @@ class GuildSettingsService:
                 current_period_end=row['current_period_end'],
                 cancel_at_period_end=bool(row['cancel_at_period_end']),
                 trial_ends_at=row['trial_ends_at'],
+                trial_used_at=row['trial_used_at'],
                 is_test=bool(row['is_test']),
             )
 
@@ -316,6 +320,7 @@ class GuildSettingsService:
                 current_period_end=row['current_period_end'],
                 cancel_at_period_end=bool(row['cancel_at_period_end']),
                 trial_ends_at=row['trial_ends_at'],
+                trial_used_at=row['trial_used_at'],
                 is_test=bool(row['is_test']),
             )
 
@@ -333,6 +338,7 @@ class GuildSettingsService:
             current_period_end=row['current_period_end'] if row is not None else None,
             cancel_at_period_end=bool(row['cancel_at_period_end']) if row is not None else False,
             trial_ends_at=row['trial_ends_at'] if row is not None else None,
+            trial_used_at=row['trial_used_at'] if row is not None else None,
             is_test=bool(row['is_test']) if row is not None else True,
         )
 
@@ -347,11 +353,18 @@ class GuildSettingsService:
         current_period_end: Optional[str] = None,
         cancel_at_period_end: Optional[bool] = None,
         trial_ends_at: Optional[str] = None,
+        trial_used_at: Optional[str] = None,
         is_test: bool = False,
     ) -> GuildPresentationView:
         normalized_plan = None if subscribed_plan is None else self._normalize_plan(subscribed_plan)
         normalized_status = self._normalize_entitlement_status(entitlement_status)
         current = await get_guild_entitlement_row(self.db_path, server_id)
+        resolved_trial_used_at = trial_used_at
+        if resolved_trial_used_at is None:
+            if current is not None and current['trial_used_at']:
+                resolved_trial_used_at = current['trial_used_at']
+            elif trial_ends_at or normalized_status == 'trialing':
+                resolved_trial_used_at = get_utcnow()
         await upsert_guild_entitlement(
             self.db_path,
             server_id=server_id,
@@ -368,6 +381,7 @@ class GuildSettingsService:
                 else (current['cancel_at_period_end'] if current is not None else 0)
             ),
             trial_ends_at=trial_ends_at if trial_ends_at is not None else (current['trial_ends_at'] if current is not None else None),
+            trial_used_at=resolved_trial_used_at,
             is_test=int(is_test),
             updated_at=get_utcnow(),
         )

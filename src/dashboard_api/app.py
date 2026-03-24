@@ -315,6 +315,7 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
             'current_period_end': _format_billing_date(view.entitlement.current_period_end),
             'cancel_at_period_end': view.entitlement.cancel_at_period_end,
             'trial_ends_at': _format_billing_date(view.entitlement.trial_ends_at),
+            'trial_used_at': _format_billing_date(view.entitlement.trial_used_at),
             'is_test': view.entitlement.is_test,
         },
         'compliance': {
@@ -1449,6 +1450,7 @@ async def create_guild_checkout_session(
 ) -> dict[str, str]:
     _require_guild_access(request, guild_id)
     try:
+        entitlement = (await guild_settings_service.get_presentation_view(guild_id)).entitlement
         checkout_url = billing_service.create_checkout_session(
             plan=checkout_request.plan,
             guild_id=guild_id,
@@ -1456,6 +1458,7 @@ async def create_guild_checkout_session(
             discord_user_id=str((_get_session_user(request) or {}).get('id') or ''),
             success_url=str(request.url_for('dashboard_guild_billing', guild_id=guild_id)) + '?checkout=success',
             cancel_url=str(request.url_for('dashboard_guild_billing', guild_id=guild_id)) + '?checkout=canceled',
+            allow_trial=entitlement.trial_used_at is None,
         )
     except BillingConfigurationError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
