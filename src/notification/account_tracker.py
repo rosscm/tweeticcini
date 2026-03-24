@@ -206,6 +206,12 @@ class AccountTracker():
                             if channel is not None:
                                 try:
                                     presentation = await self.guild_settings_service.get_presentation_view(str(channel.guild.id))
+                                    if presentation.plan == 'free' and presentation.compliance.is_non_compliant:
+                                        log.info(
+                                            f"skipping delivery for guild {channel.guild.id}: "
+                                            f"free-plan compliance required ({', '.join(presentation.compliance.reason_labels)})"
+                                        )
+                                        continue
                                     url = re.sub('twitter', presentation.effective.fx_domain_name, tweet.url) if presentation.effective.embed_type == 'fx_twitter' else tweet.url
                                     view, create_view = None, False
                                     if bool(tweet.media) and tweet.media[0].type == 'video' and presentation.effective.embed_type == 'built_in' and presentation.effective.built_in_video_link_button:

@@ -317,7 +317,21 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
             'trial_ends_at': _format_billing_date(view.entitlement.trial_ends_at),
             'is_test': view.entitlement.is_test,
         },
+        'compliance': {
+            'is_non_compliant': view.compliance.is_non_compliant,
+            'reason_labels': list(view.compliance.reason_labels),
+            'session_count': view.compliance.session_count,
+            'source_count': view.compliance.source_count,
+            'rule_count': view.compliance.rule_count,
+            'over_session_limit': view.compliance.over_session_limit,
+            'over_source_limit': view.compliance.over_source_limit,
+            'over_rule_limit': view.compliance.over_rule_limit,
+            'has_premium_rules': view.compliance.has_premium_rules,
+            'has_premium_presentation': view.compliance.has_premium_presentation,
+            'has_premium_source_overrides': view.compliance.has_premium_source_overrides,
+        },
         'features': {
+            'max_twitter_sessions': view.features.max_twitter_sessions,
             'max_sources': view.features.max_sources,
             'max_rules': view.features.max_rules,
             'max_trigger_keywords_total': view.features.max_trigger_keywords_total,
@@ -727,6 +741,17 @@ def _build_status_banner(
     client_statuses: list[dict[str, object]],
     recent_delivery_activity: bool = False,
 ) -> dict[str, object]:
+    if guild_presentation.plan == 'free' and guild_presentation.compliance.is_non_compliant:
+        return {
+            'level': 'error',
+            'message': 'This server is over Free plan limits. Delivery is paused until you remove Premium-only setup or reactivate Premium.',
+            'details': [
+                f'Sessions: {guild_presentation.compliance.session_count} / {guild_presentation.features.max_twitter_sessions}',
+                f'Monitors: {guild_presentation.compliance.source_count} / {guild_presentation.features.max_sources}',
+                f'Rules: {guild_presentation.compliance.rule_count} / {guild_presentation.features.max_rules}',
+            ],
+        }
+
     source_limit = guild_presentation.features.max_sources
     rule_limit = guild_presentation.features.max_rules
     source_count = usage['source_count']

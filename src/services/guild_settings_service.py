@@ -13,6 +13,9 @@ from src.repositories.guild_settings_repository import (
     get_guild_settings_row,
     upsert_guild_settings,
 )
+from src.repositories.alert_rule_repository import list_alert_rules
+from src.repositories.notifier_repository import list_dashboard_sources
+from src.repositories.twitter_session_repository import list_server_twitter_sessions
 from src.settings import get_db_path
 from src.utils import get_utcnow
 
@@ -66,6 +69,7 @@ class GuildPresentationView:
     effective: EffectiveGuildPresentationSettings
     has_overrides: bool
     entitlement: 'GuildEntitlementView'
+    compliance: 'GuildComplianceView'
 
 
 @dataclass(frozen=True)
@@ -84,6 +88,21 @@ class GuildEntitlementView:
     is_test: bool
 
 
+@dataclass(frozen=True)
+class GuildComplianceView:
+    is_non_compliant: bool
+    reason_labels: tuple[str, ...]
+    session_count: int
+    source_count: int
+    rule_count: int
+    over_session_limit: bool
+    over_source_limit: bool
+    over_rule_limit: bool
+    has_premium_rules: bool
+    has_premium_presentation: bool
+    has_premium_source_overrides: bool
+
+
 class GuildSettingsService:
     def __init__(self, db_path=None):
         self.db_path = db_path or get_db_path()
@@ -93,6 +112,7 @@ class GuildSettingsService:
         entitlement = await self.get_entitlement_view(server_id)
         plan = entitlement.effective_plan
         defaults = get_default_guild_presentation_settings()
+        compliance = await self.get_compliance_view(server_id, plan=plan, settings_row=row)
 
         if row is None:
             return GuildPresentationView(
@@ -101,6 +121,7 @@ class GuildSettingsService:
                 effective=defaults,
                 has_overrides=False,
                 entitlement=entitlement,
+                compliance=compliance,
             )
 
         effective = EffectiveGuildPresentationSettings(
@@ -122,6 +143,76 @@ class GuildSettingsService:
             effective=effective,
             has_overrides=self._row_has_presentation_overrides(row),
             entitlement=entitlement,
+            compliance=compliance,
+        )
+
+    async def get_compliance_view(
+        self,
+        server_id: str,
+        plan: Optional[str] = None,
+        settings_row=None,
+    ) -> GuildComplianceView:
+        effective_plan = self._normalize_plan(plan)
+        if effective_plan != PLAN_FREE:
+            return GuildComplianceView(
+                is_non_compliant=False,
+                reason_labels=(),
+                session_count=0,
+                source_count=0,
+                rule_count=0,
+                over_session_limit=False,
+                over_source_limit=False,
+                over_rule_limit=False,
+                has_premium_rules=False,
+                has_premium_presentation=False,
+                has_premium_source_overrides=False,
+            )
+
+        row = settings_row if settings_row is not None else await get_guild_settings_row(self.db_path, server_id)
+        sessions = await list_server_twitter_sessions(self.db_path, server_id)
+        sources = await list_dashboard_sources(self.db_path, server_id)
+        rules = await list_alert_rules(self.db_path, server_id)
+
+        active_rules = [rule for rule in rules if bool(rule['enabled'])]
+        session_count = len([session for session in sessions if bool(session['is_active'])])
+        source_count = len(sources)
+        rule_count = len(active_rules)
+        over_session_limit = session_count > PLAN_FEATURES[PLAN_FREE].max_twitter_sessions
+        over_source_limit = source_count > PLAN_FEATURES[PLAN_FREE].max_sources
+        over_rule_limit = rule_count > PLAN_FEATURES[PLAN_FREE].max_rules
+        has_premium_rules = any(bool(rule['force_everyone']) for rule in active_rules)
+        has_premium_presentation = self._row_has_presentation_overrides(row)
+        has_premium_source_overrides = any(
+            (source['customized_msg'] or '').strip() or source['use_headline_message_override'] is not None
+            for source in sources
+        )
+
+        reason_labels: list[str] = []
+        if over_session_limit:
+            reason_labels.append('too many sessions')
+        if over_source_limit:
+            reason_labels.append('too many monitors')
+        if over_rule_limit:
+            reason_labels.append('too many rules')
+        if has_premium_rules:
+            reason_labels.append('premium rule escalation')
+        if has_premium_presentation:
+            reason_labels.append('premium appearance settings')
+        if has_premium_source_overrides:
+            reason_labels.append('premium monitor message settings')
+
+        return GuildComplianceView(
+            is_non_compliant=bool(reason_labels),
+            reason_labels=tuple(reason_labels),
+            session_count=session_count,
+            source_count=source_count,
+            rule_count=rule_count,
+            over_session_limit=over_session_limit,
+            over_source_limit=over_source_limit,
+            over_rule_limit=over_rule_limit,
+            has_premium_rules=has_premium_rules,
+            has_premium_presentation=has_premium_presentation,
+            has_premium_source_overrides=has_premium_source_overrides,
         )
 
     async def set_plan_override(self, server_id: str, plan: Optional[str]) -> GuildPresentationView:

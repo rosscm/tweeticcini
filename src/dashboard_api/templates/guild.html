@@ -487,7 +487,7 @@
               </div>
               {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
               <div class="form-banner">
-                Trial access is active. This is a good place to verify how premium appearance controls will feel during an onboarding period.
+                Premium appearance controls are available during your trial, so you can preview how this server's alerts will look before upgrading.
               </div>
               {% endif %}
 
@@ -541,6 +541,7 @@
               <div class="actions">
                 <button type="submit" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>Save Appearance</button>
               </div>
+              <div id="presentation-form-status" class="form-banner form-banner--inline form-banner--hidden" hidden></div>
             </form>
           </div>
         </div>
@@ -1446,7 +1447,9 @@
         }
         presentationForm.addEventListener('submit', async function (event) {
           event.preventDefault();
+          setFormStatus('presentation-form-status');
           if (presentationForm.classList.contains('is-locked')) {
+            setFormStatus('presentation-form-status', 'Unlock a paid plan to customize alert appearance.', true);
             setStatus('Unlock a paid plan to customize alert appearance.', true);
             return;
           }
@@ -1467,8 +1470,10 @@
                 fx_original_url_button: document.getElementById('presentation-fx-original-url').checked,
               }),
             });
-            window.location.reload();
+            setFormStatus('presentation-form-status', 'Appearance settings saved.');
+            setStatus('Appearance settings saved.');
           } catch (error) {
+            setFormStatus('presentation-form-status', `Failed to save appearance: ${error.message}`, true);
             setStatus(`Failed to save appearance: ${error.message}`, true);
           }
         });
