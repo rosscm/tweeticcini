@@ -742,10 +742,23 @@ def _build_status_banner(
     recent_delivery_activity: bool = False,
 ) -> dict[str, object]:
     if guild_presentation.plan == 'free' and guild_presentation.compliance.is_non_compliant:
+        reason_labels = {
+            'too many sessions': 'Too many connected sessions for Free',
+            'too many monitors': 'Too many monitors for Free',
+            'too many rules': 'Too many rules for Free',
+            'premium rule escalation': 'Ping everyone rules require Premium',
+            'premium appearance settings': 'Custom appearance settings require Premium',
+            'premium monitor message settings': 'Custom monitor message settings require Premium',
+        }
+        blocking_reasons = [
+            reason_labels.get(reason, reason)
+            for reason in guild_presentation.compliance.reason_labels
+        ]
         return {
             'level': 'error',
             'message': 'This server is over Free plan limits. Delivery is paused until you remove Premium-only setup or reactivate Premium.',
             'details': [
+                f"Needs attention: {'; '.join(blocking_reasons)}",
                 f'Sessions: {guild_presentation.compliance.session_count} / {guild_presentation.features.max_twitter_sessions}',
                 f'Monitors: {guild_presentation.compliance.source_count} / {guild_presentation.features.max_sources}',
                 f'Rules: {guild_presentation.compliance.rule_count} / {guild_presentation.features.max_rules}',
