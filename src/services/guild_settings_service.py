@@ -14,7 +14,10 @@ from src.repositories.guild_settings_repository import (
     upsert_guild_settings,
 )
 from src.repositories.alert_rule_repository import list_alert_rules
-from src.repositories.notifier_repository import list_dashboard_sources
+from src.repositories.notifier_repository import (
+    clear_server_source_message_overrides,
+    list_dashboard_sources,
+)
 from src.repositories.twitter_session_repository import list_server_twitter_sessions
 from src.settings import get_db_path
 from src.utils import get_utcnow
@@ -253,8 +256,10 @@ class GuildSettingsService:
                 fx_original_url_button_override=legacy_row['fx_original_url_button_override'] if legacy_row is not None else None,
             )
         presentation = await self.get_presentation_view(server_id)
-        if presentation.plan == PLAN_FREE and presentation.has_overrides:
-            await self._clear_presentation_overrides(server_id)
+        if presentation.plan == PLAN_FREE and (
+            presentation.has_overrides or presentation.compliance.has_premium_source_overrides
+        ):
+            await self._clear_free_downgrade_overrides(server_id)
             presentation = await self.get_presentation_view(server_id)
         return presentation
 
@@ -367,8 +372,10 @@ class GuildSettingsService:
             updated_at=get_utcnow(),
         )
         presentation = await self.get_presentation_view(server_id)
-        if presentation.plan == PLAN_FREE and presentation.has_overrides:
-            await self._clear_presentation_overrides(server_id)
+        if presentation.plan == PLAN_FREE and (
+            presentation.has_overrides or presentation.compliance.has_premium_source_overrides
+        ):
+            await self._clear_free_downgrade_overrides(server_id)
             presentation = await self.get_presentation_view(server_id)
         return presentation
 
@@ -444,6 +451,10 @@ class GuildSettingsService:
                 'fx_original_url_button_override',
             )
         )
+
+    async def _clear_free_downgrade_overrides(self, server_id: str) -> None:
+        await clear_server_source_message_overrides(self.db_path, server_id)
+        await self._clear_presentation_overrides(server_id)
 
     async def _clear_presentation_overrides(self, server_id: str) -> None:
         row = await get_guild_settings_row(self.db_path, server_id)

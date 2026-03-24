@@ -355,6 +355,24 @@ async def get_dashboard_source_message(db_path, username: str, channel_id: str) 
     return row
 
 
+async def clear_server_source_message_overrides(db_path, server_id: str) -> None:
+    async with connect_writable(db_path) as db:
+        await db.execute(
+            '''
+            UPDATE notification
+            SET customized_msg = NULL,
+                use_headline_message_override = NULL
+            WHERE channel_id IN (
+                SELECT id
+                FROM channel
+                WHERE server_id = ?
+            )
+            ''',
+            (server_id,),
+        )
+        await db.commit()
+
+
 async def get_enabled_client_names(db_path) -> list[str]:
     async with connect_readonly(db_path) as db:
         db.row_factory = aiosqlite.Row
