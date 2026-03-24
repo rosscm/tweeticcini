@@ -444,7 +444,7 @@ async def _annotate_guild_bot_presence(guilds: list[dict[str, object]]) -> list[
             bot_present = False
             if guild_id:
                 try:
-                    async with session.get(f'https://discord.com/api/v10/guilds/{guild_id}/members/@me') as response:
+                    async with session.get(f'https://discord.com/api/v10/guilds/{guild_id}') as response:
                         bot_present = response.status < 400
                 except Exception:
                     bot_present = False
