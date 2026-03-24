@@ -13,7 +13,6 @@ from src.db_function.init_db import ensure_db_schema
 from src.db_function.repair_db import auto_repair_mismatched_clients
 from src.presence_updater import update_presence
 from src.log import setup_logger
-from src.notification.account_tracker import AccountTracker
 from src.repositories.guild_cleanup_repository import cleanup_guild_data
 from src.settings import get_db_path
 
@@ -24,12 +23,10 @@ load_dotenv()
 intents = discord.Intents(guilds=True, messages=True, message_content=True, emojis=True)
 bot = commands.Bot(command_prefix=configs['prefix'], intents=intents)
 DEFAULT_COGS = ['dashboard', 'about']
-account_tracker = None
 
 
 @bot.event
 async def on_ready():
-    global account_tracker
     await ensure_db_schema()
         
     check_upgrade()
@@ -54,9 +51,6 @@ async def on_ready():
             log.warning('set auto_repair_mismatched_clients to true in configs to automatically fix this error or manually update the database or environment variables')
     else:
         log.info('database check passed')
-
-    if account_tracker is None:
-        account_tracker = AccountTracker(bot)
 
     await update_presence(bot)
 
