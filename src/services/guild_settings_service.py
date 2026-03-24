@@ -272,8 +272,6 @@ class GuildSettingsService:
     async def get_entitlement_view(self, server_id: str) -> GuildEntitlementView:
         row = await get_guild_entitlement_row(self.db_path, server_id)
         legacy_row = await get_guild_settings_row(self.db_path, server_id)
-        legacy_plan = self._normalize_plan(legacy_row['plan'] if legacy_row is not None else None)
-        legacy_plan_source = 'legacy' if legacy_row is not None and legacy_row['plan'] in SUPPORTED_PLANS else 'default'
 
         if row is not None and row['manual_plan_override'] in SUPPORTED_PLANS:
             return GuildEntitlementView(
@@ -309,23 +307,6 @@ class GuildSettingsService:
                 is_test=bool(row['is_test']),
             )
 
-        if row is not None and row['subscribed_plan'] not in SUPPORTED_PLANS and legacy_plan in SUPPORTED_PLANS:
-            return GuildEntitlementView(
-                effective_plan=legacy_plan,
-                plan_source=legacy_plan_source,
-                entitlement_status=row['entitlement_status'] if row['entitlement_status'] else 'none',
-                subscribed_plan=row['subscribed_plan'],
-                manual_plan_override=row['manual_plan_override'],
-                billing_provider=row['billing_provider'],
-                external_customer_id=row['external_customer_id'],
-                external_subscription_id=row['external_subscription_id'],
-                current_period_end=row['current_period_end'],
-                cancel_at_period_end=bool(row['cancel_at_period_end']),
-                trial_ends_at=row['trial_ends_at'],
-                trial_used_at=row['trial_used_at'],
-                is_test=bool(row['is_test']),
-            )
-
         if row is not None:
             return GuildEntitlementView(
                 effective_plan=PLAN_FREE,
@@ -343,9 +324,11 @@ class GuildSettingsService:
                 is_test=bool(row['is_test']),
             )
 
+        legacy_plan = self._normalize_plan(legacy_row['plan'] if legacy_row is not None else None)
+        plan_source = 'legacy' if legacy_row is not None and legacy_row['plan'] in SUPPORTED_PLANS else 'default'
         return GuildEntitlementView(
             effective_plan=legacy_plan,
-            plan_source=legacy_plan_source,
+            plan_source=plan_source,
             entitlement_status=row['entitlement_status'] if row is not None and row['entitlement_status'] else 'none',
             subscribed_plan=row['subscribed_plan'] if row is not None else None,
             manual_plan_override=row['manual_plan_override'] if row is not None else None,
