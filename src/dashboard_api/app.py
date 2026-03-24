@@ -693,7 +693,7 @@ def _read_recent_log_health() -> dict[str, object]:
             updater_error_count += 1
         if 'while sending notification' in line:
             delivery_error_count += 1
-        if 'dead tasks :' in line or 'tweets updater' in line and 'dead' in line:
+        if 'tweets updater' in line and 'dead' in line:
             dead_task_warning_count += 1
 
     if last_online_at is not None:
@@ -704,7 +704,7 @@ def _read_recent_log_health() -> dict[str, object]:
                 errors_since_last_online['updater_error_count'] += 1
             if 'while sending notification' in line:
                 errors_since_last_online['delivery_error_count'] += 1
-            if 'dead tasks :' in line or 'tweets updater' in line and 'dead' in line:
+            if 'tweets updater' in line and 'dead' in line:
                 errors_since_last_online['dead_task_warning_count'] += 1
 
     return {
@@ -817,9 +817,9 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'The bot is online, but recent logs show a few delivery or task warnings.',
             'details': [
-                f"Updater errors since restart: {log_health['updater_error_count_since_last_online']}",
-                f"Delivery errors since restart: {log_health['delivery_error_count_since_last_online']}",
-                f"Task warnings since restart: {log_health['dead_task_warning_count_since_last_online']}",
+                f'Sessions: {len(delivery_sessions)}',
+                f'Monitors: {source_count} / {source_limit}',
+                f'Rules: {rule_count} / {rule_limit}',
             ],
         }
 

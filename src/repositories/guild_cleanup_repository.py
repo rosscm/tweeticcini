@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from src.repositories.notifier_repository import connect_writable
 
 
@@ -88,6 +90,13 @@ async def cleanup_guild_data(db_path, server_id: str) -> dict[str, int]:
 
         await db.commit()
 
+    session_file_count = 0
+    for client_key in client_keys:
+        session_path = Path.cwd() / f'{client_key}.tw_session'
+        if session_path.exists():
+            session_path.unlink()
+            session_file_count += 1
+
     return {
         'notifications': notification_count,
         'channels': channel_count,
@@ -98,5 +107,6 @@ async def cleanup_guild_data(db_path, server_id: str) -> dict[str, int]:
         'guild_settings': guild_settings_count,
         'guild_entitlements': guild_entitlement_count,
         'twitter_sessions': twitter_session_count,
+        'session_files': session_file_count,
         'orphan_users': orphan_user_count,
     }
