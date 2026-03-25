@@ -281,27 +281,37 @@
 
         <div class="plan-summary">
           <div class="plan-tile">
-            <h3 class="plan-tile-title">Current Plan</h3>
+            <div class="plan-tile-head">
+              <h3 class="plan-tile-title">Current Plan</h3>
+            </div>
             <strong class="plan-name">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }}</strong>
             <div class="plan-tile-copy">via {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</div>
           </div>
           <div class="plan-tile">
-            <h3 class="plan-tile-title">Sessions</h3>
+            <div class="plan-tile-head">
+              <h3 class="plan-tile-title">Sessions</h3>
+            </div>
             <strong>{{ delivery_session_options|length }} / {{ guild_presentation.features.max_twitter_sessions }}</strong>
           </div>
           <div class="plan-tile">
-            <h3 class="plan-tile-title">Monitors</h3>
+            <div class="plan-tile-head">
+              <h3 class="plan-tile-title">Monitors</h3>
+            </div>
             <strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong>
           </div>
           <div class="plan-tile">
-            <h3 class="plan-tile-title">Rules</h3>
+            <div class="plan-tile-head">
+              <h3 class="plan-tile-title">Rules</h3>
+            </div>
             <strong>{{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }}</strong>
           </div>
         </div>
 
         <div class="overview-grid">
           <div class="default-block overview-card">
-            <h3>Alert Configuration</h3>
+            <div class="overview-card-head">
+              <h3>Alert Configuration</h3>
+            </div>
             <div class="overview-pill-list">
               <span class="tag tag--soft">Style: {{ overview.current_style_label }}</span>
               <span class="tag tag--soft">Scoped rules: {{ overview.scoped_rule_count }}</span>
@@ -316,7 +326,9 @@
           </div>
 
           <div class="default-block overview-card">
-            <h3>Watched Accounts</h3>
+            <div class="overview-card-head">
+              <h3>Watched Accounts</h3>
+            </div>
             {% if overview.source_names %}
             <div class="overview-account-list">
               {% for source_name in overview.source_names %}
@@ -332,7 +344,9 @@
           </div>
 
           <div class="default-block overview-card">
-            <h3>Last Delivery</h3>
+            <div class="overview-card-head">
+              <h3>Last Delivery</h3>
+            </div>
             {% if overview.latest_delivery %}
             <div class="overview-delivery-head">
               <strong>{{ overview.latest_delivery.username }}</strong>
@@ -348,7 +362,9 @@
           </div>
 
           <div class="default-block overview-card">
-            <h3>Quick Actions</h3>
+            <div class="overview-card-head">
+              <h3>Quick Actions</h3>
+            </div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage monitors</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules">Edit alert rules</a></div>
             <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust appearance</a></div>
