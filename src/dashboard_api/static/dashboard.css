@@ -85,7 +85,9 @@ body {
 }
 
 .billing-followup-note {
-  padding-top: 4px;
+  display: block;
+  margin-top: 28px;
+  padding-top: 0;
 }
 
 .notice .status-detail-list {

@@ -589,7 +589,7 @@
 
         <div class="workspace-grid workspace-grid--appearance">
           <div class="workspace-panel">
-            <h3 class="panel-title">Current plan</h3>
+            <h3 class="panel-title">Current Plan</h3>
             {% set is_trialing = guild_presentation.entitlement.entitlement_status == 'trialing' %}
             {% set is_past_due = guild_presentation.entitlement.entitlement_status == 'past_due' %}
             {% set is_canceled = guild_presentation.entitlement.entitlement_status == 'canceled' %}
