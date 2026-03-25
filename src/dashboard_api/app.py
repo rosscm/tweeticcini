@@ -868,6 +868,7 @@ def _build_status_banner(
             'level': 'warning',
             'message': 'Everything looks healthy, but this server is at or near one of its plan limits.',
             'details': [
+                f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
                 f'Rules: {rule_count} / {rule_limit}',
             ],
@@ -1161,7 +1162,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         request=request,
         name='guild.html',
         context={
-            'title': f"Tweeticcini | {GUILD_SECTIONS.get(active_section, active_section.capitalize())} | {(_get_session_guild_name(request, guild_id) or f'Server {guild_id}')}",
+            'title': f"{GUILD_SECTIONS.get(active_section, active_section.capitalize())} | Tweeticcini",
             'guild_id': guild_id,
             'guild_name': _get_session_guild_name(request, guild_id) or guild_id,
             'guild_icon_url': _get_session_guild_icon_url(request, guild_id),

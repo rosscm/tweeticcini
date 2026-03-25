@@ -261,7 +261,7 @@
           <div>
             <p class="eyebrow">Overview</p>
             <h2>Server Snapshot</h2>
-            <p class="section-copy section-copy--wide">A quick read on this server's plan, monitoring footprint, and dashboard readiness before you dive into accounts, rules, or appearance.</p>
+            <p class="section-copy section-copy--wide">See this server's plan, alert setup, and recent delivery activity at a glance.</p>
           </div>
         </div>
 
@@ -316,7 +316,7 @@
 
         <div class="overview-grid">
           <div class="default-block overview-card">
-            <h3>Delivery Snapshot</h3>
+            <h3>Alert Configuration</h3>
             <div class="overview-pill-list">
               <span class="tag tag--soft">Style: {{ overview.current_style_label }}</span>
               <span class="tag tag--soft">Scoped rules: {{ overview.scoped_rule_count }}</span>
@@ -353,7 +353,7 @@
               <strong>{{ overview.latest_delivery.username }}</strong>
               <span class="tag tag--soft">{{ overview.latest_delivery.delivered_at }}</span>
             </div>
-            <div class="overview-note">Delivered to {{ overview.latest_delivery.channel_name }}{% if overview.latest_delivery.matched_rule_name %} via {{ overview.latest_delivery.matched_rule_name }}{% endif %}.</div>
+            <div class="overview-note">Delivered to {{ overview.latest_delivery.channel_name }}{% if overview.latest_delivery.matched_rule_name %} via {{ overview.latest_delivery.matched_rule_name }}{% endif %}</div>
             {% if overview.latest_delivery.delivery_url %}
             <div class="overview-note"><a class="inline-link" href="{{ overview.latest_delivery.delivery_url }}" target="_blank" rel="noreferrer">Open delivered post</a></div>
             {% endif %}
@@ -379,7 +379,7 @@
           <div>
             <p class="eyebrow">Sessions</p>
             <h2>Connect &amp; Manage Sessions</h2>
-            <p class="section-copy section-copy--wide">Connect at least one Twitter/X session before this server can watch for posts and deliver alerts.</p>
+            <p class="section-copy section-copy--wide">Manage the Twitter/X sessions this server uses to watch for new posts and deliver alerts.</p>
           </div>
         </div>
 
@@ -502,7 +502,7 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">Appearance</p>
-            <h2>Delivery Style</h2>
+            <h2>Customize Delivery Style</h2>
             <p class="section-copy section-copy--wide">Shape how alerts look and feel when they land in this server, from the default message and bot name to the emoji style and alert image.</p>
           </div>
         </div>
@@ -513,7 +513,7 @@
             <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
               {% if not guild_presentation.features.can_customize_presentation %}
               <div class="form-banner">
-                This server is currently using Tweeticcini's shared default look. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to customize the message, bot name, emoji style, and alert image.
+                This server is using Tweeticcini's default alert appearance. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to customize the message, bot name, emoji style, and alert image.
               </div>
               {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
               <div class="form-banner">
@@ -583,8 +583,8 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">Premium</p>
-            <h2>Plan Management</h2>
-            <p class="section-copy section-copy--wide">View this server's current plan, start Premium when needed, and manage billing for active subscriptions.</p>
+            <h2>Review &amp; Manage Premium</h2>
+            <p class="section-copy section-copy--wide">Review this server's current plan, upgrade to Premium, and manage subscription billing in one place.</p>
           </div>
         </div>
 
@@ -596,7 +596,7 @@
 
         {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
         <section class="notice notice--warning">
-          <strong>Manual override active:</strong> this server is currently using a support or testing override, so the plan shown here may not match its billing-backed state.
+          <strong>Manual override active:</strong> this server is using an internal plan override, so the plan shown here may not match its billing state.
         </section>
         {% endif %}
 
@@ -750,7 +750,7 @@
                 <label for="source-username-edit">Twitter/X account</label>
                 <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA" {{ 'disabled' if delivery_sessions_required else '' }}>
                 <div class="field-help">Enter the username exactly as it appears on Twitter/X, without the <code>@</code> symbol.</div>
-                <div class="field-help"><strong>When you save a monitor, Tweeticcini will try to follow this account and turn on notifications for the selected Twitter/X session. If that doesn't apply cleanly, alerts may not start until that session is following the account with notifications enabled.</strong></div>
+                <div class="field-help"><strong>Saving a monitor prompts Tweeticcini to follow this account and enable notifications on the selected Twitter/X session. If that doesn't complete cleanly, alerts may not start immediately.</strong></div>
 
                 <label for="source-channel-id-edit">Channel name</label>
                 <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -970,7 +970,7 @@
               <form id="rule-form" class="stack {{ 'is-locked' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}">
                 <div class="form-banner">
                   Build a rule for one tracked account or apply it across the whole server.<br>
-                  Use <code>Exclude alerts</code> rules to suppress noise, or use <code>Ping everyone</code> for high-priority posts that should stand out.
+                  Use <code>Mute alerts</code> rules to suppress noise, or use <code>Ping everyone</code> for high-priority posts that should stand out.
                 </div>
                 <div class="status-detail-list">
                   <span class="tag tag--soft">Exclude keywords: {{ plan_usage.exclude_keyword_count }} / {{ guild_presentation.features.max_exclude_keywords_total }}</span>
@@ -1000,21 +1000,21 @@
 
                 <label for="escalation-mode">Rule type</label>
                 <select id="escalation-mode" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
-                  <option value="role_only">Exclude alerts</option>
+                  <option value="role_only">Mute alerts</option>
                   <option value="everyone" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}>Ping everyone{{ ' (Premium)' if not guild_presentation.features.can_use_everyone_escalation else '' }}</option>
                 </select>
-                <div class="field-help">Choose whether this rule should suppress alerts or make high-priority posts stand out.</div>
+                <div class="field-help">Choose whether this rule should mute alerts or elevate important posts.</div>
 
-                <label for="rule-exclude-keywords">Exclude keywords</label>
+                <label for="rule-exclude-keywords">Muted phrases</label>
                 <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., noisy phrase 1, noisy phrase 2, noisy phrase 3" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
-                <div class="field-help">Comma-separated phrases that should suppress alerts when they appear in the post text. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.</div>
+                <div class="field-help">Comma-separated phrases that mute alerts when every word in the phrase is present in the tweet. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.</div>
                 <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
 
-                <label for="rule-trigger-keywords">Trigger keywords</label>
+                <label for="rule-trigger-keywords">Ping keywords</label>
                 <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., super important phrase" {{ 'disabled' if (not guild_presentation.features.can_use_everyone_escalation) or delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
                 <div class="field-help" id="rule-trigger-keywords-help">
                   {% if guild_presentation.features.can_use_everyone_escalation %}
-                  These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.
+                  Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.
                   {% else %}
                   These phrases are only available on <strong>Premium</strong>, because they are used with <code>Ping everyone</code> rules.
                   {% endif %}
@@ -1061,11 +1061,11 @@
                     <div class="entity-title">{{ rule.rule_name }}</div>
                   </td>
                   <td data-label="Monitor">{{ rule.source_username or 'all monitors' }}</td>
-                  <td data-label="Behavior"><span class="tag">{{ 'Ping everyone' if rule.escalation_mode == 'everyone' else 'Exclude alerts' }}</span></td>
+                  <td data-label="Behavior"><span class="tag">{{ 'Ping everyone' if rule.escalation_mode == 'everyone' else 'Mute alerts' }}</span></td>
                   <td data-label="Priority"><span class="count-pill">{{ rule.priority }}</span></td>
                   <td data-label="Keywords">
                     <div class="keyword-summary-block">
-                      <span class="meta-label">Triggers</span>
+                      <span class="meta-label">Ping keywords</span>
                       {% if rule.trigger_keywords %}
                       <div class="keyword-summary">{{ rule.trigger_keywords[:3] | join(', ') }}{% if rule.trigger_keywords | length > 3 %}, +{{ (rule.trigger_keywords | length) - 3 }} more{% endif %}</div>
                       <details class="keyword-details">
@@ -1077,7 +1077,7 @@
                       {% endif %}
                     </div>
                     <div class="keyword-summary-block">
-                      <span class="meta-label">Excludes</span>
+                      <span class="meta-label">Muted phrases</span>
                       {% if rule.exclude_keywords %}
                       <div class="keyword-summary">{{ rule.exclude_keywords[:4] | join(', ') }}{% if rule.exclude_keywords | length > 4 %}, +{{ (rule.exclude_keywords | length) - 4 }} more{% endif %}</div>
                       <details class="keyword-details">
@@ -1282,9 +1282,9 @@
         if (!canUseEveryone) {
           triggerHelp.innerHTML = 'These phrases are only available on <strong>Premium</strong>, because they are used with <code>Ping everyone</code> rules.';
         } else if (!everyoneSelected) {
-          triggerHelp.innerHTML = 'These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
         } else {
-          triggerHelp.innerHTML = 'Comma-separated phrases that must appear before this <code>Ping everyone</code> rule applies. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
         }
       }
 
