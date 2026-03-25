@@ -86,8 +86,13 @@ body {
 
 .billing-followup-note {
   display: block;
-  margin-top: 28px;
-  padding-top: 0;
+  margin-top: 22px;
+  margin-bottom: 0;
+  line-height: 1.55;
+}
+
+.billing-actions {
+  margin-top: 22px;
 }
 
 .notice .status-detail-list {
