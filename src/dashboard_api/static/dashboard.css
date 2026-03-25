@@ -1226,6 +1226,51 @@ h2 {
   font-size: 0.9rem;
 }
 
+.unsaved-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: min(760px, calc(100vw - 28px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(88, 101, 242, 0.24);
+  background: linear-gradient(145deg, rgba(26, 31, 43, 0.96), rgba(16, 20, 29, 0.98));
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
+  z-index: 40;
+}
+
+.unsaved-bar[hidden] {
+  display: none !important;
+}
+
+.unsaved-bar__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.unsaved-bar__copy strong {
+  font-size: 0.96rem;
+}
+
+.unsaved-bar__copy span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.unsaved-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .field-help {
   margin-top: -6px;
   color: var(--muted);
@@ -1690,6 +1735,24 @@ code {
     padding: 10px 12px;
     font-size: 0.9rem;
     line-height: 1.4;
+  }
+
+  .unsaved-bar {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: auto;
+    transform: none;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .unsaved-bar__actions {
+    width: 100%;
+  }
+
+  .unsaved-bar__actions > * {
+    flex: 1 1 0;
   }
 
   .field-help--body {

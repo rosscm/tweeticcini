@@ -534,11 +534,11 @@
 
               <label for="presentation-default-message">Default message</label>
               <textarea id="presentation-default-message" rows="4" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>{{ guild_presentation.effective.default_message }}</textarea>
-              <div id="presentation-default-message-help" class="field-help">Use <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, and <code>{url}</code> to shape how alerts read. It only applies when <code>Template message</code> is selected above.</div>
+              <div id="presentation-default-message-help" class="field-help">Set a server-wide default message for alerts. Use <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, and <code>{url}</code> to shape how it reads. This only applies when <code>Template message</code> is selected above, and monitor-specific custom messages still take priority.</div>
 
               <label for="presentation-bot-display-name">Bot display name</label>
               <input id="presentation-bot-display-name" type="text" value="{{ guild_presentation.effective.bot_display_name }}" placeholder="E.g., Stock Pinger" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
-              <div class="field-help">Optional. Sets the bot nickname in this Discord server only. Leave blank to use the global bot name.</div>
+              <div class="field-help">Sets the bot nickname in this Discord server only. Leave blank to use the global bot name.</div>
 
               <label for="presentation-emoji-auto-format">Emoji auto format</label>
               <select id="presentation-emoji-auto-format" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
@@ -1113,6 +1113,16 @@
       </div>
     </main>
 
+    <div class="unsaved-bar" id="unsaved-bar" hidden>
+      <div class="unsaved-bar__copy">
+        <strong>You have unsaved changes</strong>
+        <span>Save or discard them before leaving this page.</span>
+      </div>
+      <div class="unsaved-bar__actions">
+        <button type="button" class="button-secondary" id="unsaved-discard">Discard</button>
+        <button type="button" id="unsaved-save">Save Changes</button>
+      </div>
+    </div>
     <script>
       const guildId = {{ guild_id | tojson }};
 
@@ -1245,6 +1255,205 @@
         node.classList.toggle('form-banner--error', isError);
       }
 
+      function serializeTrackedForm(form) {
+        if (!form) {
+          return '';
+        }
+        const values = [];
+        form.querySelectorAll('input, select, textarea').forEach(function (field) {
+          if (!field.name && !field.id) {
+            return;
+          }
+          const key = field.name || field.id;
+          if ((field.type === 'checkbox' || field.type === 'radio')) {
+            values.push(`${key}:${field.checked ? '1' : '0'}`);
+          } else {
+            values.push(`${key}:${field.value}`);
+          }
+        });
+        return values.join('|');
+      }
+
+      function captureTrackedFormState(form) {
+        if (!form) {
+          return [];
+        }
+        return Array.from(form.querySelectorAll('input, select, textarea'))
+          .filter(function (field) {
+            return !!(field.name || field.id);
+          })
+          .map(function (field) {
+            return {
+              key: field.name || field.id,
+              id: field.id || '',
+              type: field.type || field.tagName.toLowerCase(),
+              value: field.value,
+              checked: !!field.checked,
+            };
+          });
+      }
+
+      function restoreTrackedFormState(form) {
+        if (!form || !form.dataset.initialSnapshot) {
+          return;
+        }
+        const snapshot = JSON.parse(form.dataset.initialSnapshot);
+        snapshot.forEach(function (item) {
+          let field = null;
+          if (item.id) {
+            field = document.getElementById(item.id);
+          }
+          if (!field) {
+            field = Array.from(form.querySelectorAll('input, select, textarea')).find(function (candidate) {
+              return (candidate.name || candidate.id) === item.key;
+            });
+          }
+          if (!field) {
+            return;
+          }
+          if (item.type === 'checkbox' || item.type === 'radio') {
+            field.checked = !!item.checked;
+          } else {
+            field.value = item.value;
+          }
+          field.dispatchEvent(new Event('change', { bubbles: true }));
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      }
+
+      const unsavedBar = document.getElementById('unsaved-bar');
+      const unsavedSave = document.getElementById('unsaved-save');
+      const unsavedDiscard = document.getElementById('unsaved-discard');
+      let pendingNavigationHref = null;
+
+      function markFormClean(form) {
+        if (!form) {
+          return;
+        }
+        form.dataset.initialState = serializeTrackedForm(form);
+        form.dataset.initialSnapshot = JSON.stringify(captureTrackedFormState(form));
+        form.dataset.dirty = 'false';
+        updateUnsavedBar();
+      }
+
+      function refreshFormDirtyState(form) {
+        if (!form) {
+          return false;
+        }
+        const dirty = serializeTrackedForm(form) !== (form.dataset.initialState || '');
+        form.dataset.dirty = dirty ? 'true' : 'false';
+        return dirty;
+      }
+
+      function trackUnsavedChanges(form) {
+        if (!form) {
+          return;
+        }
+        markFormClean(form);
+        const updateDirtyState = function () {
+          refreshFormDirtyState(form);
+          updateUnsavedBar();
+        };
+        form.addEventListener('input', updateDirtyState);
+        form.addEventListener('change', updateDirtyState);
+      }
+
+      function getDirtyForms() {
+        return Array.from(document.querySelectorAll('form[data-dirty]')).filter(function (form) {
+          return refreshFormDirtyState(form);
+        });
+      }
+
+      function hasUnsavedChanges() {
+        return getDirtyForms().length > 0;
+      }
+
+      function getActiveDirtyForm() {
+        const dirtyForms = getDirtyForms();
+        return dirtyForms[0] || null;
+      }
+
+      function updateUnsavedBar() {
+        if (!unsavedBar) {
+          return;
+        }
+        const dirtyForm = getActiveDirtyForm();
+        if (!dirtyForm) {
+          unsavedBar.hidden = true;
+          pendingNavigationHref = null;
+          return;
+        }
+        unsavedBar.hidden = false;
+      }
+
+      window.addEventListener('beforeunload', function (event) {
+        if (!hasUnsavedChanges()) {
+          return;
+        }
+        event.preventDefault();
+        event.returnValue = '';
+      });
+
+      document.addEventListener('click', function (event) {
+        const link = event.target.closest('a[href]');
+        if (!link) {
+          return;
+        }
+        if (
+          link.target === '_blank' ||
+          link.hasAttribute('download') ||
+          link.getAttribute('href').startsWith('#')
+        ) {
+          return;
+        }
+
+        const url = new URL(link.href, window.location.href);
+        const isSameOrigin = url.origin === window.location.origin;
+        const isDashboardNavigation = isSameOrigin && url.pathname.startsWith('/dashboard/');
+        if (!isDashboardNavigation) {
+          return;
+        }
+
+        if (!hasUnsavedChanges()) {
+          return;
+        }
+
+        event.preventDefault();
+        pendingNavigationHref = url.toString();
+        updateUnsavedBar();
+      });
+
+      if (unsavedSave) {
+        unsavedSave.addEventListener('click', function () {
+          const dirtyForm = getActiveDirtyForm();
+          if (!dirtyForm) {
+            return;
+          }
+          if (typeof dirtyForm.requestSubmit === 'function') {
+            dirtyForm.requestSubmit();
+          } else {
+            dirtyForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+          }
+        });
+      }
+
+      if (unsavedDiscard) {
+        unsavedDiscard.addEventListener('click', function () {
+          const dirtyForm = getActiveDirtyForm();
+          if (dirtyForm) {
+            restoreTrackedFormState(dirtyForm);
+            markFormClean(dirtyForm);
+          }
+          if (pendingNavigationHref) {
+            const nextHref = pendingNavigationHref;
+            pendingNavigationHref = null;
+            window.location.href = nextHref;
+          }
+        });
+      }
+
+      updateUnsavedBar();
+
       function setRequiredFieldState(fieldId, isInvalid) {
         const field = document.getElementById(fieldId);
         if (!field) {
@@ -1312,6 +1521,7 @@
 
       const ruleForm = document.getElementById('rule-form');
       if (ruleForm) {
+        trackUnsavedChanges(ruleForm);
         const escalationMode = document.getElementById('escalation-mode');
         const triggerKeywordsField = document.getElementById('rule-trigger-keywords');
         const excludeKeywordsField = document.getElementById('rule-exclude-keywords');
@@ -1331,6 +1541,7 @@
           });
         }
         syncTriggerKeywordAvailability();
+        markFormClean(ruleForm);
 
         ruleForm.addEventListener('submit', async function (event) {
           event.preventDefault();
@@ -1364,6 +1575,7 @@
               method: 'PUT',
               body: JSON.stringify(payload),
             });
+            markFormClean(ruleForm);
             window.location.reload();
           } catch (error) {
             setStatus(`Failed to save rule: ${error.message}`, true);
@@ -1373,6 +1585,7 @@
 
       const planForm = document.getElementById('plan-form');
       if (planForm) {
+        trackUnsavedChanges(planForm);
         planForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           try {
@@ -1383,6 +1596,7 @@
                 clear_override: false,
               }),
             });
+            markFormClean(planForm);
             window.location.reload();
           } catch (error) {
             setStatus(`Failed to save plan: ${error.message}`, true);
@@ -1410,6 +1624,7 @@
 
       const entitlementForm = document.getElementById('entitlement-form');
       if (entitlementForm) {
+        trackUnsavedChanges(entitlementForm);
         entitlementForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           try {
@@ -1424,6 +1639,7 @@
                 is_test: document.getElementById('entitlement-is-test').checked,
               }),
             });
+            markFormClean(entitlementForm);
             window.location.reload();
           } catch (error) {
             setStatus(`Failed to save entitlement: ${error.message}`, true);
@@ -1462,6 +1678,7 @@
 
       const presentationForm = document.getElementById('presentation-form');
       if (presentationForm) {
+        trackUnsavedChanges(presentationForm);
         const presentationStyleSelect = document.getElementById('presentation-use-headline-message');
         const presentationDefaultMessage = document.getElementById('presentation-default-message');
         const presentationDefaultMessageHelp = document.getElementById('presentation-default-message-help');
@@ -1475,6 +1692,7 @@
           }
         };
         syncPresentationDefaultMessageState();
+        markFormClean(presentationForm);
         if (presentationStyleSelect) {
           presentationStyleSelect.addEventListener('change', syncPresentationDefaultMessageState);
         }
@@ -1503,6 +1721,7 @@
                 fx_original_url_button: document.getElementById('presentation-fx-original-url').checked,
               }),
             });
+            markFormClean(presentationForm);
             setFormStatus('presentation-form-status', 'Appearance settings saved.');
             setStatus('Appearance settings saved.');
           } catch (error) {
@@ -1514,6 +1733,7 @@
 
       const twitterSessionForm = document.getElementById('twitter-session-form');
       if (twitterSessionForm) {
+        trackUnsavedChanges(twitterSessionForm);
         twitterSessionForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           setFormStatus('twitter-session-status');
@@ -1532,6 +1752,7 @@
                 auth_token: authToken,
               }),
             });
+            markFormClean(twitterSessionForm);
             window.location.reload();
           } catch (error) {
             setFormStatus('twitter-session-status', `Failed to connect Twitter/X session: ${error.message}`, true);
@@ -1544,6 +1765,7 @@
         twitterSessionFormReset.addEventListener('click', function () {
           document.getElementById('twitter-session-name').value = 'Primary Session';
           document.getElementById('twitter-session-auth-token').value = '';
+          markFormClean(twitterSessionForm);
           setFormStatus('twitter-session-status');
           setStatus('Ready to connect a Twitter/X session for this server.');
         });
@@ -1585,6 +1807,7 @@
         return document.getElementById('source-use-headline-message-override-edit').checked ? true : null;
       }
       if (sourceForm) {
+        trackUnsavedChanges(sourceForm);
         sourceForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           resetSourceFieldValidation();
@@ -1653,6 +1876,7 @@
               }
             }
             setFormStatus('source-form-status', 'Account settings saved.');
+            markFormClean(sourceForm);
             window.location.reload();
           } catch (error) {
             setFormStatus('source-form-status', `Failed to save source: ${error.message}`, true);
@@ -1720,6 +1944,7 @@
           } catch (error) {
             document.getElementById('source-custom-message-edit').value = '';
           }
+          markFormClean(sourceForm);
           resetSourceFieldValidation();
           setFormStatus('source-form-status');
           setStatus(`Loaded ${button.dataset.username} for editing, including its assigned Twitter/X session.`);
@@ -1737,6 +1962,7 @@
           document.getElementById('source-media-type-edit').value = '11';
           document.getElementById('source-use-headline-message-override-edit').checked = false;
           document.getElementById('source-custom-message-edit').value = '';
+          markFormClean(sourceForm);
           resetSourceFieldValidation();
           setFormStatus('source-form-status');
           setStatus('Ready to add a new monitor. Fill in the fields and click Save Monitor.');
@@ -1756,6 +1982,7 @@
           setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', []);
           setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', []);
           syncTriggerKeywordAvailability();
+          markFormClean(ruleForm);
           setStatus('Ready to add a new alert rule.');
         });
       }
@@ -1774,6 +2001,7 @@
           setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', []);
           setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', []);
           syncTriggerKeywordAvailability();
+          markFormClean(ruleForm);
           setStatus(`Loaded rule ${row.dataset.ruleName} for editing.`);
         });
       });
