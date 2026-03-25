@@ -299,21 +299,6 @@
           </div>
         </div>
 
-        {% if plan_usage.source_count >= guild_presentation.features.max_sources or plan_usage.rule_count >= guild_presentation.features.max_rules %}
-        <section class="notice notice--warning">
-          <strong>Capacity note:</strong>
-          {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
-          This server is at its tracked account limit.
-          {% endif %}
-          {% if plan_usage.source_count >= guild_presentation.features.max_sources and plan_usage.rule_count >= guild_presentation.features.max_rules %}
-          and
-          {% endif %}
-          {% if plan_usage.rule_count >= guild_presentation.features.max_rules %}
-          This server is at its alert rule limit.
-          {% endif %}
-        </section>
-        {% endif %}
-
         <div class="overview-grid">
           <div class="default-block overview-card">
             <h3>Alert Configuration</h3>
@@ -652,68 +637,6 @@
 
         </div>
 
-        <details class="internal-tools">
-          <summary>Internal Billing Tools</summary>
-          <div class="workspace-grid workspace-grid--appearance internal-tools__body">
-            <div class="workspace-panel">
-              <h3 class="panel-title">Manual Override</h3>
-              <form id="plan-form" class="stack">
-                <div class="form-banner">
-                  Internal support and testing override. In production, this should be driven by billing state instead.
-                </div>
-                <label for="guild-plan">Manual plan override</label>
-                <select id="guild-plan">
-                  <option value="">No override</option>
-                  <option value="free" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'free' else '' }}>Free</option>
-                  <option value="pro" {{ 'selected' if guild_presentation.entitlement.manual_plan_override == 'pro' else '' }}>Premium</option>
-                </select>
-                <div class="actions">
-                  <button type="submit">Save Override</button>
-                  <button type="button" class="button-secondary" id="clear-plan-override">Clear Override</button>
-                </div>
-              </form>
-            </div>
-
-            <div class="workspace-panel workspace-panel--wide">
-              <h3 class="panel-title">Subscription Simulation</h3>
-              <form id="entitlement-form" class="stack">
-                <div class="form-banner">
-                  Internal testing surface for simulating billing-backed subscription states.
-                </div>
-                <label for="entitlement-status">Entitlement status</label>
-                <select id="entitlement-status">
-                  <option value="none" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'none' else '' }}>none</option>
-                  <option value="trialing" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'trialing' else '' }}>trialing</option>
-                  <option value="active" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'active' else '' }}>active</option>
-                  <option value="past_due" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'past_due' else '' }}>past_due</option>
-                  <option value="canceled" {{ 'selected' if guild_presentation.entitlement.entitlement_status == 'canceled' else '' }}>canceled</option>
-                </select>
-
-                <label for="entitlement-plan">Subscribed plan</label>
-                <select id="entitlement-plan">
-                  <option value="">No subscribed plan</option>
-                  <option value="free" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'free' else '' }}>Free</option>
-                  <option value="pro" {{ 'selected' if guild_presentation.entitlement.subscribed_plan == 'pro' else '' }}>Premium</option>
-                </select>
-
-                <label for="entitlement-provider">Billing provider</label>
-                <input id="entitlement-provider" type="text" value="{{ guild_presentation.entitlement.billing_provider or '' }}" placeholder="stripe">
-
-                <label for="entitlement-current-period-end">Current period end</label>
-                <input id="entitlement-current-period-end" type="text" value="{{ guild_presentation.entitlement.current_period_end or '' }}" placeholder="2026-04-16 00:00:00+00:00">
-
-                <label for="entitlement-trial-ends-at">Trial ends at</label>
-                <input id="entitlement-trial-ends-at" type="text" value="{{ guild_presentation.entitlement.trial_ends_at or '' }}" placeholder="2026-04-01 00:00:00+00:00">
-
-                <label class="checkbox-row"><input id="entitlement-is-test" type="checkbox" {{ 'checked' if guild_presentation.entitlement.is_test else '' }}> Mark entitlement as test data</label>
-
-                <div class="actions">
-                  <button type="submit">Save Entitlement</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </details>
       </section>
       {% endif %}
 
