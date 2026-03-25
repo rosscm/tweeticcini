@@ -419,7 +419,6 @@
 
               <div class="actions">
                 <button type="submit" {{ 'disabled' if twitter_session_limit_reached else '' }}>Connect Session</button>
-                <button type="button" class="button-secondary" id="twitter-session-form-reset" {{ 'disabled' if twitter_session_limit_reached else '' }}>Clear Form</button>
               </div>
             </form>
           </div>
@@ -756,7 +755,6 @@
                 <div class="actions">
                   <button type="submit" {{ 'disabled' if delivery_sessions_required else '' }}>Save Monitor</button>
                   <button type="button" class="button-secondary" id="source-send-test" {{ 'disabled' if delivery_sessions_required else '' }}>Send Test Alert</button>
-                  <button type="button" class="button-secondary" id="source-form-reset">Clear Form</button>
                 </div>
                 <div id="source-form-status" class="form-banner form-banner--inline form-banner--hidden" hidden></div>
               </form>
@@ -965,7 +963,6 @@
 
                 <div class="actions">
                   <button type="submit" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>Save Rule</button>
-                  <button type="button" class="button-secondary" id="rule-form-reset">Clear Form</button>
                 </div>
               </form>
             </div>
@@ -1702,17 +1699,6 @@
         });
       }
 
-      const twitterSessionFormReset = document.getElementById('twitter-session-form-reset');
-      if (twitterSessionFormReset) {
-        twitterSessionFormReset.addEventListener('click', function () {
-          document.getElementById('twitter-session-name').value = 'Primary Session';
-          document.getElementById('twitter-session-auth-token').value = '';
-          markFormClean(twitterSessionForm);
-          setFormStatus('twitter-session-status');
-          setStatus('Ready to connect a Twitter/X session for this server.');
-        });
-      }
-
       document.querySelectorAll('.delete-twitter-session').forEach(function (button) {
         button.addEventListener('click', async function () {
           const sessionName = button.dataset.sessionName;
@@ -1892,42 +1878,6 @@
           setStatus(`Loaded ${button.dataset.username} for editing, including its assigned Twitter/X session.`);
         });
       });
-
-      const sourceFormReset = document.getElementById('source-form-reset');
-      if (sourceFormReset) {
-        sourceFormReset.addEventListener('click', function () {
-          document.getElementById('source-edit-mode').value = 'create';
-          document.getElementById('source-username-edit').value = '';
-          document.getElementById('source-channel-id-edit').value = '';
-          document.getElementById('source-role-id-edit').value = '';
-          document.getElementById('source-enable-type-edit').value = '11';
-          document.getElementById('source-media-type-edit').value = '11';
-          document.getElementById('source-use-headline-message-override-edit').checked = false;
-          document.getElementById('source-custom-message-edit').value = '';
-          markFormClean(sourceForm);
-          resetSourceFieldValidation();
-          setFormStatus('source-form-status');
-          setStatus('Ready to add a new monitor. Fill in the fields and click Save Monitor.');
-        });
-      }
-
-      const ruleFormReset = document.getElementById('rule-form-reset');
-      if (ruleFormReset) {
-        ruleFormReset.addEventListener('click', function () {
-          document.getElementById('existing-rule-name').value = '';
-          document.getElementById('rule-name').value = '';
-          document.getElementById('source-username').value = '';
-          document.getElementById('priority').value = 0;
-          document.getElementById('escalation-mode').value = 'role_only';
-          document.getElementById('rule-trigger-keywords').value = '';
-          document.getElementById('rule-exclude-keywords').value = '';
-          setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', []);
-          setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', []);
-          syncTriggerKeywordAvailability();
-          markFormClean(ruleForm);
-          setStatus('Ready to add a new alert rule.');
-        });
-      }
 
       document.querySelectorAll('.edit-rule').forEach(function (button) {
         button.addEventListener('click', function () {
