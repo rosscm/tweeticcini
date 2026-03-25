@@ -618,10 +618,10 @@
               <strong>Free plan is active.</strong> Upgrade to Premium when you're ready.
             </section>
             {% if not guild_presentation.entitlement.trial_used_at %}
-            <div class="field-help billing-followup-note">Try out Premium with a <strong>7-day free trial</strong> to see how it works for this server.</div>
+            <div class="form-banner billing-followup-banner">Try out Premium now with a <strong>7-day free trial</strong> to see how alerts, sessions, and customization work on this server.</div>
             {% endif %}
             {% if guild_presentation.entitlement.trial_used_at %}
-            <div class="field-help billing-followup-note">This server has already used its free trial. Starting checkout will begin a paid subscription.</div>
+            <div class="form-banner billing-followup-banner">This server has already used its free trial. Starting checkout will begin a paid subscription.</div>
             {% endif %}
             {% endif %}
             {% if has_active_pro_entitlement %}
