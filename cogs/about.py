@@ -39,47 +39,41 @@ class About(Cog_Extension):
         style_label = 'Headline-style' if presentation.effective.use_headline_message else 'Template'
         entitlement_source = presentation.entitlement.plan_source.replace('_', ' ')
 
+        plan_label = 'Premium' if presentation.plan == 'pro' else 'Free'
         embed = discord.Embed(
-            title='About Tweeticcini',
-            description='A quick server snapshot for how this server is configured right now.',
+            title=itn.guild.name,
+            description='Tweeticcini keeps real-time Twitter/X alerts flowing into your Discord server.',
             color=0x4F7CAC,
         )
         embed.add_field(
-            name='Server',
+            name='Plan & Style',
             value=(
-                f'**{itn.guild.name}**\n'
-                f'Plan: `{"Premium" if presentation.plan == "pro" else "Free"}` via `{entitlement_source}`\n'
-                f'Default style: `{style_label}`'
+                f'`{plan_label}` plan via `{entitlement_source}`\n'
+                f'`{style_label}` delivery style'
             ),
-            inline=False,
+            inline=True,
         )
         embed.add_field(
-            name='Usage',
+            name='Setup',
             value=(
                 f'Monitors: `{len(sources)} / {presentation.features.max_sources}`\n'
                 f'Rules: `{len(rules)} / {presentation.features.max_rules}`\n'
                 f'Sessions: `{len(active_sessions)} / {presentation.features.max_twitter_sessions}`'
             ),
-            inline=False,
+            inline=True,
         )
         embed.add_field(
             name='Runtime',
             value=(
-                f'Tweet checks: `Every {configs["tweets_check_period"]}s`\n'
-                f'Bot reach: `{len(self.bot.guilds)}` server{"" if len(self.bot.guilds) == 1 else "s"}'
+                f'Checks every `{configs["tweets_check_period"]}s`\n'
+                f'Connected in `{len(self.bot.guilds)}` server{"" if len(self.bot.guilds) == 1 else "s"}'
             ),
-            inline=True,
-        )
-        embed.add_field(
-            name='Next step',
-            value='Use `/dashboard` for monitors, billing, sessions, and appearance controls.',
             inline=True,
         )
         if itn.guild.icon:
             embed.set_thumbnail(url=itn.guild.icon.url)
         if self.bot.user and self.bot.user.display_avatar:
             embed.set_author(name='Tweeticcini', icon_url=self.bot.user.display_avatar.url)
-        embed.set_footer(text='Use /dashboard for full setup and billing controls.')
 
         view = None
         base_url = _get_dashboard_base_url()

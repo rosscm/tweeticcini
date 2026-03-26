@@ -6,7 +6,7 @@
     <title>Tweeticcini</title>
     <meta
       name="description"
-      content="Tweeticcini is a subscription alerting service for Discord server owners who want Twitter/X source monitoring, role routing, keyword filtering, and critical-drop escalation."
+      content="Tweeticcini is a real-time Twitter/X alert bot for Discord, with fast delivery, flexible rules, and one dashboard for setup and billing."
     >
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
@@ -19,22 +19,22 @@
           <div class="site-brand">
             <img class="site-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
             <div>
-              <p class="eyebrow">Tweeticcini</p>
-              <div class="site-brand-name">Hosted Discord Alerts</div>
+              <p class="eyebrow">Tweeticcini for Discord</p>
+              <div class="site-brand-name">Discord alert bot</div>
             </div>
           </div>
-          <h1>Fast Twitter/X alerts for Discord, built for cleaner routing and less noise.</h1>
+          <h1>Real-time Twitter/X alerts for Discord, with the control you want and none of the noise.</h1>
           <p class="lede">
-            Tweeticcini is a hosted Discord bot for operators who need high-signal alerts, role-based routing, keyword filtering, alert previews, and premium escalation for the drops that actually matter.
+            Track the accounts that matter, send fast alerts to the right channels, and manage everything from one dashboard.
           </p>
           <div class="hero-actions">
             <a class="button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
-            <a class="button button-secondary" href="#pricing">View Founding Pro</a>
+            <a class="button button-secondary" href="https://app.tweeticcini.com">Open Dashboard</a>
           </div>
           <ul class="hero-points">
-            <li>⚡ Invite the bot directly into your server</li>
-            <li>🎯 Route alerts by channel, role, and rule</li>
-            <li>🚨 Keep premium controls for high-signal drops</li>
+            <li>Follow the Twitter/X accounts your server actually cares about</li>
+            <li>Filter noise, route alerts cleanly, and escalate urgent posts when needed</li>
+            <li>Manage monitors, rules, appearance, and billing from one dashboard</li>
           </ul>
         </div>
         <aside class="app-preview">
@@ -48,48 +48,63 @@
                 </div>
               </div>
               <div class="preview-server-name">
-                <strong>Pokemon Drops CA</strong>
-                <span class="status-pill status-pill--pro">Pro plan</span>
+                <span class="status-pill status-pill--pro">Premium Plan</span>
               </div>
               <div class="preview-nav">
                 <span class="nav-item nav-item--active"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V20h13V9.5"></path></svg></span> Overview</span>
-                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.25"></circle><path d="M5.5 19.5c1.8-3.4 4-5.1 6.5-5.1s4.7 1.7 6.5 5.1"></path></svg></span> Accounts</span>
+                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"></rect><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span> Sessions</span>
+                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.25"></circle><path d="M5.5 19.5c1.8-3.4 4-5.1 6.5-5.1s4.7 1.7 6.5 5.1"></path></svg></span> Monitors</span>
                 <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 19h18L12 3Z"></path><path d="M12 9v4.5"></path><path d="M12 17h.01"></path></svg></span> Rules</span>
                 <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5a7.5 7.5 0 1 0 0 15c1 0 1.6-.5 1.6-1.3 0-.7-.4-1.2-.4-1.8 0-1.1 1-2 2.3-2H17A4 4 0 0 0 21 10c0-3-3.8-5.5-9-5.5Z"></path><path d="M7.5 11h.01"></path><path d="M9.5 8h.01"></path><path d="M13.5 8h.01"></path></svg></span> Appearance</span>
-                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M3 10.5h18"></path><path d="M7 15h3"></path></svg></span> Billing</span>
+                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 8 4 3 4-6 4 6 4-3v10H4V8Z"></path></svg></span> Premium</span>
               </div>
             </div>
             <div class="app-content">
+              <div class="preview-mobile-nav">
+                <button type="button" class="preview-mobile-toggle" aria-label="Open navigation">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </button>
+                <div class="preview-mobile-current">
+                  <span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V20h13V9.5"></path></svg></span>
+                  <div>
+                    <span class="metric-label">Overview</span>
+                    <strong>Server Dashboard</strong>
+                  </div>
+                </div>
+                <span class="status-pill status-pill--pro">Premium Plan</span>
+              </div>
               <div class="app-topbar app-topbar--status">
                 <div>
-                  <span class="metric-label">Live dashboard status:</span>
+                  <span class="metric-label">Live dashboard status</span>
                   <strong class="status-copy status-copy--healthy">Healthy. No recent delivery warnings.</strong>
                 </div>
               </div>
               <div class="app-panel">
                 <div class="metric-row">
                   <div class="metric-card">
-                    <span class="metric-label">Tracked Accounts</span>
-                    <strong>3 / 25</strong>
+                    <span class="metric-label">Sessions</span>
+                    <strong>1 / 5</strong>
                   </div>
                   <div class="metric-card">
-                    <span class="metric-label">Alert Rules</span>
-                    <strong>2 / 50</strong>
+                    <span class="metric-label">Monitors</span>
+                    <strong>4 / 25</strong>
                   </div>
                 </div>
                 <div class="feed-card">
                   <div class="feed-header">
-                    <strong>Account Setup</strong>
-                    <span class="tag">Tracked source</span>
+                    <strong>Alert Configuration</strong>
+                    <span class="tag">Template style</span>
                   </div>
-                  <p>Route a tracked account into the right channel, mention the right role, and preview the final message before saving.</p>
+                  <p>Use monitors, muted phrases, and escalation rules to keep alerts focused.</p>
                 </div>
                 <div class="feed-card feed-card--muted">
                   <div class="feed-header">
-                    <strong>Rule Setup</strong>
-                    <span class="tag tag--soft">Force everyone</span>
+                    <strong>Last Delivery</strong>
+                    <span class="tag tag--soft">Moments ago</span>
                   </div>
-                  <p>Escalation rules can break through when needed, while longer exclusion lists stay visible and easier to manage.</p>
+                  <p>The latest alert landed in <code>#drops</code> with the right mention and routing.</p>
                 </div>
               </div>
             </div>
@@ -97,148 +112,134 @@
         </aside>
       </section>
 
-      <section class="panel-grid panel-grid--feature-lead">
-        <article class="panel">
-          <h2>Built for operator-owned communities 🛡️</h2>
-          <p>
-            Tweeticcini is designed for collectors, premium alert groups, and server operators who want their own routing model instead of a generic feed bot. Install it by inviting the hosted bot to your server, then configure everything from the dashboard.
-          </p>
-        </article>
-        <article class="panel">
-          <h2>What you control 🎛️</h2>
-          <ul>
-            <li>Tracked Twitter/X sources per server</li>
-            <li>Channel and role routing</li>
-            <li>Keyword exclusion and escalation rules</li>
-            <li>Custom message and alert presentation</li>
-          </ul>
-        </article>
-      </section>
-
       <section class="feature-strip">
         <div class="feature-card">
-          <span class="feature-label">📡 Sources</span>
-          <strong>Track the accounts that matter</strong>
-          <p>Monitor only the Twitter/X sources your server actually cares about.</p>
+          <span class="feature-label">📡 Monitor</span>
+          <strong>Follow key accounts</strong>
+          <p>Keep alerts focused on the sources that matter.</p>
         </div>
         <div class="feature-card">
-          <span class="feature-label">🧠 Rules</span>
-          <strong>Filter noise before it hits chat</strong>
-          <p>Use exclusions and premium escalation to keep alerts high-signal.</p>
+          <span class="feature-label">🎯 Filter</span>
+          <strong>Mute low-value posts</strong>
+          <p>Use rules to cut noise before it hits chat.</p>
         </div>
         <div class="feature-card">
-          <span class="feature-label">💬 Discord</span>
-          <strong>Deliver alerts with intent</strong>
-          <p>Route to the right channels and roles instead of blasting one generic feed.</p>
+          <span class="feature-label">🚨 Deliver</span>
+          <strong>Send alerts with intent</strong>
+          <p>Route posts cleanly and mention the right people.</p>
+        </div>
+      </section>
+
+      <section class="panel proof-panel">
+        <div class="proof-copy">
+          <h2>See alerts land your way</h2>
+          <p>
+            Configure everything in the dashboard, then let Tweeticcini deliver the final alert directly into the right channel with the right mention and message style.
+          </p>
+        </div>
+        <div class="discord-proof">
+          <div class="discord-proof-header">
+            <span class="discord-proof-channel">#drops</span>
+            <span class="tag tag--soft">Live alert</span>
+          </div>
+          <div class="discord-message">
+            <div class="discord-avatar">
+              <img src="./tweeticcini-icon.png" alt="Tweeticcini icon">
+            </div>
+            <div class="discord-message-body">
+              <div class="discord-message-meta">
+                <strong>Tweeticcini</strong>
+                <span>Today at 2:14 PM</span>
+              </div>
+              <p><span class="discord-mention">@drops</span> Pokemon Center just posted a new update: https://x.com/pokemoncenter/status/1234567890</p>
+              <div class="discord-embed">
+                <div class="discord-embed-bar"></div>
+                <div class="discord-embed-body">
+                  <strong>Pokemon Center</strong>
+                  <span>View the post and jump straight into the update from your server.</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="pricing" class="pricing-card">
         <div class="pricing-header">
           <div>
-            <p class="eyebrow">Launch Pricing</p>
-            <h2>Founding Pro ✨</h2>
-          </div>
-          <div class="price-line">
-            <strong>$9 USD/month</strong>
-            <span>limited launch</span>
+            <h2>Simple plans, no speed gating</h2>
+            <div class="price-line">
+              <strong>$9 USD/month</strong>
+              <span>Premium</span>
+            </div>
           </div>
         </div>
         <div class="pricing-layout">
           <div class="pricing-copy">
-            <p>
-              Founding Pro is for Discord server owners who want premium alert controls without gating the core speed of the service.
+            <p class="pricing-summary">
+              Free and Premium both run on speedy <strong>12-second</strong> tweet checks. Premium adds higher limits, richer delivery controls, and stronger escalation tools for busy servers.
             </p>
-            <p class="pricing-note">
-              Free and Pro share the same core polling speed. Pro unlocks more control, customization, and higher limits, not artificially faster alerts.
-            </p>
+            <p class="pricing-note"><strong>✨ New servers get a 7-day Premium plan trial</strong>, so you can try the extra control before committing.</p>
           </div>
-          <div class="plan-compare">
-            <div class="plan-compare-head">
-              <span></span>
-              <strong>Free</strong>
-              <strong>Founding Pro</strong>
-            </div>
-            <div class="plan-compare-row">
-              <span>Core polling speed</span>
-              <span>✓</span>
-              <span>✓</span>
-            </div>
-            <div class="plan-compare-row">
-              <span>Tracked accounts</span>
-              <span>3</span>
-              <span>25</span>
-            </div>
-            <div class="plan-compare-row">
-              <span>Alert rules</span>
-              <span>3</span>
-              <span>50</span>
-            </div>
-            <div class="plan-compare-row">
-              <span>Trigger keywords</span>
-              <span>5</span>
-              <span>150</span>
-            </div>
-            <div class="plan-compare-row">
-              <span>Exclusion keywords</span>
-              <span>20</span>
-              <span>500</span>
-            </div>
-            <div class="plan-compare-row">
-              <span>Custom account messages</span>
-              <span>✕</span>
-              <span>✓</span>
-            </div>
-            <div class="plan-compare-row">
-              <span>Appearance overrides</span>
-              <span>✕</span>
-              <span>✓</span>
-            </div>
-            <div class="plan-compare-row">
-              <span>Force everyone escalation</span>
-              <span>✕</span>
-              <span>✓</span>
-            </div>
-          </div>
-        </div>
-        <div class="pricing-grid">
-          <div class="pricing-feature">
-            <strong>25 tracked sources</strong>
-            <span>per server</span>
-          </div>
-          <div class="pricing-feature">
-            <strong>50 alert rules</strong>
-            <span>per server</span>
-          </div>
-          <div class="pricing-feature">
-            <strong>Appearance overrides</strong>
-            <span>custom alert look and feel</span>
-          </div>
-          <div class="pricing-feature">
-            <strong>@everyone escalation</strong>
-            <span>premium critical-drop rule type</span>
+          <div class="plan-stacks">
+            <article class="plan-card">
+              <div class="plan-card-head">
+                <strong>Free</strong>
+                <span class="tag tag--soft">$0</span>
+              </div>
+              <ul class="plan-list">
+                <li>1 session per server</li>
+                <li>3 monitors</li>
+                <li>3 rules</li>
+                <li>5 muted phrases</li>
+              </ul>
+            </article>
+            <article class="plan-card plan-card--featured">
+              <div class="plan-card-head">
+                <strong>Premium</strong>
+                <span class="tag plan-price-tag">$9 / month</span>
+              </div>
+              <ul class="plan-list">
+                <li>5 sessions per server</li>
+                <li>25 monitors</li>
+                <li>50 rules</li>
+                <li>500 muted phrases</li>
+                <li>150 escalation keywords</li>
+                <li>Appearance and message customization</li>
+                <li><code>@everyone</code> escalation rules</li>
+              </ul>
+            </article>
           </div>
         </div>
       </section>
 
       <section class="panel-grid panel-grid--legal">
         <article class="panel">
-          <h2>Support 🤝</h2>
+          <h2>Get live quickly</h2>
           <p>
-            Tweeticcini is currently in limited launch, with support and onboarding handled directly for early users.
+            Add Tweeticcini to Discord, open the dashboard, connect a session, and build the alert flow your server needs in minutes.
           </p>
-          <p><a class="button button-secondary" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Install in Discord</a></p>
-          <p><strong>Email:</strong> <a href="mailto:pokaccini@icloud.com">pokaccini@icloud.com</a></p>
+          <div class="link-list">
+            <a class="button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
+            <a class="button button-secondary" href="https://app.tweeticcini.com">Open Dashboard</a>
+          </div>
         </article>
         <article class="panel">
-          <h2>Policies 📘</h2>
-          <p>Review the current privacy and service terms below.</p>
+          <h2>Support and policies</h2>
+          <p>Everything you need to review before getting started.</p>
           <div class="link-list">
             <a href="./privacy.html">Privacy Policy</a>
             <a href="./terms.html">Terms of Service</a>
           </div>
         </article>
       </section>
+
+      <footer class="site-footer">
+        <div class="site-footer-brand">
+          <strong>Powered by Tweeticcini</strong>
+          <span>Real-time Twitter/X alerts for Discord.</span>
+        </div>
+      </footer>
     </main>
   </body>
 </html>
