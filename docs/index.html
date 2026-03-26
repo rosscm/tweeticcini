@@ -19,23 +19,23 @@
           <div class="site-brand">
             <img class="site-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
             <div>
-              <p class="eyebrow">Tweeticcini for Discord</p>
-              <div class="site-brand-name">Discord alert bot</div>
+              <p class="eyebrow">Tweeticcini</p>
+              <div class="site-brand-name">Twitter/X alert routing for Discord</div>
             </div>
           </div>
           <h1>Real-time Twitter/X alerts for Discord, with the control you want and none of the noise.</h1>
           <p class="lede">
-            Track the accounts that matter, send fast alerts to the right channels, and manage everything from one dashboard.
+            Follow the accounts that matter, filter low-value posts before they hit chat, and deliver the right alerts to the right people.
           </p>
+          <ul class="hero-points">
+            <li>📡 Follow the Twitter/X accounts your server actually cares about</li>
+            <li>🎯 Filter noise, route alerts cleanly, and escalate urgent posts when needed</li>
+            <li>🧠 Manage monitors, rules, appearance, and billing in one place</li>
+          </ul>
           <div class="hero-actions">
             <a class="button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
             <a class="button button-secondary" href="https://app.tweeticcini.com">Open Dashboard</a>
           </div>
-          <ul class="hero-points">
-            <li>Follow the Twitter/X accounts your server actually cares about</li>
-            <li>Filter noise, route alerts cleanly, and escalate urgent posts when needed</li>
-            <li>Manage monitors, rules, appearance, and billing from one dashboard</li>
-          </ul>
         </div>
         <aside class="app-preview">
           <div class="app-shell">
@@ -75,13 +75,11 @@
                 </div>
                 <span class="status-pill status-pill--pro">Premium Plan</span>
               </div>
-              <div class="app-topbar app-topbar--status">
-                <div>
-                  <span class="metric-label">Live dashboard status</span>
-                  <strong class="status-copy status-copy--healthy">Healthy. No recent delivery warnings.</strong>
-                </div>
-              </div>
               <div class="app-panel">
+                <div class="status-preview-card">
+                  <span class="metric-label">Live dashboard status</span>
+                  <strong class="status-copy status-copy--healthy">Healthy. Bot is online with no recent delivery issues.</strong>
+                </div>
                 <div class="metric-row">
                   <div class="metric-card">
                     <span class="metric-label">Sessions</span>
@@ -95,7 +93,7 @@
                 <div class="feed-card">
                   <div class="feed-header">
                     <strong>Alert Configuration</strong>
-                    <span class="tag">Template style</span>
+                    <span class="tag">Headline style</span>
                   </div>
                   <p>Use monitors, muted phrases, and escalation rules to keep alerts focused.</p>
                 </div>
@@ -112,132 +110,115 @@
         </aside>
       </section>
 
-      <section class="feature-strip">
-        <div class="feature-card">
-          <span class="feature-label">📡 Monitor</span>
-          <strong>Follow key accounts</strong>
-          <p>Keep alerts focused on the sources that matter.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-label">🎯 Filter</span>
-          <strong>Mute low-value posts</strong>
-          <p>Use rules to cut noise before it hits chat.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-label">🚨 Deliver</span>
-          <strong>Send alerts with intent</strong>
-          <p>Route posts cleanly and mention the right people.</p>
-        </div>
-      </section>
-
-      <section class="panel proof-panel">
-        <div class="proof-copy">
-          <h2>See alerts land your way</h2>
-          <p>
-            Configure everything in the dashboard, then let Tweeticcini deliver the final alert directly into the right channel with the right mention and message style.
-          </p>
-        </div>
-        <div class="discord-proof">
-          <div class="discord-proof-header">
-            <span class="discord-proof-channel">#drops</span>
-            <span class="tag tag--soft">Live alert</span>
-          </div>
-          <div class="discord-message">
-            <div class="discord-avatar">
-              <img src="./tweeticcini-icon.png" alt="Tweeticcini icon">
-            </div>
-            <div class="discord-message-body">
-              <div class="discord-message-meta">
-                <strong>Tweeticcini</strong>
-                <span>Today at 2:14 PM</span>
-              </div>
-              <p><span class="discord-mention">@drops</span> Pokemon Center just posted a new update: https://x.com/pokemoncenter/status/1234567890</p>
-              <div class="discord-embed">
-                <div class="discord-embed-bar"></div>
-                <div class="discord-embed-body">
-                  <strong>Pokemon Center</strong>
-                  <span>View the post and jump straight into the update from your server.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="pricing" class="pricing-card">
-        <div class="pricing-header">
-          <div>
-            <h2>Simple plans, no speed gating</h2>
-            <div class="price-line">
-              <strong>$9 USD/month</strong>
-              <span>Premium</span>
-            </div>
-          </div>
-        </div>
-        <div class="pricing-layout">
-          <div class="pricing-copy">
-            <p class="pricing-summary">
-              Free and Premium both run on speedy <strong>12-second</strong> tweet checks. Premium adds higher limits, richer delivery controls, and stronger escalation tools for busy servers.
+      <section class="mid-grid">
+        <section class="panel proof-panel">
+          <div class="proof-copy">
+            <h2>See alerts land your way</h2>
+            <p>
+              Configure the routing, mention style, and delivery format in the dashboard, then let Tweeticcini handle the final post in Discord.
             </p>
-            <p class="pricing-note"><strong>✨ New servers get a 7-day Premium plan trial</strong>, so you can try the extra control before committing.</p>
           </div>
-          <div class="plan-stacks">
-            <article class="plan-card">
-              <div class="plan-card-head">
-                <strong>Free</strong>
-                <span class="tag tag--soft">$0</span>
-              </div>
-              <ul class="plan-list">
-                <li>1 session per server</li>
-                <li>3 monitors</li>
-                <li>3 rules</li>
-                <li>5 muted phrases</li>
-              </ul>
-            </article>
-            <article class="plan-card plan-card--featured">
-              <div class="plan-card-head">
-                <strong>Premium</strong>
-                <span class="tag plan-price-tag">$9 / month</span>
-              </div>
-              <ul class="plan-list">
-                <li>5 sessions per server</li>
-                <li>25 monitors</li>
-                <li>50 rules</li>
-                <li>500 muted phrases</li>
-                <li>150 escalation keywords</li>
-                <li>Appearance and message customization</li>
-                <li><code>@everyone</code> escalation rules</li>
-              </ul>
-            </article>
+          <div class="proof-image-shell">
+            <img class="proof-image" src="./discord-alert-example.png" alt="Example Tweeticcini alert delivered in Discord">
           </div>
-        </div>
+        </section>
+
+        <section id="pricing" class="pricing-card">
+          <div class="pricing-header">
+            <h2>Simple plans, no speed gating</h2>
+            <span class="pricing-inline-price">$9/month</span>
+          </div>
+          <div class="pricing-layout">
+            <div class="pricing-copy">
+              <p class="pricing-summary pricing-summary--lead">
+                Free and Premium both run on speedy <strong>12-second</strong> tweet checks, so upgrading is about more control and power, not more speed.
+              </p>
+              <p class="pricing-note pricing-note--callout"><strong>✨ Try Premium risk-free for 7 days</strong></p>
+            </div>
+            <div class="pricing-table-wrap">
+              <table class="pricing-table">
+                <colgroup>
+                  <col>
+                  <col>
+                  <col>
+                </colgroup>
+                <thead>
+                <tr>
+                  <th></th>
+                  <th>Free</th>
+                  <th>Premium</th>
+                </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th>Fast polling speed</th>
+                    <td>✓</td>
+                    <td>✓</td>
+                  </tr>
+                  <tr>
+                    <th>Account monitors</th>
+                    <td>3</td>
+                    <td>25</td>
+                  </tr>
+                  <tr>
+                    <th>Delivery rules</th>
+                    <td>3</td>
+                    <td>50</td>
+                  </tr>
+                  <tr>
+                    <th>Muted phrases</th>
+                    <td>5</td>
+                    <td>500</td>
+                  </tr>
+                  <tr>
+                    <th><code>@everyone</code> alerts</th>
+                    <td>✕</td>
+                    <td>✓</td>
+                  </tr>
+                  <tr>
+                    <th>Escalation phrases</th>
+                    <td>✕</td>
+                    <td>150</td>
+                  </tr>
+                  <tr>
+                    <th>Custom messages</th>
+                    <td>✕</td>
+                    <td>✓</td>
+                  </tr>
+                  <tr>
+                    <th>Delivery styling</th>
+                    <td>✕</td>
+                    <td>✓</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </section>
 
-      <section class="panel-grid panel-grid--legal">
-        <article class="panel">
-          <h2>Get live quickly</h2>
+      <section class="cta-panel">
+        <div>
+          <p class="eyebrow">Get Live Quickly</p>
+          <h2>Set up Tweeticcini in minutes</h2>
           <p>
-            Add Tweeticcini to Discord, open the dashboard, connect a session, and build the alert flow your server needs in minutes.
+            Add the bot, open the dashboard, connect a Twitter/X session, and build the alert flow your server actually needs.
           </p>
-          <div class="link-list">
-            <a class="button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
-            <a class="button button-secondary" href="https://app.tweeticcini.com">Open Dashboard</a>
-          </div>
-        </article>
-        <article class="panel">
-          <h2>Support and policies</h2>
-          <p>Everything you need to review before getting started.</p>
-          <div class="link-list">
-            <a href="./privacy.html">Privacy Policy</a>
-            <a href="./terms.html">Terms of Service</a>
-          </div>
-        </article>
+        </div>
+        <div class="link-list">
+          <a class="button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
+          <a class="button button-secondary" href="https://app.tweeticcini.com">Open Dashboard</a>
+        </div>
       </section>
 
       <footer class="site-footer">
         <div class="site-footer-brand">
-          <strong>Powered by Tweeticcini</strong>
-          <span>Real-time Twitter/X alerts for Discord.</span>
+          <strong>Powered by <img class="site-footer-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon"> Tweeticcini</strong>
+          <span>Real-time Twitter/X alerts for Discord</span>
+        </div>
+        <div class="site-footer-links">
+          <a href="./privacy.html">Privacy Policy</a>
+          <a href="./terms.html">Terms of Service</a>
         </div>
       </footer>
     </main>

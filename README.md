@@ -275,6 +275,8 @@ Suggested first live rollout:
 
 A minimal public-facing site for billing/onboarding lives in [docs/index.html](/Users/rossc10/projects/tweeticcini/docs/index.html) with companion privacy and terms pages in [docs/privacy.html](/Users/rossc10/projects/tweeticcini/docs/privacy.html) and [docs/terms.html](/Users/rossc10/projects/tweeticcini/docs/terms.html).
 
+The Discord app banner artwork was assembled manually in Kapwing.
+
 To publish it with GitHub Pages, configure the repository Pages source to deploy from the `docs/` folder on your chosen branch.
 
 # 🚀 Production Deployment
