@@ -1,0 +1,9 @@
+[Unit]
+Description=Tweeticcini health check and self-heal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/Documents/GitHub/tweeticcini
+ExecStart=/usr/local/bin/tweeticcini-healthcheck.sh

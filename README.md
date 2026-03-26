@@ -356,6 +356,46 @@ The typical flow is:
 - `tweeticcini-dashboard.service` serves the FastAPI dashboard there
 - `tweeticcini-bot.service` handles runtime polling and Discord delivery
 
+### Optional self-healing watchdog on the Pi
+
+If the Pi occasionally ends up in a state where the dashboard stops responding until you reboot, start with service-level recovery before full device reboots.
+
+Tweeticcini already exposes a local health endpoint:
+
+- `http://127.0.0.1:8080/health`
+
+The sample watchdog in this repo:
+
+- restarts `tweeticcini-dashboard.service` if `/health` stops responding
+- restarts `cloudflared` if the dashboard still does not recover after a dashboard restart
+- restarts `tweeticcini-bot.service` after repeated unhealthy bot-runtime checks
+
+Files:
+
+- [deploy/systemd/tweeticcini-healthcheck.sh](/Users/rossc10/projects/tweeticcini/deploy/systemd/tweeticcini-healthcheck.sh)
+- [deploy/systemd/tweeticcini-healthcheck.service](/Users/rossc10/projects/tweeticcini/deploy/systemd/tweeticcini-healthcheck.service)
+- [deploy/systemd/tweeticcini-healthcheck.timer](/Users/rossc10/projects/tweeticcini/deploy/systemd/tweeticcini-healthcheck.timer)
+
+Install them on the Pi:
+
+```bash
+sudo cp deploy/systemd/tweeticcini-healthcheck.service /etc/systemd/system/
+sudo cp deploy/systemd/tweeticcini-healthcheck.timer /etc/systemd/system/
+sudo cp deploy/systemd/tweeticcini-healthcheck.sh /usr/local/bin/tweeticcini-healthcheck.sh
+sudo chmod +x /usr/local/bin/tweeticcini-healthcheck.sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now tweeticcini-healthcheck.timer
+```
+
+Check status:
+
+```bash
+systemctl status tweeticcini-healthcheck.timer
+journalctl -u tweeticcini-healthcheck.service -f
+```
+
+This is intentionally conservative: it tries to restart only the affected service first. If you later decide you want an automatic Pi reboot after repeated failures, add that as a second stage after this lighter recovery path has had time to prove itself.
+
 # 📜 License
 
 This project is based on Tweetcord by Yuuzi261 and remains distributed under the MIT License.
