@@ -1288,11 +1288,39 @@ async def dashboard_guild_defaults_redirect(guild_id: str):
 
 @app.get('/health')
 async def healthcheck() -> dict[str, object]:
-    log_health = _read_recent_log_health()
-    client_statuses = await list_runtime_client_statuses(notifier_service.db_path)
-    twitter_session_count = len(await twitter_session_service.list_all_server_twitter_session_keys())
+    issues: list[str] = []
+
+    try:
+        log_health = _read_recent_log_health()
+    except Exception as exc:
+        log.warning(f'healthcheck could not read recent log health: {exc}')
+        log_health = {
+            'bot_online_recently': False,
+            'updater_error_count': 0,
+            'delivery_error_count': 0,
+            'dead_task_warning_count': 0,
+            'last_online_at': None,
+        }
+        issues.append('log_health_unavailable')
+
+    try:
+        client_statuses = await list_runtime_client_statuses(notifier_service.db_path)
+    except Exception as exc:
+        log.warning(f'healthcheck could not read runtime client statuses: {exc}')
+        client_statuses = []
+        issues.append('runtime_client_statuses_unavailable')
+
+    try:
+        twitter_session_count = len(await twitter_session_service.list_all_server_twitter_session_keys())
+    except Exception as exc:
+        log.warning(f'healthcheck could not read twitter session count: {exc}')
+        twitter_session_count = 0
+        issues.append('twitter_session_count_unavailable')
+
+    status = 'ok' if not issues else 'degraded'
     return {
-        'status': 'ok',
+        'status': status,
+        'issues': issues,
         'oauth_enabled': _get_discord_oauth_config() is not None,
         'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
         'twitter_session_count': twitter_session_count,

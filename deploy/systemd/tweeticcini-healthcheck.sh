@@ -41,7 +41,7 @@ ensure_active() {
 }
 
 fetch_health() {
-  curl --silent --show-error --fail --max-time 10 "$DASHBOARD_URL"
+  curl --silent --show-error --max-time 10 "$DASHBOARD_URL"
 }
 
 dashboard_payload="$(fetch_health || true)"
@@ -60,14 +60,18 @@ fi
 
 dashboard_status="$(printf '%s' "$dashboard_payload" | python3 -c "import json,sys; data=json.load(sys.stdin); print(data.get('status', ''))" 2>/dev/null || true)"
 
-if [[ "$dashboard_status" != "ok" ]]; then
-  log "dashboard returned non-ok health status; restarting ${DASHBOARD_SERVICE}"
+if [[ -z "$dashboard_status" ]]; then
+  log "dashboard health payload was not parseable; restarting ${DASHBOARD_SERVICE}"
   restart_service "$DASHBOARD_SERVICE"
   exit 0
 fi
 
 ensure_active "$DASHBOARD_SERVICE"
 ensure_active "$TUNNEL_SERVICE"
+
+if [[ "$dashboard_status" != "ok" ]]; then
+  log "dashboard health status is ${dashboard_status}; leaving dashboard up and checking runtime signals"
+fi
 
 bot_health_line="$(printf '%s' "$dashboard_payload" | python3 -c "import json,sys; data=json.load(sys.stdin); log_health=data.get('log_health', {}); session_count=int(data.get('twitter_session_count') or 0); healthy_count=int(data.get('healthy_twitter_session_count') or 0); bot_online_recently='1' if log_health.get('bot_online_recently') else '0'; dead_task_count=int(log_health.get('dead_task_warning_count_since_last_online') or 0); unhealthy='1' if ((session_count > 0 and healthy_count == 0) or bot_online_recently == '0' or dead_task_count > 0) else '0'; print('|'.join([unhealthy, str(session_count), str(healthy_count), bot_online_recently, str(dead_task_count)]))" 2>/dev/null || true)"
 
