@@ -104,6 +104,9 @@ class TwitterSessionService:
     async def list_server_twitter_session_keys(self, server_id: str) -> list[str]:
         return await list_server_twitter_session_keys(self.db_path, server_id)
 
+    async def list_all_server_twitter_session_keys(self) -> list[str]:
+        return await list_all_server_twitter_session_keys(self.db_path)
+
     async def list_all_active_auth_records(self) -> list[TwitterSessionAuthRecord]:
         rows = await list_active_server_twitter_sessions(self.db_path)
         records: list[TwitterSessionAuthRecord] = []
