@@ -423,7 +423,7 @@ body {
 .site-footer {
   display: grid;
   justify-items: center;
-  gap: 18px;
+  gap: 8px;
   align-items: center;
   margin-top: 24px;
   padding: 18px 6px 0;

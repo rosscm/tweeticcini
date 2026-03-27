@@ -95,6 +95,7 @@ DISCORD_CLIENT_ID=YourDiscordClientId
 DISCORD_CLIENT_SECRET=YourDiscordClientSecret
 DISCORD_REDIRECT_URI=http://localhost:8000/dashboard/callback
 DASHBOARD_BASE_URL=https://app.tweeticcini.com
+SUPPORT_SERVER_URL=https://discord.gg/yourinvite
 DASHBOARD_SESSION_SECRET=YourLongRandomSessionSecret
 TWITTER_SESSION_SECRET=YourLongRandomSessionSecret
 STRIPE_PUBLISHABLE_KEY=pk_test_replace_me
@@ -116,6 +117,7 @@ Local vs production reminders:
 - local dashboard OAuth should use `http://localhost:8000/dashboard/callback`
 - production OAuth should use your real dashboard domain callback URL
 - set `DASHBOARD_BASE_URL` to your public dashboard origin so the `/dashboard` slash command opens the public site instead of localhost
+- set `SUPPORT_SERVER_URL` if you want `/about` to show a `Support Server` button alongside `Open Dashboard`
 - `TWITTER_SESSION_SECRET` should be set anywhere the dashboard or bot will read stored server sessions
 - Stripe test keys and live keys must never be mixed with the wrong `price_...` or webhook secret
 - the production bot and dashboard should share the same `DATA_PATH` target so billing, dashboard, and runtime changes land in one database
