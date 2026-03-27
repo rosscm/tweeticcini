@@ -53,7 +53,7 @@ class About(Cog_Extension):
 
         embed = discord.Embed(
             title=itn.guild.name,
-            description='📡 Keeping this server on top of the Twitter/X alerts it cares about.',
+            description='📡 Keeping this server on top of the Twitter alerts it cares about.',
             color=0x4F7CAC,
         )
         embed.add_field(
@@ -74,14 +74,18 @@ class About(Cog_Extension):
             ),
             inline=True,
         )
+        embed.add_field(
+            name='Runtime',
+            value=(
+                f'Checks every `{configs["tweets_check_period"]}s`\n'
+                f'Connected in `{len(self.bot.guilds)}` server{"" if len(self.bot.guilds) == 1 else "s"}'
+            ),
+            inline=True,
+        )
         if itn.guild.icon:
             embed.set_thumbnail(url=itn.guild.icon.url)
         embed.set_footer(
-            text=(
-                f'Built with ❤️ by Pokaccini • '
-                f'Checks every {configs["tweets_check_period"]}s • '
-                f'Connected in {len(self.bot.guilds)} server{"" if len(self.bot.guilds) == 1 else "s"}'
-            )
+            text='Built with ❤️ by Pokaccini'
         )
 
         view = None

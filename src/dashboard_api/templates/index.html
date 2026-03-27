@@ -19,7 +19,7 @@
         </div>
         <h1>Choose a server</h1>
         <p class="lede">
-          Pick a server to connect Twitter/X sessions, set up monitors, fine-tune alerts, and customize how Tweeticcini posts.
+          Pick a server to connect Twitter sessions, set up monitors, fine-tune alerts, and customize how Tweeticcini posts.
         </p>
         {% if public_site_url and oauth_enabled and not discord_user %}
         <p class="section-copy">Need a quick overview first? Open <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Plans &amp; Setup</a> to review how the bot works, then come back when you're ready to configure a server.</p>
@@ -91,6 +91,7 @@
           <button type="submit">Open Dashboard</button>
         </form>
         {% endif %}
+        <div class="version-note version-note--centered">Version <strong>{{ app_version }}</strong></div>
       </section>
     </main>
     {% if not oauth_enabled %}

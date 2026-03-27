@@ -278,8 +278,36 @@ Suggested first live rollout:
 A minimal public-facing site for billing/onboarding lives in [docs/index.html](/Users/rossc10/projects/tweeticcini/docs/index.html) with companion privacy and terms pages in [docs/privacy.html](/Users/rossc10/projects/tweeticcini/docs/privacy.html) and [docs/terms.html](/Users/rossc10/projects/tweeticcini/docs/terms.html).
 
 The Discord app banner artwork was assembled manually in Kapwing.
+The support server welcome embed was assembled in Discohook.
 
 To publish it with GitHub Pages, configure the repository Pages source to deploy from the `docs/` folder on your chosen branch.
+
+# 🔖 Versioning
+
+Tweeticcini now uses a shared top-level [VERSION](/Users/rossc10/projects/tweeticcini/VERSION) file as the source of truth for release versioning. The dashboard reads from this file directly, so updating it changes the version shown in the UI after restart.
+
+To bump the version:
+
+```bash
+python3 scripts/bump_version.py patch
+python3 scripts/bump_version.py minor
+python3 scripts/bump_version.py major
+```
+
+To set an explicit version:
+
+```bash
+python3 scripts/bump_version.py --set 1.2.3
+```
+
+To create a tagged release commit at the same time:
+
+```bash
+python3 scripts/release_version.py patch
+python3 scripts/release_version.py minor
+python3 scripts/release_version.py --set 1.2.3
+git push origin dev --follow-tags
+```
 
 # 🚀 Production Deployment
 

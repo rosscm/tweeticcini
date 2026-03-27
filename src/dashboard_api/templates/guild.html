@@ -23,7 +23,7 @@
               <h1>{{ guild_name }}</h1>
               <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan</span>
             </div>
-            <p class="lede lede--wide">Tweeticcini keeps watch on Twitter/X so the right posts land in the right channels, right when your server needs them 🚀</p>
+            <p class="lede lede--wide">Tweeticcini keeps watch on Twitter so the right posts land in the right channels, right when your server needs them 🚀</p>
           </section>
 
           <nav class="guild-subnav guild-subnav--sidebar">
@@ -88,6 +88,7 @@
             {% if public_site_url %}
             <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Plans &amp; Setup</a>
             {% endif %}
+            <div class="version-note">Version <strong>{{ app_version }}</strong></div>
           </section>
 
         </aside>
@@ -222,6 +223,7 @@
           {% if public_site_url %}
           <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
           {% endif %}
+          <div class="version-note">Version <strong>{{ app_version }}</strong></div>
         </div>
       </aside>
 
@@ -380,17 +382,17 @@
           <div>
             <p class="eyebrow">Sessions</p>
             <h2>Connect &amp; Manage Sessions</h2>
-            <p class="section-copy section-copy--wide">Manage the Twitter/X sessions this server uses to watch for new posts and deliver alerts.</p>
+            <p class="section-copy section-copy--wide">Manage the Twitter sessions this server uses to watch for new posts and deliver alerts.</p>
           </div>
         </div>
 
         {% if delivery_sessions_required %}
         <section class="notice notice--warning">
-          <strong>Delivery blocked:</strong> this server does not have a connected Twitter/X session yet. Add one below before configuring monitors.
+          <strong>Delivery blocked:</strong> this server does not have a connected Twitter session yet. Add one below before configuring monitors.
         </section>
         {% else %}
         <section class="notice notice--success">
-          <strong>Delivery ready:</strong> this server has {{ delivery_session_options|length }} active Twitter/X session{{ '' if delivery_session_options|length == 1 else 's' }} ready to watch for new posts.
+          <strong>Delivery ready:</strong> this server has {{ delivery_session_options|length }} active Twitter session{{ '' if delivery_session_options|length == 1 else 's' }} ready to watch for new posts.
         </section>
         {% endif %}
 
@@ -399,7 +401,7 @@
             <h3 class="panel-title">Connect Session</h3>
             <form id="twitter-session-form" class="stack">
               <div class="form-banner">
-                Connect a Twitter/X session here first. This is the account Tweeticcini will use to watch for new posts.
+                Connect a Twitter session here first. This is the account Tweeticcini will use to watch for new posts.
               </div>
               <div id="twitter-session-status" class="form-banner form-banner--hidden" hidden></div>
               {% if twitter_session_limit_reached %}
@@ -415,7 +417,7 @@
               <label for="twitter-session-auth-token">Auth token</label>
               <textarea id="twitter-session-auth-token" rows="7" placeholder="E.g., 53f95f4c8a2d7b1e9c0f4a6d3b8e1f7a2c9d4e6f1b3a5c7d9e0f2a4b6c8d1e3" {{ 'disabled' if twitter_session_limit_reached else '' }}></textarea>
               <div class="field-help">Paste the raw value of your current <code>x.com</code> <code>auth_token</code> cookie. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
-              <div class="field-help">Do this on desktop. Sign in to Twitter/X in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value named <code>auth_token</code>. Need help opening the cookies panel? <a class="inline-link" href="https://developer.chrome.com/docs/devtools/storage/cookies/" target="_blank" rel="noreferrer">How to view cookies in DevTools</a>.</div>
+              <div class="field-help">Do this on desktop. Sign in to Twitter in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value named <code>auth_token</code>. Need help opening the cookies panel? <a class="inline-link" href="https://developer.chrome.com/docs/devtools/storage/cookies/" target="_blank" rel="noreferrer">How to view cookies in DevTools</a>.</div>
 
               <div class="actions">
                 <button type="submit" {{ 'disabled' if twitter_session_limit_reached else '' }}>Connect Session</button>
@@ -486,7 +488,7 @@
                   </tr>
                   {% else %}
                   <tr>
-                    <td colspan="4" class="empty-cell">No Twitter/X sessions connected yet. Add one here before this server can receive delivered posts.</td>
+                    <td colspan="4" class="empty-cell">No Twitter sessions connected yet. Add one here before this server can receive delivered posts.</td>
                   </tr>
                   {% endfor %}
                 </tbody>
@@ -676,7 +678,7 @@
 
           {% if delivery_sessions_required %}
           <section class="notice notice--warning">
-            <strong>Twitter/X session required:</strong> connect a session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can deliver alerts.
+            <strong>Twitter session required:</strong> connect a session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can deliver alerts.
           </section>
           {% endif %}
 
@@ -688,10 +690,10 @@
                   Fill this form and click <strong>Save Monitor</strong> to add a new monitor. Or load an existing row below to update its routing and filter settings.
                 </div>
                 <input id="source-edit-mode" type="hidden" value="create">
-                <label for="source-username-edit">Twitter/X account</label>
+                <label for="source-username-edit">Twitter account</label>
                 <input id="source-username-edit" type="text" placeholder="E.g., CeladonCA" {{ 'disabled' if delivery_sessions_required else '' }}>
-                <div class="field-help">Enter the username exactly as it appears on Twitter/X, without the <code>@</code> symbol.</div>
-                <div class="field-help"><strong>Saving a monitor prompts Tweeticcini to follow this account and enable notifications on the selected Twitter/X session. If that doesn't complete cleanly, alerts may not start immediately.</strong></div>
+                <div class="field-help">Enter the username exactly as it appears on Twitter, without the <code>@</code> symbol.</div>
+                <div class="field-help"><strong>Saving a monitor prompts Tweeticcini to follow this account and enable notifications on the selected Twitter session. If that doesn't complete cleanly, alerts may not start immediately.</strong></div>
 
                 <label for="source-channel-id-edit">Channel name</label>
                 <select id="source-channel-id-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
@@ -728,7 +730,7 @@
                 </select>
                 <div class="field-help">Controls whether alerts should include all posts, only text posts, or only posts with media.</div>
 
-                <label for="source-account-used-edit">Twitter/X session</label>
+                <label for="source-account-used-edit">Twitter session</label>
                 <select id="source-account-used-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
                   {% if delivery_session_options %}
                   {% for session in delivery_session_options %}
@@ -738,7 +740,7 @@
                   <option value="">Connect a session first</option>
                   {% endif %}
                 </select>
-                <div class="field-help">Choose which connected Twitter/X session this monitor should use.</div>
+                <div class="field-help">Choose which connected Twitter session this monitor should use.</div>
 
                 <label for="source-custom-message-edit">Custom alert message {{ '(Premium)' if not guild_presentation.features.can_customize_source_messages else '' }}</label>
                 <textarea id="source-custom-message-edit" rows="4" placeholder="E.g., {mention}**{author}** {action}: {url}" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}></textarea>
@@ -896,7 +898,7 @@
 
           {% if delivery_sessions_required %}
           <section class="notice notice--warning">
-            <strong>Twitter/X session required:</strong> connect a session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can create rules.
+            <strong>Twitter session required:</strong> connect a session on <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">'Sessions'</a> before this server can create rules.
           </section>
           {% elif plan_usage.source_count == 0 %}
           <section class="notice notice--warning">
@@ -925,7 +927,7 @@
                 <input id="rule-name" type="text" placeholder="E.g., ignore off-topic posts" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
                   <div class="field-help">A unique label for this rule inside the current server.</div>
 
-                <label for="source-username">Twitter/X account</label>
+                <label for="source-username">Twitter account</label>
                 <select id="source-username" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
                   <option value="">All monitors</option>
                   {% for source_name in source_options %}
@@ -1694,7 +1696,7 @@
             markFormClean(twitterSessionForm);
             window.location.reload();
           } catch (error) {
-            setFormStatus('twitter-session-status', `Failed to connect Twitter/X session: ${error.message}`, true);
+            setFormStatus('twitter-session-status', `Failed to connect Twitter session: ${error.message}`, true);
           }
         });
       }
@@ -1725,7 +1727,7 @@
           } catch (error) {
             button.dataset.confirming = 'false';
             button.textContent = 'Remove';
-            setStatus(`Failed to remove Twitter/X session: ${error.message}`, true);
+            setStatus(`Failed to remove Twitter session: ${error.message}`, true);
           }
         });
       });
@@ -1745,8 +1747,8 @@
           if (!username || !channelId) {
             setRequiredFieldState('source-username-edit', !username);
             setRequiredFieldState('source-channel-id-edit', !channelId);
-            setFormStatus('source-form-status', 'Twitter/X account and channel are required.', true);
-            setStatus('Twitter/X account and channel are required.', true);
+            setFormStatus('source-form-status', 'Twitter account and channel are required.', true);
+            setStatus('Twitter account and channel are required.', true);
             return;
           }
 
@@ -1823,8 +1825,8 @@
           if (!username || !channelId) {
             setRequiredFieldState('source-username-edit', !username);
             setRequiredFieldState('source-channel-id-edit', !channelId);
-            setFormStatus('source-form-status', 'Choose a Twitter/X account and channel before sending a test alert.', true);
-            setStatus('Choose a Twitter/X account and channel before sending a test alert.', true);
+            setFormStatus('source-form-status', 'Choose a Twitter account and channel before sending a test alert.', true);
+            setStatus('Choose a Twitter account and channel before sending a test alert.', true);
             return;
           }
 
@@ -1875,7 +1877,7 @@
           markFormClean(sourceForm);
           resetSourceFieldValidation();
           setFormStatus('source-form-status');
-          setStatus(`Loaded ${button.dataset.username} for editing, including its assigned Twitter/X session.`);
+          setStatus(`Loaded ${button.dataset.username} for editing, including its assigned Twitter session.`);
         });
       });
 

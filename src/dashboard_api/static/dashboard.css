@@ -500,6 +500,21 @@ body {
   gap: 12px;
 }
 
+.version-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.version-note strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.version-note--centered {
+  margin-top: 6px;
+  text-align: center;
+}
+
 .mobile-nav-toggle,
 .mobile-drawer-close {
   border: 1px solid var(--line);
@@ -1830,6 +1845,6 @@ code {
 
 @media (max-width: 560px) {
   .plan-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

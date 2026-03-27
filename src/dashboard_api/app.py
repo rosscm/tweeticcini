@@ -47,6 +47,7 @@ from src.services.twitter_session_service import (
     TwitterSessionValidationError,
 )
 from src.settings import get_accounts
+from src.versioning import get_app_version
 
 log = setup_logger(__name__)
 
@@ -906,9 +907,10 @@ GUILD_SECTIONS = {
 
 app = FastAPI(
     title='Tweeticcini Dashboard API',
-    version='0.1.0',
+    version=get_app_version(),
     lifespan=lifespan,
 )
+APP_VERSION = app.version
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv('DASHBOARD_SESSION_SECRET', 'tweeticcini-dashboard-dev-secret'),
@@ -949,6 +951,7 @@ async def dashboard_home(request: Request):
         name='index.html',
         context={
             'title': 'Tweeticcini Dashboard',
+            'app_version': APP_VERSION,
             'public_site_url': _get_public_site_url(),
             'oauth_enabled': _get_discord_oauth_config() is not None,
             'discord_login_url': _build_discord_login_url(request, state),
@@ -1163,6 +1166,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         name='guild.html',
         context={
             'title': f"{GUILD_SECTIONS.get(active_section, active_section.capitalize())} | Tweeticcini",
+            'app_version': APP_VERSION,
             'guild_id': guild_id,
             'guild_name': _get_session_guild_name(request, guild_id) or guild_id,
             'guild_icon_url': _get_session_guild_icon_url(request, guild_id),
