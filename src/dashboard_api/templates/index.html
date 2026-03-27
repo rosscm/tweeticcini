@@ -9,6 +9,7 @@
   </head>
   <body>
     <main class="shell shell--centered">
+      <div class="shell-stack">
       <section class="hero-card">
         <div class="brand-mark brand-mark--hero">
           <img class="brand-icon" src="/dashboard/static/tweeticcini-icon.png" alt="Tweeticcini icon">
@@ -91,8 +92,13 @@
           <button type="submit">Open Dashboard</button>
         </form>
         {% endif %}
-        <div class="version-note version-note--centered">Version <strong>{{ app_version }}</strong></div>
       </section>
+      <footer class="dashboard-footer dashboard-footer--centered">
+        <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
+        <span class="dashboard-footer-dot" aria-hidden="true">•</span>
+        <span>v{{ app_version }}</span>
+      </footer>
+      </div>
     </main>
     {% if not oauth_enabled %}
     <script>

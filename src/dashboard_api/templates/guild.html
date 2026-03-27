@@ -88,12 +88,11 @@
             {% if public_site_url %}
             <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Plans &amp; Setup</a>
             {% endif %}
-            <div class="version-note">Version <strong>{{ app_version }}</strong></div>
           </section>
 
         </aside>
 
-        <div class="dashboard-main">
+        <div class="dashboard-main {{ 'dashboard-main--overview' if active_section == 'overview' else '' }}">
       <section class="mobile-nav mobile-only" aria-label="Mobile navigation header">
         <div class="mobile-nav-summary">
           <button type="button" class="mobile-nav-toggle mobile-nav-toggle--icon" id="mobile-nav-toggle" aria-expanded="false" aria-controls="mobile-nav-drawer" aria-label="Open navigation">
@@ -223,7 +222,6 @@
           {% if public_site_url %}
           <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
           {% endif %}
-          <div class="version-note">Version <strong>{{ app_version }}</strong></div>
         </div>
       </aside>
 
@@ -258,7 +256,7 @@
       </section>
 
       {% if active_section == 'overview' %}
-      <section class="card">
+      <section class="card overview-shell">
         <div class="card-header">
           <div>
             <p class="eyebrow">Overview</p>
@@ -349,15 +347,24 @@
             <div class="overview-card-head">
               <h3>Last Delivery</h3>
             </div>
-            {% if overview.latest_delivery %}
-            <div class="overview-delivery-head">
-              <strong>{{ overview.latest_delivery.username }}</strong>
-              <span class="tag tag--soft">{{ overview.latest_delivery.delivered_at }}</span>
+            {% if overview.recent_deliveries %}
+            {% for delivery in overview.recent_deliveries %}
+            <div class="overview-delivery-item">
+              <div class="overview-delivery-head">
+                <strong>{{ delivery.username }}</strong>
+                <span class="tag tag--soft">{{ delivery.delivered_at }}</span>
+              </div>
+              <div class="overview-note">
+                Delivered to
+                {% if delivery.delivery_url %}
+                <a class="inline-link" href="{{ delivery.delivery_url }}" target="_blank" rel="noreferrer">{{ delivery.channel_name }}</a>
+                {% else %}
+                {{ delivery.channel_name }}
+                {% endif %}
+                {% if delivery.matched_rule_name %} via {{ delivery.matched_rule_name }}{% endif %}
+              </div>
             </div>
-            <div class="overview-note">Delivered to {{ overview.latest_delivery.channel_name }}{% if overview.latest_delivery.matched_rule_name %} via {{ overview.latest_delivery.matched_rule_name }}{% endif %}</div>
-            {% if overview.latest_delivery.delivery_url %}
-            <div class="overview-note"><a class="inline-link" href="{{ overview.latest_delivery.delivery_url }}" target="_blank" rel="noreferrer">Open delivered post</a></div>
-            {% endif %}
+            {% endfor %}
             {% else %}
             <div class="overview-note">No successful deliveries yet for this server.</div>
             {% endif %}
@@ -367,10 +374,24 @@
             <div class="overview-card-head">
               <h3>Quick Actions</h3>
             </div>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/sources">Manage monitors</a></div>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules">Edit alert rules</a></div>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/appearance">Adjust appearance</a></div>
-            <div><a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Manage Premium</a></div>
+            <div class="quick-action-list">
+              <a class="quick-action" href="/dashboard/guilds/{{ guild_id }}/sources">
+                <strong>Manage monitors</strong>
+                <span>Choose which accounts this server watches and where alerts land.</span>
+              </a>
+              <a class="quick-action" href="/dashboard/guilds/{{ guild_id }}/rules">
+                <strong>Edit alert rules</strong>
+                <span>Filter noise and escalate urgent posts when timing matters.</span>
+              </a>
+              <a class="quick-action" href="/dashboard/guilds/{{ guild_id }}/appearance">
+                <strong>Adjust appearance</strong>
+                <span>Change delivery style, message formatting, and alert presentation.</span>
+              </a>
+              <a class="quick-action" href="/dashboard/guilds/{{ guild_id }}/billing">
+                <strong>Manage Premium</strong>
+                <span>Review plan limits, trial status, and billing in one place.</span>
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -1052,6 +1073,11 @@
         </div>
 
       </div>
+      <footer class="dashboard-footer">
+        <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
+        <span class="dashboard-footer-dot" aria-hidden="true">•</span>
+        <span>v{{ app_version }}</span>
+      </footer>
     </main>
 
     <div class="unsaved-bar" id="unsaved-bar" hidden>

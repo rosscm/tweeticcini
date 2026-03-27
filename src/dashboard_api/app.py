@@ -1148,12 +1148,15 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         if len(top_destination_names) == 4:
             break
     latest_delivery = None
+    recent_deliveries = []
     delivered_sources = [payload for payload in sources_payload if payload.get('last_delivery_success_at_raw')]
     if delivered_sources:
-        latest_source = max(
+        delivered_sources = sorted(
             delivered_sources,
             key=lambda payload: str(payload.get('last_delivery_success_at_raw') or ''),
+            reverse=True,
         )
+        latest_source = delivered_sources[0]
         latest_delivery = {
             'username': latest_source['username'],
             'channel_name': resource_names['channels'].get(latest_source['channel_id'], latest_source['channel_id']),
@@ -1161,6 +1164,16 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'matched_rule_name': latest_source.get('last_matched_rule_name'),
             'delivery_url': latest_source.get('last_delivery_url'),
         }
+        recent_deliveries = [
+            {
+                'username': source['username'],
+                'channel_name': resource_names['channels'].get(source['channel_id'], source['channel_id']),
+                'delivered_at': source.get('last_delivery_success_at'),
+                'matched_rule_name': source.get('last_matched_rule_name'),
+                'delivery_url': source.get('last_delivery_url'),
+            }
+            for source in delivered_sources[:3]
+        ]
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -1209,6 +1222,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'current_style_label': 'Headline-style' if guild_presentation.effective.use_headline_message else 'Template message',
                 'top_destination_names': top_destination_names,
                 'latest_delivery': latest_delivery,
+                'recent_deliveries': recent_deliveries,
                 'session_breakdown': [
                     {
                         'session_name': session_display_names.get(client_key, client_key),
