@@ -54,6 +54,24 @@ def _matched_phrases(text: str, phrases: list[str]) -> list[str]:
 
 
 KEYWORD_ALLOWED_PATTERN = re.compile(r'^[0-9A-Za-z -]+$')
+BLOCKED_SINGLE_WORD_KEYWORDS = {
+    'a',
+    'an',
+    'and',
+    'as',
+    'at',
+    'by',
+    'for',
+    'from',
+    'in',
+    'into',
+    'of',
+    'on',
+    'or',
+    'the',
+    'to',
+    'with',
+}
 
 
 def _normalize_keyword_value(raw_value: str) -> str:
@@ -62,6 +80,7 @@ def _normalize_keyword_value(raw_value: str) -> str:
 
 def _prepare_keywords(raw_keywords: list[str], field_label: str) -> list[str]:
     invalid_keywords: list[str] = []
+    overly_broad_keywords: list[str] = []
     seen: set[str] = set()
     normalized_keywords: list[str] = []
 
@@ -73,6 +92,10 @@ def _prepare_keywords(raw_keywords: list[str], field_label: str) -> list[str]:
             invalid_keywords.append(trimmed)
             continue
         normalized = _normalize_keyword_value(trimmed)
+        normalized_words = normalized.split()
+        if normalized_words and all(word in BLOCKED_SINGLE_WORD_KEYWORDS for word in normalized_words):
+            overly_broad_keywords.append(trimmed)
+            continue
         if not normalized or normalized in seen:
             continue
         seen.add(normalized)
@@ -84,6 +107,13 @@ def _prepare_keywords(raw_keywords: list[str], field_label: str) -> list[str]:
             invalid_list += f', +{len(invalid_keywords) - 5} more'
         raise ValueError(
             f'{field_label} contain unsupported characters. Use only letters, numbers, spaces, and hyphens. Invalid entries: {invalid_list}'
+        )
+    if overly_broad_keywords:
+        blocked_list = ', '.join(f'`{keyword}`' for keyword in overly_broad_keywords[:5])
+        if len(overly_broad_keywords) > 5:
+            blocked_list += f', +{len(overly_broad_keywords) - 5} more'
+        raise ValueError(
+            f'{field_label} are too broad. Use more specific phrases instead of generic single words. Not accepted: {blocked_list}'
         )
 
     return sorted(normalized_keywords, key=lambda item: item.lower())

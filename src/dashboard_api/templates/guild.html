@@ -970,14 +970,14 @@
 
                 <label for="rule-exclude-keywords">Muted phrases</label>
                 <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., noisy phrase 1, noisy phrase 2, noisy phrase 3" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
-                <div class="field-help">Comma-separated phrases that mute alerts when every word in the phrase is present in the tweet. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.</div>
+                <div class="field-help">Comma-separated phrases that mute alerts when every word in the phrase is present in the tweet. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.</div>
                 <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
 
                 <label for="rule-trigger-keywords">Ping keywords</label>
                 <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., super important phrase" {{ 'disabled' if (not guild_presentation.features.can_use_everyone_escalation) or delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
                 <div class="field-help" id="rule-trigger-keywords-help">
                   {% if guild_presentation.features.can_use_everyone_escalation %}
-                  Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.
+                  Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.
                   {% else %}
                   These phrases are only available on <strong>Premium</strong>, because they are used with <code>Ping everyone</code> rules.
                   {% endif %}
@@ -1092,10 +1092,12 @@
     </div>
     <script>
       const guildId = {{ guild_id | tojson }};
+      const blockedSingleWordKeywords = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'in', 'into', 'of', 'on', 'or', 'the', 'to', 'with']);
 
       function collectKeywords(value) {
         const seen = new Set();
         const invalid = [];
+        const overlyBroad = [];
         const keywords = value
           .split(',')
           .map(part => part.trim())
@@ -1109,6 +1111,14 @@
           })
           .map(part => part.toLowerCase().replace(/\s+/g, ' '))
           .filter(function (part) {
+            const words = part.split(' ').filter(Boolean);
+            if (words.length && words.every(function (word) { return blockedSingleWordKeywords.has(word); })) {
+              overlyBroad.push(part);
+              return false;
+            }
+            return true;
+          })
+          .filter(function (part) {
             if (seen.has(part)) {
               return false;
             }
@@ -1118,16 +1128,16 @@
           .sort(function (left, right) {
             return left.localeCompare(right);
           });
-        return { keywords, invalid };
+        return { keywords, invalid, overlyBroad };
       }
 
-      function setFieldError(fieldId, errorId, invalidValues) {
+      function setFieldError(fieldId, errorId, invalidValues, overlyBroadValues) {
         const field = document.getElementById(fieldId);
         const errorNode = document.getElementById(errorId);
         if (!field || !errorNode) {
           return;
         }
-        if (!invalidValues.length) {
+        if (!invalidValues.length && !overlyBroadValues.length) {
           field.classList.remove('field-input--invalid');
           errorNode.hidden = true;
           errorNode.textContent = '';
@@ -1135,7 +1145,11 @@
         }
         field.classList.add('field-input--invalid');
         errorNode.hidden = false;
-        errorNode.textContent = `Not accepted: ${invalidValues.join(', ')}. Use only letters, numbers, spaces, and hyphens.`;
+        if (invalidValues.length) {
+          errorNode.textContent = `Not accepted: ${invalidValues.join(', ')}. Use only letters, numbers, spaces, and hyphens.`;
+          return;
+        }
+        errorNode.textContent = `Too broad: ${overlyBroadValues.join(', ')}. Use a more specific phrase than a generic word or filler phrase.`;
       }
 
       function setStatus(message, isError = false) {
@@ -1458,9 +1472,9 @@
         if (!canUseEveryone) {
           triggerHelp.innerHTML = 'These phrases are only available on <strong>Premium</strong>, because they are used with <code>Ping everyone</code> rules.';
         } else if (!everyoneSelected) {
-          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.';
         } else {
-          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.';
         }
       }
 
@@ -1498,13 +1512,13 @@
         if (triggerKeywordsField) {
           triggerKeywordsField.addEventListener('input', function () {
             const state = collectKeywords(triggerKeywordsField.value);
-            setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', state.invalid);
+            setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', state.invalid, state.overlyBroad);
           });
         }
         if (excludeKeywordsField) {
           excludeKeywordsField.addEventListener('input', function () {
             const state = collectKeywords(excludeKeywordsField.value);
-            setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', state.invalid);
+            setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', state.invalid, state.overlyBroad);
           });
         }
         syncTriggerKeywordAvailability();
@@ -1521,10 +1535,15 @@
           try {
             const triggerKeywordState = collectKeywords(document.getElementById('rule-trigger-keywords').value);
             const excludeKeywordState = collectKeywords(document.getElementById('rule-exclude-keywords').value);
-            setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', triggerKeywordState.invalid);
-            setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', excludeKeywordState.invalid);
-            if (triggerKeywordState.invalid.length || excludeKeywordState.invalid.length) {
-              setStatus('Rule keywords contain invalid entries. Remove the highlighted values and try again.', true);
+            setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', triggerKeywordState.invalid, triggerKeywordState.overlyBroad);
+            setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', excludeKeywordState.invalid, excludeKeywordState.overlyBroad);
+            if (
+              triggerKeywordState.invalid.length ||
+              excludeKeywordState.invalid.length ||
+              triggerKeywordState.overlyBroad.length ||
+              excludeKeywordState.overlyBroad.length
+            ) {
+              setStatus('Rule phrases contain unsupported or overly broad entries. Remove the highlighted values and try again.', true);
               return;
             }
             const payload = {
@@ -1918,8 +1937,8 @@
           document.getElementById('escalation-mode').value = row.dataset.escalationMode || 'role_only';
           document.getElementById('rule-trigger-keywords').value = row.dataset.triggerKeywords || '';
           document.getElementById('rule-exclude-keywords').value = row.dataset.excludeKeywords || '';
-          setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', []);
-          setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', []);
+          setFieldError('rule-trigger-keywords', 'rule-trigger-keywords-error', [], []);
+          setFieldError('rule-exclude-keywords', 'rule-exclude-keywords-error', [], []);
           syncTriggerKeywordAvailability();
           markFormClean(ruleForm);
           setStatus(`Loaded rule ${row.dataset.ruleName} for editing.`);

@@ -834,19 +834,11 @@ def _build_status_banner(
                 if has_rate_limit_warning
                 else 'At least one session hit a recent polling issue, so new alerts may be a little delayed until it recovers.'
             ),
-            'details': (
-                [
-                    f"Sessions: {len(delivery_sessions)} / {session_limit}",
-                    f"Sessions with recent rate limits: {', '.join(row['client_used'] for row in warning_clients)}",
-                    'Single-session servers usually just need to wait for the cooldown to pass.',
-                    'If you use multiple sessions, spread monitors across distinct Twitter/X accounts when possible.',
-                ]
-                if has_rate_limit_warning
-                else [
-                    f"Sessions: {len(delivery_sessions)} / {session_limit}",
-                    f"Sessions with recent errors: {', '.join(row['client_used'] for row in warning_clients)}",
-                ]
-            ),
+            'details': [
+                f'Sessions: {len(delivery_sessions)} / {session_limit}',
+                f'Monitors: {source_count} / {source_limit}',
+                f'Rules: {rule_count} / {rule_limit}',
+            ],
         }
 
     if (

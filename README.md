@@ -277,10 +277,12 @@ Suggested first live rollout:
 
 A minimal public-facing site for billing/onboarding lives in [docs/index.html](/Users/rossc10/projects/tweeticcini/docs/index.html) with companion privacy and terms pages in [docs/privacy.html](/Users/rossc10/projects/tweeticcini/docs/privacy.html) and [docs/terms.html](/Users/rossc10/projects/tweeticcini/docs/terms.html).
 
-The Discord app banner artwork was assembled manually in Kapwing.
-The support server welcome embed was assembled in Discohook.
-
 To publish it with GitHub Pages, configure the repository Pages source to deploy from the `docs/` folder on your chosen branch.
+
+### Site Asset Notes
+
+- The Discord app banner artwork was assembled manually in Kapwing.
+- The support server welcome embed was assembled in Discohook.
 
 # 🔖 Versioning
 
@@ -308,6 +310,15 @@ python3 scripts/release_version.py minor
 python3 scripts/release_version.py --set 1.2.3
 git push origin dev --follow-tags
 ```
+
+Typical dashboard release workflow:
+
+1. Bump the version with `python3 scripts/bump_version.py patch` (or `minor` / `major`).
+2. Commit the version bump alongside the rest of your changes.
+3. Push the branch with `git push origin dev`.
+4. Pull on the Pi with `git pull origin dev`.
+5. Restart the dashboard with `sudo systemctl restart tweeticcini-dashboard`.
+6. Verify the new `vX.Y.Z` appears in the dashboard footer.
 
 # 🚀 Production Deployment
 
