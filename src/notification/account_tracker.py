@@ -60,6 +60,7 @@ class AccountTracker():
         self.guild_settings_service = GuildSettingsService(self.db_path)
         self.twitter_session_service = TwitterSessionService(self.db_path)
         self.tweets = {}
+        self.poll_error_states: dict[str, str] = {}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         bot.loop.create_task(self.setup_tasks())
 
@@ -366,6 +367,9 @@ class AccountTracker():
         while True:
             try:
                 self.tweets[updater_name] = await app.get_tweet_notifications()
+                if updater_name in self.poll_error_states:
+                    last_error = self.poll_error_states.pop(updater_name)
+                    log.info(f'tweets updater {updater_name} recovered after polling issue: {last_error}')
                 await record_client_poll_success(
                     self.db_path,
                     updater_name,
@@ -374,15 +378,23 @@ class AccountTracker():
                 )
                 await asyncio.sleep(configs['tweets_check_period'])
             except Exception as e:
+                error_text = str(e)
+                self.poll_error_states[updater_name] = error_text
                 await record_client_poll_error(
                     self.db_path,
                     updater_name,
-                    str(e),
+                    error_text,
                     datetime.now(timezone.utc).isoformat(timespec='seconds'),
                 )
-                log.error(f'{e} (task : tweets updater {updater_name})')
-                log.exception('tweets updater failure details')
-                log.error(f"an unexpected error occurred, try again in {configs['tweets_updater_retry_delay']} minutes")
+                if 'no healthy upstream' in error_text.lower():
+                    log.warning(
+                        f'tweets updater {updater_name} hit a transient upstream Twitter/Tweety error: '
+                        f'{error_text}. Retrying in {configs["tweets_updater_retry_delay"]} minutes.'
+                    )
+                else:
+                    log.error(f'{e} (task : tweets updater {updater_name})')
+                    log.exception('tweets updater failure details')
+                    log.error(f"an unexpected error occurred, try again in {configs['tweets_updater_retry_delay']} minutes")
                 await asyncio.sleep(configs['tweets_updater_retry_delay'] * 60)
 
     async def tasksMonitor(self):

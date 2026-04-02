@@ -842,8 +842,7 @@ def _build_status_banner(
         }
 
     if (
-        log_health['updater_error_count_since_last_online']
-        or log_health['delivery_error_count_since_last_online']
+        log_health['delivery_error_count_since_last_online']
         or log_health['dead_task_warning_count_since_last_online']
     ):
         return {

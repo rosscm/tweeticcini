@@ -354,7 +354,10 @@ body {
   align-content: start;
 }
 
-.sidebar-brand,
+.sidebar-brand {
+  padding: 22px 28px 22px 22px;
+}
+
 .sidebar-utility {
   padding: 22px;
 }
@@ -417,6 +420,9 @@ body {
 
 .sidebar-brand h1 {
   font-size: clamp(1.8rem, 2.2vw, 2.5rem);
+  line-height: 1.02;
+  max-width: 11ch;
+  overflow-wrap: anywhere;
 }
 
 .sidebar-brand .lede {
