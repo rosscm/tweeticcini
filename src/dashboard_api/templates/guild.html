@@ -438,7 +438,15 @@
               <label for="twitter-session-auth-token">Auth token</label>
               <textarea id="twitter-session-auth-token" rows="7" placeholder="E.g., 53f95f4c8a2d7b1e9c0f4a6d3b8e1f7a2c9d4e6f1b3a5c7d9e0f2a4b6c8d1e3" {{ 'disabled' if twitter_session_limit_reached else '' }}></textarea>
               <div class="field-help">Paste the raw value of your current <code>x.com</code> <code>auth_token</code> cookie. Tweeticcini stores the validated session encrypted at rest and never shows it again.</div>
-              <div class="field-help">Do this on desktop. Sign in to Twitter in your browser, open DevTools, go to <strong>Application</strong> or <strong>Storage</strong>, open <strong>Cookies</strong> for <code>x.com</code>, and copy the value named <code>auth_token</code>. Need help opening the cookies panel? <a class="inline-link" href="https://developer.chrome.com/docs/devtools/storage/cookies/" target="_blank" rel="noreferrer">How to view cookies in DevTools</a>.</div>
+              <div class="field-help">Desktop only. Sign in to Twitter in this browser, then copy the <code>auth_token</code> cookie value from <code>x.com</code>.</div>
+              <details class="helper-details">
+                <summary>How to find your auth token</summary>
+                <div class="field-help" style="margin-top: 0.55rem;">1. Open <code>x.com</code> and make sure you are signed in.</div>
+                <div class="field-help" style="margin-top: 0.55rem;">2. Open your browser's developer tools. In Chrome or Edge, right-click the page and choose <strong>Inspect</strong>. In Firefox, use <strong>Inspect</strong> or open <strong>Web Developer Tools</strong>. In Safari, open <strong>Web Inspector</strong> if you already have the Develop menu enabled.</div>
+                <div class="field-help" style="margin-top: 0.55rem;">3. In the tools panel, open <strong>Application</strong> or <strong>Storage</strong>. If you do not see it right away, click the <strong>&gt;&gt;</strong> menu in the top bar.</div>
+                <div class="field-help" style="margin-top: 0.55rem;">4. Open <strong>Cookies</strong>, choose <code>x.com</code>, and look for the row named <code>auth_token</code>. In Firefox and Safari, this is usually under <strong>Storage</strong>.</div>
+                <div class="field-help" style="margin-top: 0.55rem;">5. Copy the long value for <code>auth_token</code> and paste it into the field above.</div>
+              </details>
 
               <div class="actions">
                 <button type="submit" {{ 'disabled' if twitter_session_limit_reached else '' }}>Connect Session</button>

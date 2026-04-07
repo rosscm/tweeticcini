@@ -25,6 +25,18 @@ def _get_dashboard_base_url() -> Optional[str]:
     return f'{parsed.scheme}://{parsed.netloc}'
 
 
+def _get_top_gg_vote_url() -> Optional[str]:
+    explicit_url = os.getenv('TOP_GG_VOTE_URL', '').strip()
+    if explicit_url:
+        return explicit_url
+
+    client_id = os.getenv('DISCORD_CLIENT_ID', '').strip()
+    if not client_id:
+        return None
+
+    return f'https://top.gg/bot/{client_id}/vote'
+
+
 class Dashboard(Cog_Extension):
     @app_commands.default_permissions(administrator=True)
     @app_commands.command(name='dashboard', description='Get a link to the configuration dashboard')
@@ -49,6 +61,24 @@ class Dashboard(Cog_Extension):
         view.add_item(discord.ui.Button(label='Open Dashboard', url=dashboard_url))
 
         await itn.response.send_message(ephemeral=True, view=view)
+
+    @app_commands.command(name='vote', description='Get the top.gg link to support Tweeticcini')
+    async def vote(self, itn: discord.Interaction):
+        vote_url = _get_top_gg_vote_url()
+        if not vote_url:
+            await itn.response.send_message(
+                'The top.gg vote link is not configured yet.',
+                ephemeral=True,
+            )
+            return
+
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label='Vote on top.gg', url=vote_url))
+        await itn.response.send_message(
+            'If Tweeticcini has been useful to your server, voting on top.gg is a nice way to support it.',
+            ephemeral=True,
+            view=view,
+        )
 
 
 async def setup(bot: commands.Bot):
