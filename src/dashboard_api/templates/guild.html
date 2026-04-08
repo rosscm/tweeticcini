@@ -557,15 +557,13 @@
                 <option value="false" {{ 'selected' if not guild_presentation.effective.use_headline_message else '' }}>Template message</option>
                 <option value="true" {{ 'selected' if guild_presentation.effective.use_headline_message else '' }}>Headline-style message</option>
               </select>
-              <div class="status-detail-list">
-                <span class="tag tag--soft">Current default: {{ 'Headline-style' if guild_presentation.effective.use_headline_message else 'Template message' }}</span>
-              </div>
-              <div class="field-help"><code>Template message</code> uses your default format, like <code>@Role Account posted: https://x.com/...</code>.</div>
-              <div class="field-help"><code>Headline-style message</code> pulls post text into the delivered alert, which makes banner notifications much more informative at a glance.</div>
+              <div class="field-help"><code>Template message</code> uses the server's default format, like <code>@Role Account posted: https://x.com/...</code>.</div>
+              <div class="field-help"><code>Headline-style message</code> pulls post text directly into the alert, which makes banner notifications more informative at a glance.</div>
+              <div class="field-help">These are server-wide defaults. If a monitor has its own custom message or message-style override, that monitor setting takes priority.</div>
 
-              <label for="presentation-default-message">Default message</label>
+              <label for="presentation-default-message">Default template message</label>
               <textarea id="presentation-default-message" rows="4" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>{{ guild_presentation.effective.default_message }}</textarea>
-              <div id="presentation-default-message-help" class="field-help">Set a server-wide default message for alerts. Use <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, and <code>{url}</code> to shape how it reads. This only applies when <code>Template message</code> is selected above, and monitor-specific custom messages still take priority.</div>
+              <div id="presentation-default-message-help" class="field-help">Set the default alert format for this server. Use <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, and <code>{url}</code> to shape how it reads. This only applies when <code>Template message</code> is selected.</div>
 
               <label for="presentation-bot-display-name">Bot display name</label>
               <input id="presentation-bot-display-name" type="text" value="{{ guild_presentation.effective.bot_display_name }}" placeholder="E.g., Stock Pinger" {{ 'disabled' if not guild_presentation.features.can_customize_presentation else '' }}>
@@ -777,8 +775,8 @@
                 <label class="checkbox-row"><input id="source-use-headline-message-override-edit" type="checkbox" {{ 'disabled' if (not guild_presentation.features.can_customize_source_messages) or delivery_sessions_required else '' }}> Use headline-style for this monitor</label>
                 <details class="helper-details">
                   <summary>How message style works</summary>
-                  <div class="field-help" style="margin-top: 0.55rem;">Checked: this monitor uses headline-style. If you also enter a custom message, the custom message wins.</div>
-                  <div class="field-help" style="margin-top: 0.55rem;">Examples: headline-style <code>@Restocks Queue is live: https://x.com/...</code>; template <code>@Restocks CeladonCA posted: https://x.com/...</code></div>
+                  <div class="field-help" style="margin-top: 0.55rem;">If <strong>Use headline-style for this monitor</strong> is checked, this monitor sends headline-style alerts. If you also enter a custom message, that message takes priority.</div>
+                  <div class="field-help" style="margin-top: 0.55rem;">Examples: headline-style <code>@Restocks Queue is live: https://x.com/...</code>; template-style <code>@Restocks CeladonCA posted: https://x.com/...</code>.</div>
                   <div class="field-help" style="margin-top: 0.55rem;">Placeholders: <code>{mention}</code>, <code>{author}</code>, <code>{action}</code>, <code>{url}</code>.</div>
                 </details>
                 <div class="field-help">Use <strong>Send Test Alert</strong> to preview a non-pinging sample.</div>
