@@ -167,7 +167,7 @@ class AccountTracker():
             if lastest_tweets is None:
                 continue
 
-            log.info(f'found {len(lastest_tweets)} new tweet(s) for {username} using {client_used}')
+            log.debug(f'found {len(lastest_tweets)} new tweet(s) for {username} using {client_used}')
             async with aiosqlite.connect(self.db_path) as db:
                 db.row_factory = aiosqlite.Row
                 async with db.cursor() as cursor:
@@ -183,7 +183,7 @@ class AccountTracker():
 
                     for tweet in lastest_tweets:
                         notifications = await get_enabled_notifications_for_user_client(cursor, user['id'], client_used)
-                        log.info(f'found {len(notifications)} notification target(s) for {username} using {client_used}')
+                        log.debug(f'found {len(notifications)} notification target(s) for {username} using {client_used}')
                         for data in notifications:
                             channel = self.bot.get_channel(int(data['channel_id']))
                             if channel is None:
@@ -198,7 +198,7 @@ class AccountTracker():
                             matches_type = is_match_type(tweet, data['enable_type'])
                             matches_media = is_match_media_type(tweet, data['enable_media_type'])
                             if not matches_type or not matches_media:
-                                log.info(
+                                log.debug(
                                     f"skipping {username} delivery to {data['channel_id']} using {client_used}: "
                                     f"type_match={matches_type} media_match={matches_media}"
                                 )
@@ -207,14 +207,14 @@ class AccountTracker():
                             if channel is not None:
                                 try:
                                     presentation = await self.guild_settings_service.get_presentation_view(str(channel.guild.id))
-                                    log.info(
+                                    log.debug(
                                         f"delivery compliance check for guild {channel.guild.id}: "
                                         f"plan={presentation.plan} "
                                         f"non_compliant={presentation.compliance.is_non_compliant} "
                                         f"reasons={list(presentation.compliance.reason_labels)}"
                                     )
                                     if presentation.plan == 'free' and presentation.compliance.is_non_compliant:
-                                        log.info(
+                                        log.debug(
                                             f"skipping delivery for guild {channel.guild.id}: "
                                             f"free-plan compliance required ({', '.join(presentation.compliance.reason_labels)})"
                                         )
@@ -249,7 +249,7 @@ class AccountTracker():
                                     if len(preview) > 140:
                                         preview = f"{preview[:137]}..."
 
-                                    log.info(f"new tweet from {username}: {preview or '[no text]'}")
+                                    log.debug(f"new tweet from {username}: {preview or '[no text]'}")
 
                                     alert_decision = await self.alert_rule_service.resolve_alert_decision(
                                         server_id=str(channel.guild.id),
@@ -259,7 +259,7 @@ class AccountTracker():
                                     )
                                     if alert_decision.should_force_everyone and not presentation.features.can_use_everyone_escalation:
                                         matched_rule = f" via rule {alert_decision.matched_rule_name}" if alert_decision.matched_rule_name else ''
-                                        log.info(
+                                        log.debug(
                                             f"skipping delivery for guild {channel.guild.id}{matched_rule}: "
                                             'ping everyone rules require Premium'
                                         )
@@ -269,11 +269,11 @@ class AccountTracker():
                                         if alert_decision.matched_keywords:
                                             keyword_detail = f" (keywords: {', '.join(alert_decision.matched_keywords)})"
                                         if alert_decision.matched_rule_name:
-                                            log.info(
+                                            log.debug(
                                                 f"excluded tweet from {username} via rule {alert_decision.matched_rule_name}{keyword_detail}: {preview or '[no text]'}"
                                             )
                                         else:
-                                            log.info(f"excluded tweet from {username}{keyword_detail}: {preview or '[no text]'}")
+                                            log.debug(f"excluded tweet from {username}{keyword_detail}: {preview or '[no text]'}")
                                         continue
 
                                     if alert_decision.should_force_everyone:
@@ -281,11 +281,11 @@ class AccountTracker():
                                         if alert_decision.matched_keywords:
                                             keyword_detail = f" (keywords: {', '.join(alert_decision.matched_keywords)})"
                                         if alert_decision.matched_rule_name:
-                                            log.info(
+                                            log.debug(
                                                 f"pinging everyone for {username} via rule {alert_decision.matched_rule_name}{keyword_detail}: {preview or '[no text]'}"
                                             )
                                         else:
-                                            log.info(f"pinging everyone for {username}{keyword_detail}: {preview or '[no text]'}")
+                                            log.debug(f"pinging everyone for {username}{keyword_detail}: {preview or '[no text]'}")
                                         mention = "@everyone "
 
                                     custom_template = data['customized_msg']
