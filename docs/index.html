@@ -3,11 +3,29 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tweeticcini</title>
+    <title>Real-Time Twitter Alerts for Discord | Tweeticcini</title>
     <meta
       name="description"
-      content="Tweeticcini is a real-time Twitter alert bot for Discord, with fast delivery, flexible rules, and one dashboard for setup and billing."
+      content="Tweeticcini is a real-time Twitter alert bot for Discord with flexible routing, cleaner delivery, less noise, and one dashboard for setup and billing."
     >
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="https://tweeticcini.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Real-Time Twitter Alerts for Discord | Tweeticcini">
+    <meta
+      property="og:description"
+      content="Track the Twitter accounts that matter, route alerts cleanly, and cut down on noise with one dashboard for setup and control."
+    >
+    <meta property="og:url" content="https://tweeticcini.com/">
+    <meta property="og:image" content="https://tweeticcini.com/tweeticcini-banner.jpg">
+    <meta property="og:site_name" content="Tweeticcini">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Real-Time Twitter Alerts for Discord | Tweeticcini">
+    <meta
+      name="twitter:description"
+      content="Track the Twitter accounts that matter, route alerts cleanly, and cut down on noise with one dashboard for setup and control."
+    >
+    <meta name="twitter:image" content="https://tweeticcini.com/tweeticcini-banner.jpg">
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="stylesheet" href="./styles.css">
@@ -38,7 +56,9 @@
           </div>
         </div>
         <aside class="app-preview">
+          <p class="app-preview-mobile-label">Dashboard preview</p>
           <div class="app-shell">
+            <div class="app-shell-badge">Preview</div>
             <div class="preview-sidebar">
               <div class="preview-brand">
                 <img class="preview-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
@@ -93,16 +113,27 @@
                 <div class="feed-card">
                   <div class="feed-header">
                     <strong>Alert Configuration</strong>
-                    <span class="tag">Headline style</span>
                   </div>
-                  <p>Use monitors, muted phrases, and escalation rules to keep alerts focused.</p>
+                  <div class="preview-pill-list">
+                    <span class="tag tag--soft">Style: Headline-style</span>
+                    <span class="tag tag--soft">Priority pings: 1</span>
+                    <span class="tag tag--soft">Muted phrases: 12</span>
+                    <span class="tag tag--soft">Scoped rules: 2</span>
+                  </div>
                 </div>
                 <div class="feed-card feed-card--muted">
                   <div class="feed-header">
                     <strong>Last Delivery</strong>
-                    <span class="tag tag--soft">Moments ago</span>
                   </div>
-                  <p>The latest alert landed in <code>#drops</code> with the right mention and routing.</p>
+                  <div class="preview-delivery-list">
+                    <div class="preview-delivery-item">
+                      <div class="preview-delivery-head">
+                        <strong>MyAccount</strong>
+                        <span class="tag tag--soft">2026-04-09 09:55</span>
+                      </div>
+                      <p>Delivered to <code>#alerts-channel</code></p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -155,17 +186,17 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <th>Fast polling speed</th>
+                    <th>Role mentions</th>
                     <td>✓</td>
                     <td>✓</td>
                   </tr>
                   <tr>
-                    <th>Account monitors</th>
+                    <th>Tracked accounts</th>
                     <td>3</td>
                     <td>25</td>
                   </tr>
                   <tr>
-                    <th>Delivery rules</th>
+                    <th>Alert rules</th>
                     <td>3</td>
                     <td>50</td>
                   </tr>
@@ -201,6 +232,30 @@
         </section>
       </section>
 
+      <section class="panel-grid">
+        <section class="panel">
+          <p class="eyebrow">Setup 🛠️</p>
+          <h2>How to set up your alert flow</h2>
+          <p class="panel-copy">
+            Start with the practical setup path: add the bot, connect Twitter, choose the accounts you want to follow, and route alerts where they belong.
+          </p>
+          <div class="link-list">
+            <a class="button button-secondary" href="./how-to-send-twitter-alerts-to-discord.html">Read the guide</a>
+          </div>
+        </section>
+
+        <section class="panel">
+          <p class="eyebrow">Details 📘</p>
+          <h2>Why cleaner control matters</h2>
+          <p class="panel-copy">
+            If you are comparing Tweeticcini to basic relay bots, start here. This guide explains why routing, filtering, and delivery control make the difference.
+          </p>
+          <div class="link-list">
+            <a class="button button-secondary" href="./twitter-alerts-for-discord.html">Read the overview</a>
+          </div>
+        </section>
+      </section>
+
       <section class="cta-panel">
         <div>
           <p class="eyebrow">Support 🤝</p>
@@ -227,6 +282,8 @@
           <strong>Built with ❤️ by <a href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
         </div>
         <div class="site-footer-links">
+          <a href="./how-to-send-twitter-alerts-to-discord.html">Setup Guide</a>
+          <a href="./twitter-alerts-for-discord.html">Bot Overview</a>
           <a href="./privacy.html">Privacy Policy</a>
           <a href="./terms.html">Terms of Service</a>
         </div>
