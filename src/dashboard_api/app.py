@@ -511,6 +511,20 @@ def _get_session_guild_icon_url(request: Request, guild_id: str) -> Optional[str
     return None
 
 
+def _render_dashboard_access_denied(request: Request, guild_id: str) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name='access_denied.html',
+        status_code=403,
+        context={
+            'title': 'Dashboard Access Required',
+            'app_version': APP_VERSION,
+            'discord_user': _get_session_user(request),
+            'guild_id': guild_id,
+        },
+    )
+
+
 def _require_guild_access(request: Request, guild_id: str) -> None:
     oauth = _get_discord_oauth_config()
     if oauth is None:
@@ -1041,6 +1055,10 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     if _get_discord_oauth_config() is not None and _get_session_user(request) is None:
         request.session['pending_dashboard_guild_id'] = guild_id
         return RedirectResponse(url=f'/dashboard/login?guild_id={guild_id}')
+    if _get_discord_oauth_config() is not None:
+        guild_ids = {str(guild.get('id')) for guild in _get_session_guilds(request)}
+        if guild_id not in guild_ids:
+            return _render_dashboard_access_denied(request, guild_id)
     _require_guild_access(request, guild_id)
     rules = await alert_rule_service.list_rules(guild_id)
     sources = await notifier_service.list_dashboard_sources(guild_id)
