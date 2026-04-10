@@ -1038,6 +1038,9 @@ async def dashboard_guild(request: Request, guild_id: str):
 
 
 async def _render_guild_dashboard(request: Request, guild_id: str, active_section: str) -> HTMLResponse:
+    if _get_discord_oauth_config() is not None and _get_session_user(request) is None:
+        request.session['pending_dashboard_guild_id'] = guild_id
+        return RedirectResponse(url=f'/dashboard/login?guild_id={guild_id}')
     _require_guild_access(request, guild_id)
     rules = await alert_rule_service.list_rules(guild_id)
     sources = await notifier_service.list_dashboard_sources(guild_id)
