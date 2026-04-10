@@ -61,8 +61,32 @@ class AccountTracker():
         self.twitter_session_service = TwitterSessionService(self.db_path)
         self.tweets = {}
         self.poll_error_states: dict[str, str] = {}
+        self.client_poll_intervals: dict[str, int] = {}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         bot.loop.create_task(self.setup_tasks())
+
+    @staticmethod
+    def _base_poll_interval() -> int:
+        return int(configs['tweets_check_period'])
+
+    @classmethod
+    def _free_poll_interval(cls) -> int:
+        configured = int(configs.get('free_tweets_check_period', 60))
+        return max(configured, cls._base_poll_interval())
+
+    def _get_client_poll_interval(self, client_used: str) -> int:
+        return self.client_poll_intervals.get(client_used, self._base_poll_interval())
+
+    async def _refresh_client_poll_intervals(self) -> None:
+        intervals: dict[str, int] = {}
+        for session in await self.twitter_session_service.list_all_active_session_records():
+            presentation = await self.guild_settings_service.get_presentation_view(session.server_id)
+            intervals[session.client_key] = (
+                self._base_poll_interval()
+                if presentation.plan == 'pro'
+                else self._free_poll_interval()
+            )
+        self.client_poll_intervals = intervals
 
     async def _load_available_accounts(self, required_clients: Optional[set[str]] = None) -> dict[str, str]:
         accounts = {
@@ -115,6 +139,7 @@ class AccountTracker():
         required_clients = {client_used for _, client_used in await self.twitter_session_service_pairs()}
         latest_accounts = await self._load_available_accounts(required_clients)
         self.accounts_data = latest_accounts
+        await self._refresh_client_poll_intervals()
         for account_name in latest_accounts.keys():
             self.tweets.setdefault(account_name, [])
 
@@ -161,7 +186,7 @@ class AccountTracker():
 
     async def notification(self, username: str, client_used: str):
         while True:
-            await asyncio.sleep(configs['tweets_check_period'])
+            await asyncio.sleep(self._get_client_poll_interval(client_used))
 
             lastest_tweets = await get_tweets(self.tweets[client_used], username, client_used)
             if lastest_tweets is None:
@@ -376,7 +401,7 @@ class AccountTracker():
                     len(self.tweets[updater_name]),
                     datetime.now(timezone.utc).isoformat(timespec='seconds'),
                 )
-                await asyncio.sleep(configs['tweets_check_period'])
+                await asyncio.sleep(self._get_client_poll_interval(updater_name))
             except Exception as e:
                 error_text = str(e)
                 self.poll_error_states[updater_name] = error_text

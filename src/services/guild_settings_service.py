@@ -45,7 +45,7 @@ PLAN_FEATURES = {
     PLAN_FREE: GuildPlanFeatures(
         max_twitter_sessions=1,
         max_sources=3,
-        max_rules=3,
+        max_rules=2,
         max_trigger_keywords_total=5,
         max_exclude_keywords_total=15,
         can_customize_presentation=False,

@@ -543,13 +543,23 @@ body {
 }
 
 .article-hero {
-  padding: 30px 32px;
+  padding: 24px 28px;
   border: 1px solid rgba(125, 141, 255, 0.18);
   border-radius: 24px;
   background:
     linear-gradient(180deg, rgba(30, 36, 49, 0.96), rgba(17, 20, 29, 0.98)),
     var(--panel);
   box-shadow: var(--shadow);
+}
+
+.article-hero + .legal-block {
+  margin-top: 0;
+}
+
+.article-hero .lede:last-child {
+  margin-top: 8px;
+  color: rgba(178, 189, 210, 0.82);
+  font-size: 0.95rem;
 }
 
 .article-highlights {
@@ -560,8 +570,8 @@ body {
 }
 
 .legal-block {
-  margin-top: 18px;
-  padding: 28px 0;
+  margin-top: 4px;
+  padding: 12px 0;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -586,7 +596,7 @@ body {
 }
 
 .legal-block h2 {
-  margin-bottom: 12px;
+  margin-bottom: 6px;
   font-size: clamp(1.4rem, 2vw, 1.8rem);
   letter-spacing: -0.02em;
   text-wrap: balance;
@@ -595,6 +605,23 @@ body {
 .legal-block p {
   color: var(--muted);
   text-wrap: pretty;
+}
+
+.legal-block p + p,
+.legal-block p + ul,
+.legal-block ul + p {
+  margin-top: 6px;
+}
+
+.legal-shell ul {
+  margin: 6px 0 0;
+  padding-left: 22px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.legal-shell li + li {
+  margin-top: 4px;
 }
 
 .steps-list,
