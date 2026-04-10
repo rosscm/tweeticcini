@@ -18,16 +18,13 @@
               <div class="brand-name">Dashboard</div>
             </div>
           </div>
-          <h1>You do not have access to this server</h1>
+          <h1>This server is not available to your account</h1>
           <p class="lede">
             {% if discord_user %}
-            You are signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong>, but that account does not have Dashboard access to this server.
+            You are signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong>, but that account does not have Dashboard access to this server. Open the Dashboard to choose a server you can manage, or sign out and try again with a different Discord account if you expected to have access here.
             {% else %}
-            This Dashboard link belongs to a server that is not available to the current account.
+            This Dashboard link belongs to a server that is not available to the current account. Open the Dashboard to choose a server you can manage, or sign in with a different Discord account if you expected to have access here.
             {% endif %}
-          </p>
-          <p class="section-copy">
-            Open the Dashboard home to choose a server you can manage, or sign out and try again with a different Discord account.
           </p>
           <div class="actions">
             <a class="ghost-link" href="/dashboard">Open Dashboard</a>
