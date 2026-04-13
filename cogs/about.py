@@ -21,6 +21,15 @@ class About(Cog_Extension):
         self.alert_rule_service = AlertRuleService()
         self.twitter_session_service = TwitterSessionService()
 
+    @staticmethod
+    def _base_poll_interval() -> int:
+        return max(int(configs.get('tweets_check_period', 12) or 12), 1)
+
+    @classmethod
+    def _free_poll_interval(cls) -> int:
+        configured = max(int(configs.get('free_tweets_check_period', 90) or 90), 1)
+        return max(configured, cls._base_poll_interval())
+
     @app_commands.command(name='about', description='Show a compact summary for this server')
     async def about(self, itn: discord.Interaction):
         if itn.guild_id is None or itn.guild is None:
@@ -42,6 +51,7 @@ class About(Cog_Extension):
         style_label = 'Headline-style' if presentation.effective.use_headline_message else 'Template'
         entitlement_source = presentation.entitlement.plan_source.replace('_', ' ')
         plan_label = 'Premium' if presentation.plan == 'pro' else 'Free'
+        poll_interval = self._base_poll_interval() if presentation.plan == 'pro' else self._free_poll_interval()
         plan_line = f'`{plan_label}` plan'
         if presentation.plan == 'pro':
             if presentation.entitlement.entitlement_status == 'trialing':
@@ -77,7 +87,7 @@ class About(Cog_Extension):
         embed.add_field(
             name='Runtime',
             value=(
-                f'Checks every `{configs["tweets_check_period"]}s`\n'
+                f'Checks every `{poll_interval}s`\n'
                 f'Connected in `{len(self.bot.guilds)}` server{"" if len(self.bot.guilds) == 1 else "s"}'
             ),
             inline=True,

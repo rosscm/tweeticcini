@@ -86,7 +86,7 @@
             {% endif %}
             <a class="ghost-link" href="/dashboard">Change Server</a>
             {% if public_site_url %}
-            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Plans &amp; Setup</a>
+            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Learn More</a>
             {% endif %}
           </section>
 
@@ -220,7 +220,7 @@
           {% endif %}
           <a class="ghost-link" href="/dashboard">Change Server</a>
           {% if public_site_url %}
-          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Pricing &amp; Help</a>
+          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Learn More</a>
           {% endif %}
         </div>
       </aside>
@@ -389,7 +389,7 @@
               </a>
               <a class="quick-action" href="/dashboard/guilds/{{ guild_id }}/billing">
                 <strong>Manage Premium</strong>
-                <span>Review plan limits, trial status, and billing in one place.</span>
+                <span>Check plan limits, trial status, and billing details.</span>
               </a>
             </div>
           </div>
@@ -613,8 +613,8 @@
           <div>
             <p class="eyebrow">Premium</p>
             <h2>Review &amp; Manage Premium</h2>
-            <p class="section-copy section-copy--wide">Review this server's current plan, upgrade to Premium, and manage subscription billing in one place.</p>
-            <div class="form-banner billing-followup-banner">Free uses <strong>standard polling (60s)</strong>. Premium uses <strong>priority polling (12s)</strong>, along with higher limits and more control.</div>
+            <p class="section-copy section-copy--wide">See this server's current plan, start Premium, and manage subscription billing.</p>
+            <div class="form-banner billing-followup-banner">Free uses <strong>standard polling (90s)</strong>. Premium uses <strong>priority polling (12s)</strong>, along with higher limits and more control.</div>
           </div>
         </div>
 
@@ -1081,9 +1081,14 @@
 
       </div>
       <footer class="dashboard-footer">
-        <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
-        <span class="dashboard-footer-dot" aria-hidden="true">•</span>
-        <span>v{{ app_version }}</span>
+        <span class="dashboard-footer-main">
+          <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
+        </span>
+        {% if support_server_url %}
+        <span class="dashboard-footer-support"><span>Need help? Join the <a class="inline-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">support server</a></span><span class="dashboard-footer-dot" aria-hidden="true">•</span><span>v{{ app_version }}</span></span>
+        {% else %}
+        <span class="dashboard-footer-support">v{{ app_version }}</span>
+        {% endif %}
       </footer>
     </main>
 

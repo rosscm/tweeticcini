@@ -23,7 +23,7 @@
           Pick a server to connect Twitter sessions, set up monitors, fine-tune alerts, and customize how Tweeticcini posts.
         </p>
         {% if public_site_url and oauth_enabled and not discord_user %}
-        <p class="section-copy">Need a quick overview first? Open <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Plans &amp; Setup</a> to review how the bot works, then come back when you're ready to configure a server.</p>
+        <p class="section-copy">Want a better sense of how it works first? Open the <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Bot Overview</a>, then come back when you're ready to configure a server.</p>
         {% endif %}
         {% if oauth_enabled %}
         {% if discord_user %}
@@ -94,9 +94,14 @@
         {% endif %}
       </section>
       <footer class="dashboard-footer dashboard-footer--centered">
-        <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
-        <span class="dashboard-footer-dot" aria-hidden="true">•</span>
-        <span>v{{ app_version }}</span>
+        <span class="dashboard-footer-main">
+          <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
+        </span>
+        {% if support_server_url %}
+        <span class="dashboard-footer-support"><span>Need help? Join the <a class="inline-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">support server</a></span><span class="dashboard-footer-dot" aria-hidden="true">•</span><span>v{{ app_version }}</span></span>
+        {% else %}
+        <span class="dashboard-footer-support">v{{ app_version }}</span>
+        {% endif %}
       </footer>
       </div>
     </main>

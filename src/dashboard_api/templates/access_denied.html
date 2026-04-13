@@ -35,9 +35,14 @@
           <p class="section-copy">Server ID: <code>{{ guild_id }}</code></p>
         </section>
         <footer class="dashboard-footer dashboard-footer--centered">
-          <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
-          <span class="dashboard-footer-dot" aria-hidden="true">•</span>
-          <span>v{{ app_version }}</span>
+          <span class="dashboard-footer-main">
+            <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
+          </span>
+          {% if support_server_url %}
+          <span class="dashboard-footer-support"><span>Need help? Join the <a class="inline-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">support server</a></span><span class="dashboard-footer-dot" aria-hidden="true">•</span><span>v{{ app_version }}</span></span>
+          {% else %}
+          <span class="dashboard-footer-support">v{{ app_version }}</span>
+          {% endif %}
         </footer>
       </div>
     </main>

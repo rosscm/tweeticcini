@@ -537,7 +537,7 @@ body {
 
 .dashboard-footer {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 8px;
@@ -557,6 +557,23 @@ body {
 }
 
 .dashboard-footer--centered {
+  text-align: center;
+}
+
+.dashboard-footer-main {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-footer-support {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
   text-align: center;
 }
 
@@ -830,6 +847,10 @@ h2 {
   color: var(--muted);
   max-width: 96ch;
   line-height: 1.6;
+}
+
+.section-copy + .stack {
+  margin-top: 10px;
 }
 
 .section-copy--wide {

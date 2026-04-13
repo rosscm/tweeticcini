@@ -71,7 +71,7 @@ class AccountTracker():
 
     @classmethod
     def _free_poll_interval(cls) -> int:
-        configured = int(configs.get('free_tweets_check_period', 60))
+        configured = int(configs.get('free_tweets_check_period', 90))
         return max(configured, cls._base_poll_interval())
 
     def _get_client_poll_interval(self, client_used: str) -> int:

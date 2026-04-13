@@ -143,7 +143,7 @@ Important production parameters:
 Polling behavior:
 - `tweets_check_period` is the fast/default polling cadence used for Premium servers and fallback sessions
 - `free_tweets_check_period` is the slower long-term cadence used for Free servers
-- if `free_tweets_check_period` is omitted, Tweeticcini falls back to `60` seconds for Free servers
+- if `free_tweets_check_period` is omitted, Tweeticcini falls back to `90` seconds for Free servers
 
 ## 🖥 Dashboard
 
@@ -199,7 +199,8 @@ For local testing, Stripe must reach your machine through a public tunnel such a
 
 Current intended live layout:
 
-- `tweeticcini.com` -> public marketing site on Netlify
+- `tweeticcini.com` -> public marketing site on Cloudflare Pages
+- `www.tweeticcini.com` -> public marketing site on Cloudflare Pages
 - `app.tweeticcini.com` -> dashboard on the Pi through Cloudflare Tunnel
 
 Real-world setup flow that worked:
@@ -209,8 +210,10 @@ Real-world setup flow that worked:
 3. Let Cloudflare import the existing DNS records from the registrar.
 4. Update the registrar nameservers to the two Cloudflare nameservers.
 5. Wait for Cloudflare to show the domain as active.
-6. In Netlify, add `tweeticcini.com` as the primary custom domain and `www.tweeticcini.com` as a redirecting alias.
-7. Keep DNS managed by Cloudflare, not Netlify.
+6. Create a Cloudflare Pages project for the public site and connect the repo.
+7. Set the production branch to `dev` and publish the static site from the `docs/` folder.
+8. Add `tweeticcini.com` and `www.tweeticcini.com` as custom domains in Cloudflare Pages.
+9. Keep DNS managed by Cloudflare.
 
 Cloudflare account note:
 
@@ -219,24 +222,15 @@ Cloudflare account note:
 Important distinction:
 
 - registrar nameservers should point to Cloudflare
-- Netlify should be added as DNS records inside Cloudflare
-- do not switch the registrar nameservers to Netlify DNS
+- Cloudflare Pages should own the public site hostnames inside Cloudflare DNS
+- do not switch the registrar nameservers away from Cloudflare
 
 For the public site in Cloudflare DNS:
 
 - keep the existing MX and TXT records unless email or forwarding is intentionally being removed
 - remove the old Porkbun web/parking records once the new records are ready
-- use Netlify-directed records for the site hostnames
-
-Netlify currently recommends:
-
-- apex/root `tweeticcini.com` -> `apex-loadbalancer.netlify.com`
-- `www.tweeticcini.com` -> `tweeticcini.netlify.app`
-
-While verifying with Netlify:
-
-- keep the Netlify records as `DNS only` in Cloudflare
-- let Netlify finish DNS verification before worrying about extra Cloudflare proxy features
+- let Cloudflare Pages create and manage the `tweeticcini.com` and `www` site records
+- keep `app.tweeticcini.com` pointed at the dashboard tunnel separately
 
 Once the dashboard subdomain is ready, point the tunnel route at the Pi dashboard service:
 
@@ -281,11 +275,15 @@ Suggested first live rollout:
 4. verify one server can subscribe and resolve to `pro`
 5. only then invite broader users
 
-## 🌐 GitHub Pages
+## 🌐 Cloudflare Pages
 
 A minimal public-facing site for billing/onboarding lives in [docs/index.html](/Users/rossc10/projects/tweeticcini/docs/index.html) with companion privacy and terms pages in [docs/privacy.html](/Users/rossc10/projects/tweeticcini/docs/privacy.html) and [docs/terms.html](/Users/rossc10/projects/tweeticcini/docs/terms.html).
 
-To publish it with GitHub Pages, configure the repository Pages source to deploy from the `docs/` folder on your chosen branch.
+It is currently deployed with Cloudflare Pages using:
+
+- production branch: `dev`
+- framework preset: `None`
+- path/output directory: `docs`
 
 ### Site Asset Notes
 

@@ -47,7 +47,7 @@ PLAN_FEATURES = {
         max_sources=3,
         max_rules=2,
         max_trigger_keywords_total=5,
-        max_exclude_keywords_total=15,
+        max_exclude_keywords_total=10,
         can_customize_presentation=False,
         can_customize_source_messages=False,
         can_use_everyone_escalation=False,
@@ -55,7 +55,7 @@ PLAN_FEATURES = {
     PLAN_PRO: GuildPlanFeatures(
         max_twitter_sessions=5,
         max_sources=25,
-        max_rules=50,
+        max_rules=30,
         max_trigger_keywords_total=150,
         max_exclude_keywords_total=250,
         can_customize_presentation=True,

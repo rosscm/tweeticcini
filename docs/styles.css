@@ -1046,12 +1046,8 @@ a {
     display: none;
   }
 
-  .app-shell-badge {
+  .app-preview {
     display: none;
-  }
-
-  .app-preview-mobile-label {
-    display: block;
   }
 }
 
@@ -1144,7 +1140,8 @@ a {
   }
 
   .hero-points {
-    display: none;
+    display: grid;
+    gap: 10px;
   }
 
   .app-shell {
