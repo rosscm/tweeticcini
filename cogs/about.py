@@ -52,6 +52,11 @@ class About(Cog_Extension):
         entitlement_source = presentation.entitlement.plan_source.replace('_', ' ')
         plan_label = 'Premium' if presentation.plan == 'pro' else 'Free'
         poll_interval = self._base_poll_interval() if presentation.plan == 'pro' else self._free_poll_interval()
+        rule_setup_line = (
+            'Rules: `Premium only`'
+            if presentation.features.max_rules == 0
+            else f'Rules: `{len(rules)} / {presentation.features.max_rules}`'
+        )
         plan_line = f'`{plan_label}` plan'
         if presentation.plan == 'pro':
             if presentation.entitlement.entitlement_status == 'trialing':
@@ -78,7 +83,7 @@ class About(Cog_Extension):
             name='Setup',
             value=(
                 f'Monitors: `{len(sources)} / {presentation.features.max_sources}`\n'
-                f'Rules: `{len(rules)} / {presentation.features.max_rules}`\n'
+                f'{rule_setup_line}\n'
                 f'Sessions: `{len(active_sessions)} / {presentation.features.max_twitter_sessions}`\n'
                 f'Channels: `{destination_count}`'
             ),

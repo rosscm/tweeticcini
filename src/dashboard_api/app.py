@@ -786,7 +786,7 @@ def _build_status_banner(
                 f"Needs attention: {'; '.join(blocking_reasons)}",
                 f'Sessions: {guild_presentation.compliance.session_count} / {session_limit}',
                 f'Monitors: {guild_presentation.compliance.source_count} / {guild_presentation.features.max_sources}',
-                f'Rules: {guild_presentation.compliance.rule_count} / {guild_presentation.features.max_rules}',
+                'Rules: Premium only' if guild_presentation.features.max_rules == 0 else f'Rules: {guild_presentation.compliance.rule_count} / {guild_presentation.features.max_rules}',
             ],
         }
 
@@ -794,6 +794,7 @@ def _build_status_banner(
     rule_limit = guild_presentation.features.max_rules
     source_count = usage['source_count']
     rule_count = usage['rule_count']
+    rule_detail = f'Rules: {rule_count} / {rule_limit}' if rule_limit > 0 else 'Rules: Premium only'
 
     if not delivery_sessions:
         return {
@@ -802,7 +803,7 @@ def _build_status_banner(
             'details': [
                 f'Sessions: 0 / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
-                f'Rules: {rule_count} / {rule_limit}',
+                rule_detail,
             ],
         }
 
@@ -822,7 +823,7 @@ def _build_status_banner(
                 'details': [
                     f'Sessions: {len(delivery_sessions)} / {session_limit}',
                     f'Monitors: {source_count} / {source_limit}',
-                    f'Rules: {rule_count} / {rule_limit}',
+                    rule_detail,
                 ],
             }
         return {
@@ -831,7 +832,7 @@ def _build_status_banner(
             'details': [
                 f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
-                f'Rules: {rule_count} / {rule_limit}',
+                rule_detail,
             ],
         }
 
@@ -842,7 +843,7 @@ def _build_status_banner(
             'details': [
                 f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
-                f'Rules: {rule_count} / {rule_limit}',
+                rule_detail,
             ],
         }
 
@@ -859,7 +860,7 @@ def _build_status_banner(
             'details': [
                 f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
-                f'Rules: {rule_count} / {rule_limit}',
+                rule_detail,
             ],
         }
 
@@ -873,18 +874,18 @@ def _build_status_banner(
             'details': [
                 f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
-                f'Rules: {rule_count} / {rule_limit}',
+                rule_detail,
             ],
         }
 
-    if source_count >= source_limit or rule_count >= rule_limit:
+    if source_count >= source_limit or (rule_limit > 0 and rule_count >= rule_limit):
         return {
             'level': 'warning',
             'message': 'Everything looks healthy, but this server is at or near one of its plan limits.',
             'details': [
                 f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
-                f'Rules: {rule_count} / {rule_limit}',
+                rule_detail,
             ],
         }
 
@@ -894,7 +895,7 @@ def _build_status_banner(
             'details': [
                 f'Sessions: {len(delivery_sessions)} / {session_limit}',
                 f'Monitors: {source_count} / {source_limit}',
-                f'Rules: {rule_count} / {rule_limit}',
+                rule_detail,
             ],
         }
 

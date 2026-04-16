@@ -303,7 +303,7 @@
             <div class="plan-tile-head">
               <h3 class="plan-tile-title">Rules</h3>
             </div>
-            <strong>{{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }}</strong>
+            <strong>{{ 'Premium only' if guild_presentation.features.max_rules == 0 else (plan_usage.rule_count ~ ' / ' ~ guild_presentation.features.max_rules) }}</strong>
           </div>
         </div>
 
@@ -715,7 +715,7 @@
               <h3 class="panel-title">Add or Edit Monitor</h3>
               <form id="source-form" class="stack {{ 'is-locked' if delivery_sessions_required else '' }}">
                 <div class="form-banner">
-                  Fill this form and click <strong>Save Monitor</strong> to add a new monitor. Or load an existing row below to update its routing and filter settings.
+                  Fill this form and click <strong>Save Monitor</strong> to add a new monitor. Or load an existing row below to update its routing and filter settings. <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules"><strong>Rules</strong></a> add finer control on top of your monitors, so you can mute phrases like <code>RT</code> or help urgent posts with phrases like <code>act now!</code> stand out.
                 </div>
                 <input id="source-edit-mode" type="hidden" value="create">
                 <label for="source-username-edit">Twitter account</label>
@@ -915,7 +915,8 @@
             </div>
           </div>
 
-          {% if plan_usage.rule_count >= guild_presentation.features.max_rules or plan_usage.trigger_keyword_count >= guild_presentation.features.max_trigger_keywords_total or plan_usage.exclude_keyword_count >= guild_presentation.features.max_exclude_keywords_total %}
+          {% set rules_locked = guild_presentation.plan == 'free' or delivery_sessions_required or plan_usage.source_count == 0 %}
+          {% if guild_presentation.features.max_rules > 0 and (plan_usage.rule_count >= guild_presentation.features.max_rules or plan_usage.trigger_keyword_count >= guild_presentation.features.max_trigger_keywords_total or plan_usage.exclude_keyword_count >= guild_presentation.features.max_exclude_keywords_total) %}
           <section class="notice notice--warning">
             <strong>Rule capacity:</strong>
             Rules {{ plan_usage.rule_count }} / {{ guild_presentation.features.max_rules }},
@@ -937,26 +938,32 @@
           <div class="workspace-grid">
             <div class="workspace-panel">
               <h3 class="panel-title">Add or Edit Rule</h3>
-              <form id="rule-form" class="stack {{ 'is-locked' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}">
+              <form id="rule-form" class="stack {{ 'is-locked' if rules_locked else '' }}">
                 <div class="form-banner">
+                  {% if guild_presentation.features.max_rules == 0 %}
+                  This server is using Tweeticcini's standard monitor controls. Upgrade to <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to create Rules that mute noisy phrases, target one monitored account, or help urgent posts stand out when timing matters.
+                  {% else %}
                   Build a rule for one tracked account or apply it across the whole server.<br>
                   Use <code>Mute alerts</code> rules to suppress noise, or use <code>Ping everyone</code> for high-priority posts that should stand out.
+                  {% endif %}
                 </div>
                 <div class="status-detail-list">
+                  {% if guild_presentation.features.max_rules > 0 %}
                   <span class="tag tag--soft">Exclude keywords: {{ plan_usage.exclude_keyword_count }} / {{ guild_presentation.features.max_exclude_keywords_total }}</span>
                   {% if guild_presentation.features.can_use_everyone_escalation %}
                   <span class="tag tag--soft">Ping keywords: {{ plan_usage.trigger_keyword_count }} / {{ guild_presentation.features.max_trigger_keywords_total }}</span>
                   {% else %}
-                  <span class="tag tag--soft">Ping everyone unlocks on Premium</span>
+                  <span class="tag tag--soft">Ping everyone unlocks on the paid plan</span>
+                  {% endif %}
                   {% endif %}
                 </div>
                 <input id="existing-rule-name" type="hidden" value="">
                 <label for="rule-name">Rule label</label>
-                <input id="rule-name" type="text" placeholder="E.g., ignore off-topic posts" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
+                <input id="rule-name" type="text" placeholder="E.g., ignore off-topic posts" {{ 'disabled' if rules_locked else '' }}>
                   <div class="field-help">A unique label for this rule inside the current server.</div>
 
                 <label for="source-username">Twitter account</label>
-                <select id="source-username" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
+                <select id="source-username" {{ 'disabled' if rules_locked else '' }}>
                   <option value="">All monitors</option>
                   {% for source_name in source_options %}
                   <option value="{{ source_name }}">{{ source_name }}</option>
@@ -965,34 +972,34 @@
                 <div class="field-help">Choose a monitor for this rule, or leave it on all monitors.</div>
 
                 <label for="priority">Priority</label>
-                <input id="priority" type="number" min="-100" max="100" step="1" value="0" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
+                <input id="priority" type="number" min="-100" max="100" step="1" value="0" {{ 'disabled' if rules_locked else '' }}>
                 <div class="field-help">Higher priority rules are evaluated first. Allowed range: -100 to 100.</div>
 
                 <label for="escalation-mode">Rule type</label>
-                <select id="escalation-mode" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>
+                <select id="escalation-mode" {{ 'disabled' if rules_locked else '' }}>
                   <option value="role_only">Mute alerts</option>
                   <option value="everyone" {{ 'disabled' if not guild_presentation.features.can_use_everyone_escalation else '' }}>Ping everyone{{ ' (Premium)' if not guild_presentation.features.can_use_everyone_escalation else '' }}</option>
                 </select>
                 <div class="field-help">Choose whether this rule should mute alerts or elevate important posts.</div>
 
                 <label for="rule-exclude-keywords">Muted phrases</label>
-                <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., noisy phrase 1, noisy phrase 2, noisy phrase 3" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
+                <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., noisy phrase 1, noisy phrase 2, noisy phrase 3" {{ 'disabled' if rules_locked else '' }}></textarea>
                 <div class="field-help">Comma-separated phrases that mute alerts when every word in the phrase is present in the tweet. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.</div>
                 <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
 
                 <label for="rule-trigger-keywords">Ping keywords</label>
-                <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., super important phrase" {{ 'disabled' if (not guild_presentation.features.can_use_everyone_escalation) or delivery_sessions_required or plan_usage.source_count == 0 else '' }}></textarea>
+                <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., super important phrase" {{ 'disabled' if (not guild_presentation.features.can_use_everyone_escalation) or rules_locked else '' }}></textarea>
                 <div class="field-help" id="rule-trigger-keywords-help">
                   {% if guild_presentation.features.can_use_everyone_escalation %}
                   Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.
                   {% else %}
-                  These phrases are only available on <strong>Premium</strong>, because they are used with <code>Ping everyone</code> rules.
+                  These phrases are only available on the paid plan, because they are used with <code>Ping everyone</code> rules.
                   {% endif %}
                 </div>
                 <div class="field-error" id="rule-trigger-keywords-error" hidden></div>
 
                 <div class="actions">
-                  <button type="submit" {{ 'disabled' if delivery_sessions_required or plan_usage.source_count == 0 else '' }}>Save Rule</button>
+                  <button type="submit" {{ 'disabled' if rules_locked else '' }}>Save Rule</button>
                 </div>
               </form>
             </div>
