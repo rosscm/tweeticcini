@@ -19,7 +19,7 @@ from src.repositories.twitter_session_repository import (
     list_server_twitter_sessions,
     upsert_server_twitter_session,
 )
-from src.settings import get_db_path
+from src.settings import get_db_path, get_twitter_session_path
 from src.utils import get_utcnow
 
 log = setup_logger(__name__)
@@ -312,11 +312,13 @@ class TwitterSessionService:
         if bootstrap_path.exists():
             bootstrap_path.unlink()
 
-        app = create_twitter_session(bootstrap_client_key)
-        await app.load_auth_token(credential_input)
-        session_payload = self._read_session_file(bootstrap_client_key)
-        if bootstrap_path.exists():
-            bootstrap_path.unlink()
+        try:
+            app = create_twitter_session(bootstrap_client_key)
+            await app.load_auth_token(credential_input)
+            session_payload = self._read_session_file(bootstrap_client_key)
+        finally:
+            if bootstrap_path.exists():
+                bootstrap_path.unlink()
         if session_payload:
             self._write_session_file(client_key, session_payload)
             return f'session_json:{session_payload}'
@@ -352,7 +354,7 @@ class TwitterSessionService:
 
     @staticmethod
     def _session_file_path(client_key: str) -> Path:
-        return Path.cwd() / f'{client_key}.tw_session'
+        return get_twitter_session_path(client_key)
 
     def _write_session_file(self, client_key: str, session_payload: str) -> None:
         self._session_file_path(client_key).write_text(session_payload)

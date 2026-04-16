@@ -1,8 +1,10 @@
 import os
+import shutil
 
 from tweety import Twitter
 
 from src.adapters.tweety_compat import apply_tweety_compat_patch
+from src.settings import get_legacy_twitter_session_path, get_twitter_session_path
 
 
 if os.getenv('DISABLE_TWEETY_COMPAT', '').lower() not in {'1', 'true', 'yes'}:
@@ -12,7 +14,12 @@ if os.getenv('DISABLE_TWEETY_COMPAT', '').lower() not in {'1', 'true', 'yes'}:
 class TwitterSessionAdapter:
     def __init__(self, client_name: str):
         self.client_name = client_name
-        self._client = Twitter(client_name)
+        session_path = get_twitter_session_path(client_name)
+        legacy_path = get_legacy_twitter_session_path(client_name)
+        if legacy_path.exists() and not session_path.exists():
+            session_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(legacy_path), str(session_path))
+        self._client = Twitter(str(session_path))
 
     async def connect(self) -> None:
         await self._client.connect()

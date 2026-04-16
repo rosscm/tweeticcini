@@ -22,6 +22,20 @@ def get_db_path() -> Path:
     return get_data_path() / DB_FILENAME
 
 
+def get_twitter_session_dir() -> Path:
+    session_dir = get_data_path() / 'twitter_sessions'
+    session_dir.mkdir(parents=True, exist_ok=True)
+    return session_dir
+
+
+def get_twitter_session_path(client_key: str) -> Path:
+    return get_twitter_session_dir() / f'{client_key}.tw_session'
+
+
+def get_legacy_twitter_session_path(client_key: str) -> Path:
+    return Path.cwd() / f'{client_key}.tw_session'
+
+
 def get_accounts() -> dict[str, str]:
     accounts_env = os.getenv('TWITTER_TOKEN', '')
     accounts_str = accounts_env.strip(',')

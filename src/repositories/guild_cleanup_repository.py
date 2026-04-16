@@ -1,6 +1,5 @@
-from pathlib import Path
-
 from src.repositories.notifier_repository import connect_writable
+from src.settings import get_legacy_twitter_session_path, get_twitter_session_path
 
 
 async def cleanup_guild_data(db_path, server_id: str) -> dict[str, int]:
@@ -92,10 +91,10 @@ async def cleanup_guild_data(db_path, server_id: str) -> dict[str, int]:
 
     session_file_count = 0
     for client_key in client_keys:
-        session_path = Path.cwd() / f'{client_key}.tw_session'
-        if session_path.exists():
-            session_path.unlink()
-            session_file_count += 1
+        for session_path in (get_twitter_session_path(client_key), get_legacy_twitter_session_path(client_key)):
+            if session_path.exists():
+                session_path.unlink()
+                session_file_count += 1
 
     return {
         'notifications': notification_count,
