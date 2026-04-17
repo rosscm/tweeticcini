@@ -120,6 +120,31 @@ async def record_source_delivery_error(
         await db.commit()
 
 
+async def prune_orphaned_runtime_source_statuses(db_path, server_id: str) -> int:
+    async with connect_writable(db_path) as db:
+        cursor = await db.execute(
+            '''
+            DELETE FROM runtime_source_status
+            WHERE server_id = ?
+              AND NOT EXISTS (
+                SELECT 1
+                FROM notification AS n
+                JOIN channel AS c
+                  ON c.id = n.channel_id
+                JOIN user AS u
+                  ON u.id = n.user_id
+                WHERE c.server_id = runtime_source_status.server_id
+                  AND c.id = runtime_source_status.channel_id
+                  AND lower(u.username) = lower(runtime_source_status.username)
+                  AND n.enabled = 1
+              )
+            ''',
+            (server_id,),
+        )
+        await db.commit()
+        return cursor.rowcount or 0
+
+
 async def list_runtime_client_statuses(db_path) -> list[dict[str, object]]:
     async with connect_readonly(db_path) as db:
         db.row_factory = None

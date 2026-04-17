@@ -279,6 +279,24 @@
         </section>
         {% endif %}
 
+        {% if overview.get('runtime_issue_sources') %}
+        <section class="notice notice--warning">
+          <strong>Delivery issues detected:</strong> Tweeticcini needs attention for {{ overview.runtime_issue_sources|length }} monitor{{ '' if overview.runtime_issue_sources|length == 1 else 's' }} because one or more alert destinations could not receive a recent post.
+          <div class="status-detail-list">
+            {% for issue in overview.runtime_issue_sources[:3] %}
+            <a class="tag tag--warning" href="/dashboard/guilds/{{ guild_id }}/sources">
+              {{ issue.issue_label }}: {{ issue.username }} → #{{ issue.channel_name }}
+            </a>
+            {% endfor %}
+            {% if overview.runtime_issue_sources|length > 3 %}
+            <a class="tag tag--warning" href="/dashboard/guilds/{{ guild_id }}/sources">
+              +{{ overview.runtime_issue_sources|length - 3 }} more
+            </a>
+            {% endif %}
+          </div>
+        </section>
+        {% endif %}
+
         <div class="plan-summary">
           <div class="plan-tile">
             <div class="plan-tile-head">
@@ -847,7 +865,17 @@
                         {% endif %}
                       </span>
                       {% if source.runtime_state != 'healthy' %}
-                      <span class="tag {{ 'tag--warning' if source.runtime_state == 'warning' else '' }}">{{ 'Needs attention' if source.runtime_state == 'warning' else 'No runtime data' }}</span>
+                      <span class="tag {{ 'tag--warning' if source.runtime_state == 'warning' else '' }}">
+                        {% if source.runtime_state == 'warning' and source.last_error_message and ('Missing Permissions' in source.last_error_message or 'error code: 50013' in source.last_error_message) %}
+                        Channel permissions
+                        {% elif source.runtime_state == 'warning' and source.last_error_message and 'CategoryChannel' in source.last_error_message and 'send' in source.last_error_message %}
+                        Invalid destination
+                        {% elif source.runtime_state == 'warning' %}
+                        Needs attention
+                        {% else %}
+                        No runtime data
+                        {% endif %}
+                      </span>
                       {% endif %}
                     </div>
                     <div class="tag-row tag-row--compact">

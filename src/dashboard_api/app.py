@@ -23,6 +23,7 @@ from src.notification.account_tracker import build_headline_notification_message
 from src.repositories.runtime_metrics_repository import (
     get_runtime_source_status_map,
     list_runtime_client_statuses,
+    prune_orphaned_runtime_source_statuses,
 )
 from src.services.alert_rule_service import AlertRuleRecord, AlertRuleService
 from src.services.billing_service import BillingConfigurationError, BillingService
@@ -239,6 +240,29 @@ def _has_recent_dashboard_activity(timestamps: list[Optional[str]], hours: int =
         if parsed >= cutoff:
             return True
     return False
+
+
+def _is_missing_channel_permission_error(error_message: Optional[str]) -> bool:
+    if not error_message:
+        return False
+    normalized = error_message.lower()
+    return 'missing permissions' in normalized or 'error code: 50013' in normalized
+
+
+def _classify_source_runtime_error(error_message: Optional[str]) -> Optional[str]:
+    if not error_message:
+        return None
+    if _is_missing_channel_permission_error(error_message):
+        return 'Channel permissions'
+
+    normalized = error_message.lower()
+    if 'categorychannel' in normalized and 'send' in normalized:
+        return 'Invalid destination channel'
+    if 'forumchannel' in normalized and 'send' in normalized:
+        return 'Invalid destination channel'
+    if 'thread' in normalized and 'archived' in normalized:
+        return 'Archived thread'
+    return 'Delivery issue'
 
 
 def _serialize_twitter_session(
@@ -1080,6 +1104,9 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     log_health = _read_recent_log_health()
     client_statuses = await list_runtime_client_statuses(notifier_service.db_path)
     client_status_map = {row['client_used']: row for row in client_statuses}
+    pruned_runtime_rows = await prune_orphaned_runtime_source_statuses(notifier_service.db_path, guild_id)
+    if pruned_runtime_rows:
+        log.info(f'pruned {pruned_runtime_rows} orphaned runtime source status row(s) for guild {guild_id}')
     source_status_map = await get_runtime_source_status_map(notifier_service.db_path, guild_id)
     escalation_rule_count = sum(1 for rule in rules if rule.escalation_mode == 'everyone')
     scoped_rule_count = sum(1 for rule in rules if rule.source_username)
@@ -1171,6 +1198,18 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             break
     latest_delivery = None
     recent_deliveries = []
+    runtime_issue_sources = [
+        {
+            'username': source['username'],
+            'channel_id': source['channel_id'],
+            'channel_name': resource_names['channels'].get(source['channel_id'], source['channel_id']),
+            'last_delivery_error_at': source.get('last_delivery_error_at'),
+            'issue_label': _classify_source_runtime_error(source.get('last_error_message')),
+            'last_error_message': source.get('last_error_message'),
+        }
+        for source in sources_payload
+        if source.get('runtime_state') == 'warning' and source.get('last_error_message')
+    ]
     delivered_sources = [payload for payload in sources_payload if payload.get('last_delivery_success_at_raw')]
     if delivered_sources:
         delivered_sources = sorted(
@@ -1245,6 +1284,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'top_destination_names': top_destination_names,
                 'latest_delivery': latest_delivery,
                 'recent_deliveries': recent_deliveries,
+                'runtime_issue_sources': runtime_issue_sources,
                 'session_breakdown': [
                     {
                         'session_name': session_display_names.get(client_key, client_key),
