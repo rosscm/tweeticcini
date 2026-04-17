@@ -321,7 +321,7 @@
             <div class="plan-tile-head">
               <h3 class="plan-tile-title">Rules</h3>
             </div>
-            <strong>{{ 'Premium only' if guild_presentation.features.max_rules == 0 else (plan_usage.rule_count ~ ' / ' ~ guild_presentation.features.max_rules) }}</strong>
+            <strong>{{ plan_usage.rule_count ~ ' / ' ~ guild_presentation.features.max_rules if guild_presentation.features.max_rules > 0 else 'Locked' }}</strong>
           </div>
         </div>
 
@@ -969,7 +969,7 @@
               <form id="rule-form" class="stack {{ 'is-locked' if rules_locked else '' }}">
                 <div class="form-banner">
                   {% if guild_presentation.features.max_rules == 0 %}
-                  This server is using Tweeticcini's standard monitor controls. Upgrade to <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to create Rules that mute noisy phrases, target one monitored account, or help urgent posts stand out when timing matters.
+                  This server is using Tweeticcini's standard monitor controls. Start <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to add Rules for one tracked account or across the whole server. Use <code>Mute alerts</code> to suppress noise, or <code>Ping everyone</code> for high-priority posts that should stand out.
                   {% else %}
                   Build a rule for one tracked account or apply it across the whole server.<br>
                   Use <code>Mute alerts</code> rules to suppress noise, or use <code>Ping everyone</code> for high-priority posts that should stand out.
