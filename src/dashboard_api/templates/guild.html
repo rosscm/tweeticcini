@@ -1012,19 +1012,16 @@
 
                 <label for="rule-exclude-keywords">Muted phrases</label>
                 <textarea id="rule-exclude-keywords" rows="4" placeholder="E.g., noisy phrase 1, noisy phrase 2, noisy phrase 3" {{ 'disabled' if rules_locked else '' }}></textarea>
-                <div class="field-help">Comma-separated phrases that mute alerts when every word in the phrase is present in the tweet. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.</div>
+                <div class="field-help">Comma-separated phrases that mute alerts when every word in the phrase appears in a post.</div>
                 <div class="field-error" id="rule-exclude-keywords-error" hidden></div>
 
                 <label for="rule-trigger-keywords">Ping keywords</label>
                 <textarea id="rule-trigger-keywords" rows="3" placeholder="E.g., super important phrase" {{ 'disabled' if (not guild_presentation.features.can_use_everyone_escalation) or rules_locked else '' }}></textarea>
                 <div class="field-help" id="rule-trigger-keywords-help">
-                  {% if guild_presentation.features.can_use_everyone_escalation %}
-                  Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.
-                  {% else %}
-                  These phrases are only available on the paid plan, because they are used with <code>Ping everyone</code> rules.
-                  {% endif %}
+                  Comma-separated phrases that trigger this rule when every word in the phrase appears in a post. These only apply when Rule type is set to <code>Ping everyone</code>.
                 </div>
                 <div class="field-error" id="rule-trigger-keywords-error" hidden></div>
+                <div class="field-help">Phrase matching is case-insensitive. Use only letters, numbers, spaces, and hyphens.</div>
 
                 <div class="actions">
                   <button type="submit" {{ 'disabled' if rules_locked else '' }}>Save Rule</button>
@@ -1517,11 +1514,11 @@
         }
 
         if (!canUseEveryone) {
-          triggerHelp.innerHTML = 'These phrases are only available on <strong>Premium</strong>, because they are used with <code>Ping everyone</code> rules.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase appears in a post. These only apply when Rule type is set to <code>Ping everyone</code>.';
         } else if (!everyoneSelected) {
-          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase appears in a post. These only apply when Rule type is set to <code>Ping everyone</code>.';
         } else {
-          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase is present in the tweet. These phrases only apply when Rule type is set to <code>Ping everyone</code>. Matching is case-insensitive. Use only letters, numbers, spaces, and hyphens. Avoid generic single words like <code>the</code>, <code>and</code>, or <code>with</code>.';
+          triggerHelp.innerHTML = 'Comma-separated phrases that trigger this rule when every word in the phrase appears in a post. These only apply when Rule type is set to <code>Ping everyone</code>.';
         }
       }
 
