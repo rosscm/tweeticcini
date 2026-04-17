@@ -53,7 +53,7 @@ class About(Cog_Extension):
         plan_label = 'Premium' if presentation.plan == 'pro' else 'Free'
         poll_interval = self._base_poll_interval() if presentation.plan == 'pro' else self._free_poll_interval()
         rule_setup_line = (
-            'Rules: `Premium only`'
+            'Rules: `Locked`'
             if presentation.features.max_rules == 0
             else f'Rules: `{len(rules)} / {presentation.features.max_rules}`'
         )

@@ -810,7 +810,7 @@ def _build_status_banner(
                 f"Needs attention: {'; '.join(blocking_reasons)}",
                 f'Sessions: {guild_presentation.compliance.session_count} / {session_limit}',
                 f'Monitors: {guild_presentation.compliance.source_count} / {guild_presentation.features.max_sources}',
-                'Rules: Premium only' if guild_presentation.features.max_rules == 0 else f'Rules: {guild_presentation.compliance.rule_count} / {guild_presentation.features.max_rules}',
+                'Rules: Locked' if guild_presentation.features.max_rules == 0 else f'Rules: {guild_presentation.compliance.rule_count} / {guild_presentation.features.max_rules}',
             ],
         }
 
@@ -818,7 +818,7 @@ def _build_status_banner(
     rule_limit = guild_presentation.features.max_rules
     source_count = usage['source_count']
     rule_count = usage['rule_count']
-    rule_detail = f'Rules: {rule_count} / {rule_limit}' if rule_limit > 0 else 'Rules: Premium only'
+    rule_detail = f'Rules: {rule_count} / {rule_limit}' if rule_limit > 0 else 'Rules: Locked'
 
     if not delivery_sessions:
         return {
