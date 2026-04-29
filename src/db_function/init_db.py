@@ -134,6 +134,11 @@ async def ensure_db_schema() -> str:
                 PRIMARY KEY(user_id, client_used),
                 FOREIGN KEY (user_id) REFERENCES user (id)
             );
+            CREATE TABLE IF NOT EXISTS server_support_prompt_state (
+                server_id TEXT PRIMARY KEY,
+                delivered_alerts_since_prompt INTEGER DEFAULT 0,
+                last_prompt_at TEXT DEFAULT NULL
+            );
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:

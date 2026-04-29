@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import re
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -16,6 +17,8 @@ from src.repositories.notifier_repository import (
     update_user_latest_tweet_for_client,
 )
 from src.repositories.runtime_metrics_repository import (
+    get_server_support_prompt_counter,
+    increment_server_support_prompt_counter,
     record_client_poll_error,
     record_client_poll_success,
     record_source_delivery_error,
@@ -34,6 +37,25 @@ from src.utils import get_lock, extract_first_line
 
 log = setup_logger(__name__)
 lock = get_lock()
+
+
+def _get_top_gg_vote_url() -> Optional[str]:
+    explicit_url = os.getenv('TOP_GG_VOTE_URL', '').strip()
+    if explicit_url:
+        return explicit_url
+
+    client_id = os.getenv('DISCORD_CLIENT_ID', '').strip()
+    if not client_id:
+        return None
+
+    return f'https://top.gg/bot/{client_id}/vote'
+
+
+def _get_support_prompt_server_ids() -> set[str]:
+    raw = os.getenv('SUPPORT_PROMPT_SERVER_IDS', '').strip()
+    if not raw:
+        return set()
+    return {server_id.strip() for server_id in raw.split(',') if server_id.strip()}
 
 
 def build_notification_message(template: str, mention: str, tweet, url: str) -> str:
@@ -63,6 +85,8 @@ class AccountTracker():
         self.poll_error_states: dict[str, str] = {}
         self.client_poll_intervals: dict[str, int] = {}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
+        self.support_prompt_server_ids = _get_support_prompt_server_ids()
+        self.support_prompt_threshold = 20
         bot.loop.create_task(self.setup_tasks())
 
     @staticmethod
@@ -343,6 +367,15 @@ class AccountTracker():
                                     if not msg:
                                         msg = build_headline_notification_message(mention, text, url)
 
+                                    should_include_support_footer = await self._should_include_support_footer(
+                                        server_id=str(channel.guild.id),
+                                        presentation_plan=presentation.plan,
+                                    )
+                                    if should_include_support_footer:
+                                        vote_url = _get_top_gg_vote_url()
+                                        if vote_url:
+                                            msg = f'{msg}\n\nEnjoying Tweeticcini? Vote on top.gg to support it 💛\n{vote_url}'
+
                                     if presentation.effective.embed_type == 'fx_twitter':
                                         await channel.send(content=msg, view=view)
                                     else:
@@ -367,6 +400,10 @@ class AccountTracker():
                                         alert_decision.matched_rule_name,
                                         datetime.now(timezone.utc).isoformat(timespec='seconds'),
                                     )
+                                    await self._record_support_prompt_delivery(
+                                        server_id=str(channel.guild.id),
+                                        presentation_plan=presentation.plan,
+                                    )
 
                                 except Exception as e:
                                     if channel is not None:
@@ -386,6 +423,30 @@ class AccountTracker():
                                     else:
                                         channel_label = channel.mention if channel is not None else f"channel {data['channel_id']}"
                                         log.error(f'an error occurred at {channel_label} while sending notification: {e}')
+
+    def _is_support_prompt_eligible(self, server_id: str, presentation_plan: str) -> bool:
+        is_managed_server = server_id in self.support_prompt_server_ids
+        is_free_server = presentation_plan == 'free'
+        return is_free_server or is_managed_server
+
+    async def _should_include_support_footer(self, server_id: str, presentation_plan: str) -> bool:
+        vote_url = _get_top_gg_vote_url()
+        if not vote_url:
+            return False
+        if not self._is_support_prompt_eligible(server_id, presentation_plan):
+            return False
+        current_count = await get_server_support_prompt_counter(self.db_path, server_id)
+        return (current_count + 1) >= self.support_prompt_threshold
+
+    async def _record_support_prompt_delivery(self, server_id: str, presentation_plan: str) -> None:
+        if not self._is_support_prompt_eligible(server_id, presentation_plan):
+            return
+        await increment_server_support_prompt_counter(
+            self.db_path,
+            server_id,
+            datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            threshold=self.support_prompt_threshold,
+        )
 
     async def tweetsUpdater(self, app):
         updater_name = asyncio.current_task().get_name().split('_', 1)[1]

@@ -145,6 +145,63 @@ async def prune_orphaned_runtime_source_statuses(db_path, server_id: str) -> int
         return cursor.rowcount or 0
 
 
+async def increment_server_support_prompt_counter(
+    db_path,
+    server_id: str,
+    happened_at: str,
+    threshold: int = 20,
+) -> bool:
+    async with connect_writable(db_path) as db:
+        async with db.execute(
+            '''
+            SELECT delivered_alerts_since_prompt, last_prompt_at
+            FROM server_support_prompt_state
+            WHERE server_id = ?
+            ''',
+            (server_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+
+        current_count = int(row[0]) if row and row[0] is not None else 0
+        next_count = current_count + 1
+
+        should_prompt = next_count >= threshold
+        delivered_alerts_since_prompt = 0 if should_prompt else next_count
+        last_prompt_at = happened_at if should_prompt else (row[1] if row and len(row) > 1 else None)
+
+        await db.execute(
+            '''
+            INSERT INTO server_support_prompt_state (
+                server_id,
+                delivered_alerts_since_prompt,
+                last_prompt_at
+            ) VALUES (?, ?, ?)
+            ON CONFLICT(server_id) DO UPDATE SET
+                delivered_alerts_since_prompt = excluded.delivered_alerts_since_prompt,
+                last_prompt_at = excluded.last_prompt_at
+            ''',
+            (server_id, delivered_alerts_since_prompt, last_prompt_at),
+        )
+        await db.commit()
+        return should_prompt
+
+
+async def get_server_support_prompt_counter(db_path, server_id: str) -> int:
+    async with connect_readonly(db_path) as db:
+        async with db.execute(
+            '''
+            SELECT delivered_alerts_since_prompt
+            FROM server_support_prompt_state
+            WHERE server_id = ?
+            ''',
+            (server_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+    if row is None or row[0] is None:
+        return 0
+    return int(row[0])
+
+
 async def list_runtime_client_statuses(db_path) -> list[dict[str, object]]:
     async with connect_readonly(db_path) as db:
         db.row_factory = None
