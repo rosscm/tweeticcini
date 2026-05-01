@@ -94,14 +94,25 @@
         {% endif %}
       </section>
       <footer class="dashboard-footer dashboard-footer--centered">
-        <span class="dashboard-footer-main">
-          <strong>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></strong>
+        <span class="dashboard-footer-label">Resources</span>
+        <span class="dashboard-footer-links">
+          {% if public_site_url %}
+          <a class="dashboard-footer-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Website</a>
+          {% endif %}
+          {% if top_gg_vote_url %}
+          <a class="dashboard-footer-link" href="{{ top_gg_vote_url }}" target="_blank" rel="noreferrer">Vote on top.gg</a>
+          {% endif %}
+          {% if support_server_url %}
+          <a class="dashboard-footer-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">Support Server</a>
+          {% endif %}
         </span>
-        {% if support_server_url %}
-        <span class="dashboard-footer-support"><span>Need help? Join the <a class="inline-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">support server</a></span><span class="dashboard-footer-dot" aria-hidden="true">•</span><span>v{{ app_version }}</span></span>
-        {% else %}
-        <span class="dashboard-footer-support">v{{ app_version }}</span>
-        {% endif %}
+        <span class="dashboard-footer-meta">
+          <strong>Tweeticcini Dashboard</strong>
+          <span class="dashboard-footer-dot" aria-hidden="true">•</span>
+          <span>Built with ❤️ by <a class="inline-link" href="https://www.instagram.com/pokaccini/" target="_blank" rel="noreferrer">Pokaccini</a></span>
+          <span class="dashboard-footer-dot" aria-hidden="true">•</span>
+          <span>v{{ app_version }}</span>
+        </span>
       </footer>
       </div>
     </main>

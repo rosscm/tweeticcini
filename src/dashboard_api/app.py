@@ -428,6 +428,17 @@ def _get_support_server_url() -> Optional[str]:
     return support_url.strip() or None
 
 
+def _get_top_gg_vote_url() -> Optional[str]:
+    explicit_url = os.getenv('TOP_GG_VOTE_URL', '').strip()
+    if explicit_url:
+        return explicit_url
+
+    client_id = os.getenv('DISCORD_CLIENT_ID', '').strip()
+    if not client_id:
+        return None
+    return f'https://top.gg/bot/{client_id}/vote'
+
+
 def _build_discord_login_url(request: Request, state: str) -> Optional[str]:
     oauth = _get_discord_oauth_config()
     if oauth is None:
@@ -552,7 +563,9 @@ def _render_dashboard_access_denied(request: Request, guild_id: str) -> HTMLResp
             'app_version': APP_VERSION,
             'discord_user': _get_session_user(request),
             'guild_id': guild_id,
+            'public_site_url': _get_public_site_url(),
             'support_server_url': _get_support_server_url(),
+            'top_gg_vote_url': _get_top_gg_vote_url(),
         },
     )
 
@@ -939,7 +952,7 @@ GUILD_SECTIONS = {
     'sources': 'Monitors',
     'rules': 'Rules',
     'appearance': 'Appearance',
-    'billing': 'Plans & Billing',
+    'billing': 'Premium',
 }
 
 
@@ -992,6 +1005,7 @@ async def dashboard_home(request: Request):
             'app_version': APP_VERSION,
             'public_site_url': _get_public_site_url(),
             'support_server_url': _get_support_server_url(),
+            'top_gg_vote_url': _get_top_gg_vote_url(),
             'oauth_enabled': _get_discord_oauth_config() is not None,
             'discord_login_url': _build_discord_login_url(request, state),
             'discord_user': _get_session_user(request),
@@ -1323,6 +1337,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'rules': [_serialize_rule(rule).model_dump() for rule in rules],
             'public_site_url': _get_public_site_url(),
             'support_server_url': _get_support_server_url(),
+            'top_gg_vote_url': _get_top_gg_vote_url(),
         },
     )
 
