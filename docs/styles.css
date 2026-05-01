@@ -220,6 +220,12 @@ body {
   margin-bottom: 0;
 }
 
+.proof-note {
+  margin-top: 6px;
+  color: #c8d2e9;
+  font-size: 0.95rem;
+}
+
 .panel-copy {
   margin: 10px 0 18px;
   color: var(--ink);
@@ -231,6 +237,11 @@ body {
   border-radius: 20px;
   background: linear-gradient(180deg, rgba(26, 29, 37, 0.96), rgba(20, 23, 30, 0.98));
   padding: 14px;
+}
+
+.proof-image-wrap {
+  display: grid;
+  gap: 8px;
 }
 
 .proof-image {
@@ -366,7 +377,7 @@ body {
 
 .pricing-table th,
 .pricing-table td {
-  padding: 15px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--line);
 }
 
