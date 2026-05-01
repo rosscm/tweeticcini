@@ -30,6 +30,11 @@ class About(Cog_Extension):
         configured = max(int(configs.get('free_tweets_check_period', 90) or 90), 1)
         return max(configured, cls._base_poll_interval())
 
+    @classmethod
+    def _plus_poll_interval(cls) -> int:
+        configured = max(int(configs.get('plus_tweets_check_period', 45) or 45), 1)
+        return max(configured, cls._base_poll_interval())
+
     @app_commands.command(name='about', description='Show a compact summary for this server')
     async def about(self, itn: discord.Interaction):
         if itn.guild_id is None or itn.guild is None:
@@ -50,21 +55,28 @@ class About(Cog_Extension):
         destination_count = len({source.channel_id for source in sources})
         style_label = 'Headline-style' if presentation.effective.use_headline_message else 'Template'
         entitlement_source = presentation.entitlement.plan_source.replace('_', ' ')
-        plan_label = 'Premium' if presentation.plan == 'pro' else 'Free'
-        poll_interval = self._base_poll_interval() if presentation.plan == 'pro' else self._free_poll_interval()
+        if presentation.plan == 'pro':
+            plan_label = 'Premium'
+            poll_interval = self._base_poll_interval()
+        elif presentation.plan == 'plus':
+            plan_label = 'Plus'
+            poll_interval = self._plus_poll_interval()
+        else:
+            plan_label = 'Free'
+            poll_interval = self._free_poll_interval()
         rule_setup_line = (
             'Rules: `Locked`'
             if presentation.features.max_rules == 0
             else f'Rules: `{len(rules)} / {presentation.features.max_rules}`'
         )
         plan_line = f'`{plan_label}` plan'
-        if presentation.plan == 'pro':
+        if presentation.plan in {'pro', 'plus'}:
             if presentation.entitlement.entitlement_status == 'trialing':
-                plan_line = '`Premium` trial'
+                plan_line = f'`{plan_label}` trial'
             elif entitlement_source not in {'default', 'legacy'}:
-                plan_line = f'`Premium` plan via `{entitlement_source}`'
+                plan_line = f'`{plan_label}` plan via `{entitlement_source}`'
             elif entitlement_source == 'legacy':
-                plan_line = '`Premium` plan via `legacy access`'
+                plan_line = f'`{plan_label}` plan via `legacy access`'
 
         embed = discord.Embed(
             title=itn.guild.name,

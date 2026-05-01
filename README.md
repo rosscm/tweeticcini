@@ -129,6 +129,7 @@ Local vs production reminders:
 
 Important production parameters:
 - `tweets_check_period`
+- `plus_tweets_check_period`
 - `free_tweets_check_period`
 - `tweets_updater_retry_delay`
 - `tasks_monitor_check_period`
@@ -142,8 +143,10 @@ Important production parameters:
 > Avoid setting polling intervals too low to prevent rate limiting.
 
 Polling behavior:
-- `tweets_check_period` is the fast/default polling cadence used for paid plans and fallback sessions
+- `tweets_check_period` is the fast/default polling cadence used for Premium plans and fallback sessions
+- `plus_tweets_check_period` is the mid-tier cadence used for Plus plans
 - `free_tweets_check_period` is the slower long-term cadence used for Free servers
+- if `plus_tweets_check_period` is omitted, Tweeticcini falls back to `45` seconds for Plus servers
 - if `free_tweets_check_period` is omitted, Tweeticcini falls back to `90` seconds for Free servers
 
 ## 🖥 Dashboard

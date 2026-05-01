@@ -98,6 +98,11 @@ class AccountTracker():
         configured = int(configs.get('free_tweets_check_period', 90))
         return max(configured, cls._base_poll_interval())
 
+    @classmethod
+    def _plus_poll_interval(cls) -> int:
+        configured = int(configs.get('plus_tweets_check_period', 45))
+        return max(configured, cls._base_poll_interval())
+
     def _get_client_poll_interval(self, client_used: str) -> int:
         return self.client_poll_intervals.get(client_used, self._base_poll_interval())
 
@@ -105,11 +110,13 @@ class AccountTracker():
         intervals: dict[str, int] = {}
         for session in await self.twitter_session_service.list_all_active_session_records():
             presentation = await self.guild_settings_service.get_presentation_view(session.server_id)
-            intervals[session.client_key] = (
-                self._base_poll_interval()
-                if presentation.plan != 'free'
-                else self._free_poll_interval()
-            )
+            if presentation.plan == 'free':
+                interval = self._free_poll_interval()
+            elif presentation.plan == 'plus':
+                interval = self._plus_poll_interval()
+            else:
+                interval = self._base_poll_interval()
+            intervals[session.client_key] = interval
         self.client_poll_intervals = intervals
 
     async def _load_available_accounts(self, required_clients: Optional[set[str]] = None) -> dict[str, str]:
