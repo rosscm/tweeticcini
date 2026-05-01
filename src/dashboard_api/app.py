@@ -939,7 +939,7 @@ GUILD_SECTIONS = {
     'sources': 'Monitors',
     'rules': 'Rules',
     'appearance': 'Appearance',
-    'billing': 'Premium',
+    'billing': 'Plans & Billing',
 }
 
 

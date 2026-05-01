@@ -804,6 +804,13 @@ body.mobile-drawer-open {
   box-shadow: 0 10px 28px rgba(156, 112, 32, 0.22);
 }
 
+.server-chip--plus {
+  background: linear-gradient(145deg, rgba(88, 101, 242, 0.24), rgba(64, 77, 190, 0.18));
+  border-color: rgba(125, 137, 255, 0.38);
+  color: #dde4ff;
+  box-shadow: 0 10px 26px rgba(56, 66, 146, 0.2);
+}
+
 .server-chip--free {
   background: rgba(255, 255, 255, 0.06);
 }

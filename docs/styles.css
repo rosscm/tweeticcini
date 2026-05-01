@@ -355,12 +355,13 @@ body {
 }
 
 .pricing-table colgroup col:first-child {
-  width: 40%;
+  width: 34%;
 }
 
 .pricing-table colgroup col:nth-child(2),
-.pricing-table colgroup col:nth-child(3) {
-  width: 30%;
+.pricing-table colgroup col:nth-child(3),
+.pricing-table colgroup col:nth-child(4) {
+  width: 22%;
 }
 
 .pricing-table th,
@@ -397,6 +398,10 @@ body {
 
 .pricing-table tbody td:nth-child(2) {
   color: #cfd8ee;
+}
+
+.pricing-table tbody td:nth-child(3) {
+  color: #d7deff;
 }
 
 .pricing-table thead th:last-child,

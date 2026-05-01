@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 PLAN_PRICE_ENV = {
+    'plus': 'STRIPE_PRICE_ID_PLUS',
     'pro': 'STRIPE_PRICE_ID_PRO',
 }
 DEFAULT_TRIAL_DAYS = 7

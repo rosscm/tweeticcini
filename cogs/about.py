@@ -82,9 +82,9 @@ class About(Cog_Extension):
         embed.add_field(
             name='Setup',
             value=(
+                f'Sessions: `{len(active_sessions)} / {presentation.features.max_twitter_sessions}`\n'
                 f'Monitors: `{len(sources)} / {presentation.features.max_sources}`\n'
                 f'{rule_setup_line}\n'
-                f'Sessions: `{len(active_sessions)} / {presentation.features.max_twitter_sessions}`\n'
                 f'Channels: `{destination_count}`'
             ),
             inline=True,

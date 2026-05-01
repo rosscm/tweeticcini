@@ -24,8 +24,9 @@ from src.utils import get_utcnow
 
 
 PLAN_FREE = 'free'
+PLAN_PLUS = 'plus'
 PLAN_PRO = 'pro'
-SUPPORTED_PLANS = {PLAN_FREE, PLAN_PRO}
+SUPPORTED_PLANS = {PLAN_FREE, PLAN_PLUS, PLAN_PRO}
 SUPPORTED_ENTITLEMENT_STATUSES = {'none', 'trialing', 'active', 'past_due', 'canceled'}
 
 
@@ -48,6 +49,16 @@ PLAN_FEATURES = {
         max_rules=0,
         max_trigger_keywords_total=0,
         max_exclude_keywords_total=0,
+        can_customize_presentation=False,
+        can_customize_source_messages=False,
+        can_use_everyone_escalation=False,
+    ),
+    PLAN_PLUS: GuildPlanFeatures(
+        max_twitter_sessions=2,
+        max_sources=10,
+        max_rules=10,
+        max_trigger_keywords_total=40,
+        max_exclude_keywords_total=60,
         can_customize_presentation=False,
         can_customize_source_messages=False,
         can_use_everyone_escalation=False,

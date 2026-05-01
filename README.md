@@ -102,6 +102,7 @@ TWITTER_SESSION_SECRET=YourLongRandomSessionSecret
 STRIPE_PUBLISHABLE_KEY=pk_test_replace_me
 STRIPE_SECRET_KEY=sk_test_replace_me
 STRIPE_WEBHOOK_SECRET=whsec_replace_me
+STRIPE_PRICE_ID_PLUS=price_replace_me
 STRIPE_PRICE_ID_PRO=price_replace_me
 ```
 
@@ -141,7 +142,7 @@ Important production parameters:
 > Avoid setting polling intervals too low to prevent rate limiting.
 
 Polling behavior:
-- `tweets_check_period` is the fast/default polling cadence used for Premium servers and fallback sessions
+- `tweets_check_period` is the fast/default polling cadence used for paid plans and fallback sessions
 - `free_tweets_check_period` is the slower long-term cadence used for Free servers
 - if `free_tweets_check_period` is omitted, Tweeticcini falls back to `90` seconds for Free servers
 
@@ -181,6 +182,7 @@ The billing page can create Stripe Checkout sessions, open the Stripe customer p
 - `STRIPE_PUBLISHABLE_KEY`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_ID_PLUS`
 - `STRIPE_PRICE_ID_PRO`
 
 Recommended webhook events:
@@ -253,6 +255,7 @@ Before switching from local/testing to a live deployment, verify:
 - `TWITTER_SESSION_SECRET` is set to a strong random value
 - bot and dashboard both use the intended persistent `DATA_PATH`
 - Stripe keys are all live-mode values
+- `STRIPE_PRICE_ID_PLUS` is the live recurring Plus price
 - `STRIPE_PRICE_ID_PRO` is the live recurring Pro price
 - Stripe webhook points to your live `POST /billing/webhook` endpoint
 - webhook events include:

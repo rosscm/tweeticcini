@@ -107,7 +107,7 @@ class AccountTracker():
             presentation = await self.guild_settings_service.get_presentation_view(session.server_id)
             intervals[session.client_key] = (
                 self._base_poll_interval()
-                if presentation.plan == 'pro'
+                if presentation.plan != 'free'
                 else self._free_poll_interval()
             )
         self.client_poll_intervals = intervals

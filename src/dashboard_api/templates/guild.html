@@ -21,7 +21,7 @@
             </div>
             <div class="page-title-row">
               <h1>{{ guild_name }}</h1>
-              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan</span>
+              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
             </div>
             <p class="lede lede--wide">Tweeticcini keeps watch on Twitter so the right posts land in the right channels, right when your server needs them 🚀</p>
           </section>
@@ -156,7 +156,7 @@
             <p class="eyebrow">Navigation</p>
             <div class="mobile-nav-title">{{ guild_name }}</div>
             <div class="mobile-nav-title-row">
-              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan</span>
+              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
             </div>
           </div>
           <button type="button" class="mobile-drawer-close" id="mobile-nav-close" aria-label="Close menu">×</button>
@@ -302,7 +302,7 @@
             <div class="plan-tile-head">
               <h3 class="plan-tile-title">Current Plan</h3>
             </div>
-            <strong class="plan-name">{{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }}</strong>
+            <strong class="plan-name">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }}</strong>
             <div class="plan-tile-copy">via {{ guild_presentation.entitlement.plan_source.replace('_', ' ') }}</div>
           </div>
           <div class="plan-tile">
@@ -445,7 +445,7 @@
               <div id="twitter-session-status" class="form-banner form-banner--hidden" hidden></div>
               {% if twitter_session_limit_reached %}
               <div class="form-banner form-banner--warning">
-                Session limit reached on the {{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to connect more sessions, spread monitors across them, and add extra flexibility as your setup grows.
+                Session limit reached on the {{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan. Upgrade on <a href="/dashboard/guilds/{{ guild_id }}/billing">Billing</a> to connect more sessions, spread monitors across them, and add extra flexibility as your setup grows.
               </div>
               {% endif %}
 
@@ -629,10 +629,10 @@
       <section class="card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Premium</p>
-            <h2>Review &amp; Manage Premium</h2>
-            <p class="section-copy section-copy--wide">See this server's current plan, start Premium, and manage subscription billing.</p>
-            <div class="form-banner billing-followup-banner">Free uses <strong>standard polling (90s)</strong>. Premium uses <strong>priority polling (12s)</strong>, along with higher limits and more control.</div>
+            <p class="eyebrow">Billing</p>
+            <h2>Review &amp; Manage Plans</h2>
+            <p class="section-copy section-copy--wide">See this server's current plan, start a paid plan, and manage subscription billing.</p>
+            <div class="form-banner billing-followup-banner">Free uses <strong>standard polling (90s)</strong>. Paid plans use <strong>priority polling (12s)</strong>, along with higher limits and more control.</div>
           </div>
         </div>
 
@@ -648,7 +648,7 @@
         </section>
         {% endif %}
 
-        {% set has_active_pro_entitlement = guild_presentation.entitlement.entitlement_status in ['active', 'trialing', 'past_due'] and (guild_presentation.entitlement.subscribed_plan == 'pro' or guild_presentation.plan == 'pro') %}
+        {% set has_active_paid_entitlement = guild_presentation.entitlement.entitlement_status in ['active', 'trialing', 'past_due'] and (guild_presentation.entitlement.subscribed_plan in ['plus', 'pro'] or guild_presentation.plan in ['plus', 'pro']) %}
 
         <div class="workspace-grid workspace-grid--appearance">
           <div class="workspace-panel">
@@ -658,19 +658,19 @@
             {% set is_canceled = guild_presentation.entitlement.entitlement_status == 'canceled' %}
             {% if is_trialing %}
             <section class="notice notice--success notice--compact">
-              <strong>Trialing Premium</strong>{% if guild_presentation.entitlement.trial_ends_at %} through <strong>{{ guild_presentation.entitlement.trial_ends_at }}</strong>{% endif %}. <strong>{{ 'Cancels when trial ends.' if guild_presentation.entitlement.cancel_at_period_end else 'Renews automatically.' }}</strong>
+              <strong>Trialing a paid plan</strong>{% if guild_presentation.entitlement.trial_ends_at %} through <strong>{{ guild_presentation.entitlement.trial_ends_at }}</strong>{% endif %}. <strong>{{ 'Cancels when trial ends.' if guild_presentation.entitlement.cancel_at_period_end else 'Renews automatically.' }}</strong>
             </section>
             {% elif is_past_due %}
             <section class="notice notice--warning notice--compact">
               <strong>Billing attention needed.</strong> <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }}{% if guild_presentation.entitlement.current_period_end %} {{ guild_presentation.entitlement.current_period_end }}{% endif %}.</strong> Visit <strong>Manage Subscription</strong> to update billing details.
             </section>
-            {% elif has_active_pro_entitlement and not guild_presentation.entitlement.external_customer_id %}
+            {% elif has_active_paid_entitlement and not guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
-              <strong>Premium is active.</strong> This subscription is being tracked through a legacy or support-managed setup.
+              <strong>A paid plan is active.</strong> This subscription is being tracked through a legacy or support-managed setup.
             </section>
-            {% elif has_active_pro_entitlement and guild_presentation.entitlement.external_customer_id %}
+            {% elif has_active_paid_entitlement and guild_presentation.entitlement.external_customer_id %}
             <section class="notice notice--success notice--compact">
-              <strong>Premium is active.</strong>{% if guild_presentation.entitlement.current_period_end %} <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }} {{ guild_presentation.entitlement.current_period_end }}.</strong>{% endif %} Visit <strong>Manage Subscription</strong> to make changes.
+              <strong>A paid plan is active.</strong>{% if guild_presentation.entitlement.current_period_end %} <strong>{{ 'Cancels on' if guild_presentation.entitlement.cancel_at_period_end else 'Renews on' }} {{ guild_presentation.entitlement.current_period_end }}.</strong>{% endif %} Visit <strong>Manage Subscription</strong> to make changes.
             </section>
             {% elif is_canceled %}
             <section class="notice notice--warning notice--compact">
@@ -678,22 +678,30 @@
             </section>
             {% else %}
             <section class="notice notice--plain notice--compact">
-              <strong>Free plan is active.</strong> Upgrade to Premium when you're ready.
+              <strong>Free plan is active.</strong> Upgrade to a paid plan when you're ready.
             </section>
             {% if not guild_presentation.entitlement.trial_used_at %}
-            <div class="form-banner billing-followup-banner">Try out Premium now with a <strong>7-day free trial</strong> to see how alerts, sessions, and customization work on this server.</div>
+            <div class="form-banner billing-followup-banner">Try a paid plan now with a <strong>7-day free trial</strong> to see how alerts, sessions, and customization work on this server.</div>
             {% endif %}
             {% if guild_presentation.entitlement.trial_used_at %}
             <div class="form-banner billing-followup-banner">This server has already used its free trial. Starting checkout will begin a paid subscription.</div>
             {% endif %}
             {% endif %}
-            {% if has_active_pro_entitlement %}
+            {% if has_active_paid_entitlement %}
             <div class="actions">
               <button type="button" id="open-billing-portal" {{ 'disabled' if not guild_presentation.entitlement.external_customer_id else '' }}>Manage Subscription</button>
             </div>
             {% else %}
             <div class="actions billing-actions">
-              <button type="button" id="start-checkout" {{ 'disabled' if 'pro' not in billing_context.available_price_plans else '' }}>Start Checkout</button>
+              <select id="checkout-plan">
+                {% if 'plus' in billing_context.available_price_plans %}
+                <option value="plus">Plus ($4.99)</option>
+                {% endif %}
+                {% if 'pro' in billing_context.available_price_plans %}
+                <option value="pro">Premium ($9.99)</option>
+                {% endif %}
+              </select>
+              <button type="button" id="start-checkout" {{ 'disabled' if ('plus' not in billing_context.available_price_plans and 'pro' not in billing_context.available_price_plans) else '' }}>Start Checkout</button>
             </div>
             {% endif %}
             {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
@@ -718,7 +726,7 @@
 
           {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
           <section class="notice notice--warning">
-            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ 'Premium' if guild_presentation.plan == 'pro' else 'Free' }} plan. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to add more.
+            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan. Upgrade on <a href="/dashboard/guilds/{{ guild_id }}/billing">Billing</a> to add more.
           </section>
           {% endif %}
 
@@ -1681,9 +1689,11 @@
       if (startCheckout) {
         startCheckout.addEventListener('click', async function () {
           try {
+            const checkoutPlan = document.getElementById('checkout-plan');
+            const selectedPlan = checkoutPlan ? checkoutPlan.value : 'pro';
             const result = await jsonRequest(`/guilds/${guildId}/billing/checkout`, {
               method: 'POST',
-              body: JSON.stringify({ plan: 'pro' }),
+              body: JSON.stringify({ plan: selectedPlan }),
             });
             window.location.href = result.url;
           } catch (error) {
