@@ -232,6 +232,24 @@ body {
   line-height: 1.6;
 }
 
+.setup-video-panel {
+  margin-top: 22px;
+}
+
+.setup-video-frame {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.setup-video-frame iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+  border: 0;
+}
+
 .proof-image-shell {
   border: 1px solid var(--line);
   border-radius: 20px;

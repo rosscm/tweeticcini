@@ -70,6 +70,13 @@ async def cleanup_guild_data(db_path, server_id: str) -> dict[str, int]:
         )
         guild_entitlement_count = cursor.rowcount
 
+        guild_onboarding_count = 0
+        cursor = await db.execute(
+            'DELETE FROM guild_onboarding_state WHERE server_id = ?',
+            (server_id,),
+        )
+        guild_onboarding_count = cursor.rowcount
+
         cursor = await db.execute(
             'DELETE FROM server_twitter_session WHERE server_id = ?',
             (server_id,),
@@ -105,6 +112,7 @@ async def cleanup_guild_data(db_path, server_id: str) -> dict[str, int]:
         'alert_rules': alert_rule_count,
         'guild_settings': guild_settings_count,
         'guild_entitlements': guild_entitlement_count,
+        'guild_onboarding': guild_onboarding_count,
         'twitter_sessions': twitter_session_count,
         'session_files': session_file_count,
         'orphan_users': orphan_user_count,

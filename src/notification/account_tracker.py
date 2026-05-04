@@ -378,13 +378,19 @@ class AccountTracker():
                                         server_id=str(channel.guild.id),
                                         presentation_plan=presentation.plan,
                                     )
+                                    support_prompt_text = None
+                                    support_prompt_url = None
                                     if should_include_support_footer:
                                         vote_url = _get_top_gg_vote_url()
                                         if vote_url:
-                                            msg = f'{msg}\n\nEnjoying Tweeticcini? Vote on top.gg to support it 💛\n{vote_url}'
+                                            support_prompt_text = 'Enjoying Tweeticcini? Vote on top.gg 💛'
+                                            support_prompt_url = vote_url
 
                                     if presentation.effective.embed_type == 'fx_twitter':
-                                        await channel.send(content=msg, view=view)
+                                        fx_content = msg
+                                        if support_prompt_url:
+                                            fx_content = f'{msg}\n💛 Vote on top.gg: {support_prompt_url}'
+                                        await channel.send(content=fx_content, view=view)
                                     else:
                                         footer = 'twitter.png' if presentation.effective.built_in_legacy_logo else 'x.png'
                                         file = discord.File(f'images/{footer}', filename='footer.png')
@@ -395,6 +401,7 @@ class AccountTracker():
                                                 tweet,
                                                 use_fx_image=presentation.effective.built_in_fx_image,
                                                 use_legacy_logo=presentation.effective.built_in_legacy_logo,
+                                                support_prompt_text=support_prompt_text,
                                             ),
                                             view=view,
                                         )

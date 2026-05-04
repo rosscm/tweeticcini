@@ -421,6 +421,13 @@ def _get_public_site_url() -> Optional[str]:
     return site_url.strip() or None
 
 
+def _get_token_setup_video_url() -> Optional[str]:
+    site_url = _get_public_site_url()
+    if not site_url:
+        return None
+    return f'{site_url.rstrip("/")}/setup-token.html'
+
+
 def _get_support_server_url() -> Optional[str]:
     support_url = os.getenv('SUPPORT_SERVER_URL')
     if not support_url:
@@ -564,6 +571,7 @@ def _render_dashboard_access_denied(request: Request, guild_id: str) -> HTMLResp
             'discord_user': _get_session_user(request),
             'guild_id': guild_id,
             'public_site_url': _get_public_site_url(),
+            'token_setup_video_url': _get_token_setup_video_url(),
             'support_server_url': _get_support_server_url(),
             'top_gg_vote_url': _get_top_gg_vote_url(),
         },
@@ -1004,6 +1012,7 @@ async def dashboard_home(request: Request):
             'title': 'Tweeticcini Dashboard',
             'app_version': APP_VERSION,
             'public_site_url': _get_public_site_url(),
+            'token_setup_video_url': _get_token_setup_video_url(),
             'support_server_url': _get_support_server_url(),
             'top_gg_vote_url': _get_top_gg_vote_url(),
             'oauth_enabled': _get_discord_oauth_config() is not None,
@@ -1336,6 +1345,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'sources': sources_payload,
             'rules': [_serialize_rule(rule).model_dump() for rule in rules],
             'public_site_url': _get_public_site_url(),
+            'token_setup_video_url': _get_token_setup_video_url(),
             'support_server_url': _get_support_server_url(),
             'top_gg_vote_url': _get_top_gg_vote_url(),
         },

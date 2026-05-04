@@ -139,6 +139,10 @@ async def ensure_db_schema() -> str:
                 delivered_alerts_since_prompt INTEGER DEFAULT 0,
                 last_prompt_at TEXT DEFAULT NULL
             );
+            CREATE TABLE IF NOT EXISTS guild_onboarding_state (
+                server_id TEXT PRIMARY KEY,
+                onboarding_sent_at TEXT DEFAULT NULL
+            );
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:
