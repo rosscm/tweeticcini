@@ -1,8 +1,6 @@
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone
-from typing import Optional
 
 import discord
 from discord import app_commands
@@ -17,7 +15,6 @@ from src.presence_updater import update_presence
 from src.log import setup_logger
 from src.notification.account_tracker import AccountTracker
 from src.repositories.guild_cleanup_repository import cleanup_guild_data
-from src.repositories.guild_onboarding_repository import mark_onboarding_sent, was_onboarding_sent
 from src.settings import get_db_path
 
 log = setup_logger(__name__)
@@ -28,40 +25,6 @@ intents = discord.Intents(guilds=True, messages=True, message_content=True, emoj
 bot = commands.Bot(command_prefix=configs['prefix'], intents=intents)
 DEFAULT_COGS = ['dashboard', 'about']
 account_tracker = None
-
-
-def _can_send_in_channel(channel: discord.abc.GuildChannel, guild: discord.Guild) -> bool:
-    if not isinstance(channel, discord.TextChannel):
-        return False
-    me = guild.me
-    if me is None:
-        return False
-    permissions = channel.permissions_for(me)
-    return permissions.view_channel and permissions.send_messages
-
-
-def _pick_onboarding_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
-    if guild.system_channel and _can_send_in_channel(guild.system_channel, guild):
-        return guild.system_channel
-
-    named_priority = ('general', 'welcome')
-    for name in named_priority:
-        for channel in guild.text_channels:
-            if channel.name.lower() == name and _can_send_in_channel(channel, guild):
-                return channel
-
-    for channel in guild.text_channels:
-        if _can_send_in_channel(channel, guild):
-            return channel
-    return None
-
-
-def _build_onboarding_message() -> str:
-    return (
-        "Thanks for inviting Tweeticcini 👋\n"
-        "Start with `/dashboard` to connect your Twitter session and choose which accounts this server should monitor.\n"
-        "Use `/about` anytime for a quick setup and runtime check."
-    )
 
 
 @bot.event
@@ -186,32 +149,6 @@ async def on_guild_remove(guild: discord.Guild):
         guild.name,
         summary,
     )
-
-
-@bot.event
-async def on_guild_join(guild: discord.Guild):
-    db_path = get_db_path()
-    server_id = str(guild.id)
-    if await was_onboarding_sent(db_path, server_id):
-        return
-
-    channel = _pick_onboarding_channel(guild)
-    if channel is None:
-        log.warning('joined guild %s (%s) but found no sendable channel for onboarding', guild.id, guild.name)
-        return
-
-    try:
-        await channel.send(_build_onboarding_message())
-        await mark_onboarding_sent(
-            db_path,
-            server_id,
-            datetime.now(timezone.utc).isoformat(timespec='seconds'),
-        )
-        log.info('posted onboarding prompt in guild %s (%s) channel %s', guild.id, guild.name, channel.id)
-    except discord.Forbidden:
-        log.warning('missing permission to post onboarding prompt in guild %s (%s)', guild.id, guild.name)
-    except Exception as exc:
-        log.error('failed to post onboarding prompt in guild %s (%s): %s', guild.id, guild.name, exc)
 
 
 if __name__ == '__main__':
