@@ -146,6 +146,8 @@ body {
   border-radius: 16px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  text-decoration: none;
   transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, opacity 140ms ease;
 }
 

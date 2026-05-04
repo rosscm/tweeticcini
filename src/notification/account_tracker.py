@@ -58,6 +58,25 @@ def _get_support_prompt_server_ids() -> set[str]:
     return {server_id.strip() for server_id in raw.split(',') if server_id.strip()}
 
 
+def _get_support_prompt_channel_overrides() -> dict[str, set[str]]:
+    raw = os.getenv('SUPPORT_PROMPT_CHANNEL_OVERRIDES', '').strip()
+    if not raw:
+        return {}
+
+    overrides: dict[str, set[str]] = {}
+    for pair in raw.split(','):
+        value = pair.strip()
+        if not value or ':' not in value:
+            continue
+        server_id, channel_id = value.split(':', 1)
+        server_id = server_id.strip()
+        channel_id = channel_id.strip()
+        if not server_id or not channel_id:
+            continue
+        overrides.setdefault(server_id, set()).add(channel_id)
+    return overrides
+
+
 def build_notification_message(template: str, mention: str, tweet, url: str) -> str:
     author_name = getattr(tweet.author, 'name', getattr(tweet.author, 'username', 'Unknown'))
     values = {
@@ -86,6 +105,7 @@ class AccountTracker():
         self.client_poll_intervals: dict[str, int] = {}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         self.support_prompt_server_ids = _get_support_prompt_server_ids()
+        self.support_prompt_channel_overrides = _get_support_prompt_channel_overrides()
         self.support_prompt_threshold = 20
         bot.loop.create_task(self.setup_tasks())
 
@@ -377,10 +397,15 @@ class AccountTracker():
                                     should_include_support_footer = await self._should_include_support_footer(
                                         server_id=str(channel.guild.id),
                                         presentation_plan=presentation.plan,
+                                        channel_id=str(channel.id),
+                                    )
+                                    should_include_force_everyone_support_footer = self._should_include_force_everyone_support_footer(
+                                        server_id=str(channel.guild.id),
+                                        force_everyone=alert_decision.force_everyone,
                                     )
                                     support_prompt_text = None
                                     support_prompt_url = None
-                                    if should_include_support_footer:
+                                    if should_include_support_footer or should_include_force_everyone_support_footer:
                                         vote_url = _get_top_gg_vote_url()
                                         if vote_url:
                                             support_prompt_text = 'Enjoying Tweeticcini? Vote on top.gg 💛'
@@ -414,10 +439,12 @@ class AccountTracker():
                                         alert_decision.matched_rule_name,
                                         datetime.now(timezone.utc).isoformat(timespec='seconds'),
                                     )
-                                    await self._record_support_prompt_delivery(
-                                        server_id=str(channel.guild.id),
-                                        presentation_plan=presentation.plan,
-                                    )
+                                    if should_include_support_footer:
+                                        await self._record_support_prompt_delivery(
+                                            server_id=str(channel.guild.id),
+                                            presentation_plan=presentation.plan,
+                                            channel_id=str(channel.id),
+                                        )
 
                                 except Exception as e:
                                     if channel is not None:
@@ -438,22 +465,37 @@ class AccountTracker():
                                         channel_label = channel.mention if channel is not None else f"channel {data['channel_id']}"
                                         log.error(f'an error occurred at {channel_label} while sending notification: {e}')
 
-    def _is_support_prompt_eligible(self, server_id: str, presentation_plan: str) -> bool:
+    def _is_support_prompt_eligible(self, server_id: str, presentation_plan: str, channel_id: str) -> bool:
         is_managed_server = server_id in self.support_prompt_server_ids
         is_free_server = presentation_plan == 'free'
-        return is_free_server or is_managed_server
+        if not (is_free_server or is_managed_server):
+            return False
 
-    async def _should_include_support_footer(self, server_id: str, presentation_plan: str) -> bool:
+        # Channel constraints are only enforced for explicitly managed servers.
+        if is_managed_server:
+            allowed_channels = self.support_prompt_channel_overrides.get(server_id)
+            if allowed_channels is not None:
+                return channel_id in allowed_channels
+        return True
+
+    async def _should_include_support_footer(self, server_id: str, presentation_plan: str, channel_id: str) -> bool:
         vote_url = _get_top_gg_vote_url()
         if not vote_url:
             return False
-        if not self._is_support_prompt_eligible(server_id, presentation_plan):
+        if not self._is_support_prompt_eligible(server_id, presentation_plan, channel_id):
             return False
         current_count = await get_server_support_prompt_counter(self.db_path, server_id)
         return (current_count + 1) >= self.support_prompt_threshold
 
-    async def _record_support_prompt_delivery(self, server_id: str, presentation_plan: str) -> None:
-        if not self._is_support_prompt_eligible(server_id, presentation_plan):
+    def _should_include_force_everyone_support_footer(self, server_id: str, force_everyone: bool) -> bool:
+        if not force_everyone:
+            return False
+        if not _get_top_gg_vote_url():
+            return False
+        return server_id in self.support_prompt_server_ids
+
+    async def _record_support_prompt_delivery(self, server_id: str, presentation_plan: str, channel_id: str) -> None:
+        if not self._is_support_prompt_eligible(server_id, presentation_plan, channel_id):
             return
         await increment_server_support_prompt_counter(
             self.db_path,
