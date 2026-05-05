@@ -412,10 +412,7 @@ class AccountTracker():
                                             support_prompt_url = vote_url
 
                                     if presentation.effective.embed_type == 'fx_twitter':
-                                        fx_content = msg
-                                        if support_prompt_url:
-                                            fx_content = f'{msg}\n💛 Vote on top.gg: {support_prompt_url}'
-                                        await channel.send(content=fx_content, view=view)
+                                        await channel.send(content=msg, view=view)
                                     else:
                                         footer = 'twitter.png' if presentation.effective.built_in_legacy_logo else 'x.png'
                                         file = discord.File(f'images/{footer}', filename='footer.png')
@@ -426,10 +423,16 @@ class AccountTracker():
                                                 tweet,
                                                 use_fx_image=presentation.effective.built_in_fx_image,
                                                 use_legacy_logo=presentation.effective.built_in_legacy_logo,
-                                                support_prompt_text=support_prompt_text,
                                             ),
                                             view=view,
                                         )
+                                    if support_prompt_url:
+                                        try:
+                                            await channel.send(content=f'{support_prompt_text}\n{support_prompt_url}')
+                                        except Exception as support_prompt_exc:
+                                            log.warning(
+                                                f"unable to send support prompt in channel {channel.id} for {username}: {support_prompt_exc}"
+                                            )
                                     await record_source_delivery_success(
                                         self.db_path,
                                         str(channel.guild.id),

@@ -27,6 +27,11 @@ class AlertDecision:
     matched_rule_name: Optional[str] = None
     matched_keywords: tuple[str, ...] = ()
 
+    @property
+    def force_everyone(self) -> bool:
+        # Backward-compatible alias for older call sites.
+        return self.should_force_everyone
+
 
 @dataclass(frozen=True)
 class AlertRuleRecord:

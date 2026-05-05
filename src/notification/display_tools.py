@@ -1,5 +1,4 @@
 import re
-from typing import Optional
 
 import aiohttp
 import discord
@@ -10,15 +9,13 @@ async def gen_embed(
     tweet: Tweet,
     use_fx_image: bool,
     use_legacy_logo: bool,
-    support_prompt_text: Optional[str] = None,
 ) -> list[discord.Embed]:
     author = tweet.author
     embed = discord.Embed(title=f'{author.name} {get_action(tweet, disable_quoted=True)} {get_tweet_type(tweet)}', description=tweet.text, url=tweet.url, color=0x1da0f2, timestamp=tweet.created_on)
     embed.set_author(name=f'{author.name} (@{author.username})', icon_url=author.profile_image_url_https, url=f'https://twitter.com/{author.username}')
     embed.set_thumbnail(url=re.sub(r'normal(?=\.jpg$)', '400x400', tweet.author.profile_image_url_https))
     footer_label = 'Twitter' if use_legacy_logo else 'X'
-    footer_text = f'{footer_label} • {support_prompt_text}' if support_prompt_text else footer_label
-    embed.set_footer(text=footer_text, icon_url='attachment://footer.png')
+    embed.set_footer(text=footer_label, icon_url='attachment://footer.png')
     if len(tweet.media) == 1:
         embed.set_image(url=tweet.media[0].media_url_https)
         return [embed]

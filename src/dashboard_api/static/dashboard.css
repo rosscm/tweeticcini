@@ -1611,40 +1611,6 @@ button,
   transition: transform 140ms ease, background 140ms ease;
 }
 
-button .button-spinner {
-  display: none;
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.45);
-  border-top-color: #ffffff;
-}
-
-button.is-loading .button-spinner {
-  display: inline-block;
-  animation: button-spinner 0.7s linear infinite;
-}
-
-button.is-loading {
-  position: relative;
-  pointer-events: none;
-}
-
-button .button-label {
-  display: inline-flex;
-  align-items: center;
-}
-
-button.is-loading .button-label {
-  margin-left: 0.5rem;
-}
-
-@keyframes button-spinner {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 button:hover,
 .ghost-link:hover {
   transform: translateY(-1px);
@@ -2005,6 +1971,26 @@ code {
 
   .plan-summary {
     gap: 10px;
+  }
+
+  .onboarding-banner {
+    display: flex;
+    flex-direction: column;
+    padding-right: 14px;
+  }
+
+  .onboarding-banner .status-detail-list {
+    order: 1;
+  }
+
+  .onboarding-dismiss-button {
+    position: static;
+    order: 2;
+    margin-top: 10px;
+  }
+
+  .onboarding-status-tags {
+    display: none !important;
   }
 
   .plan-tile {
