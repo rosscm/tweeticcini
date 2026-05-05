@@ -1183,6 +1183,20 @@ h2 {
   margin-top: 10px;
 }
 
+.onboarding-banner {
+  position: relative;
+}
+
+.onboarding-banner-head {
+  margin-bottom: 4px;
+}
+
+.onboarding-dismiss-button {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+}
+
 .notice--warning {
   background: linear-gradient(145deg, rgba(255, 184, 107, 0.1), rgba(255, 255, 255, 0.03));
   border-color: rgba(255, 184, 107, 0.24);
@@ -1595,6 +1609,40 @@ button,
   text-decoration: none;
   cursor: pointer;
   transition: transform 140ms ease, background 140ms ease;
+}
+
+button .button-spinner {
+  display: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #ffffff;
+}
+
+button.is-loading .button-spinner {
+  display: inline-block;
+  animation: button-spinner 0.7s linear infinite;
+}
+
+button.is-loading {
+  position: relative;
+  pointer-events: none;
+}
+
+button .button-label {
+  display: inline-flex;
+  align-items: center;
+}
+
+button.is-loading .button-label {
+  margin-left: 0.5rem;
+}
+
+@keyframes button-spinner {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 button:hover,

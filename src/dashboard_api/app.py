@@ -20,6 +20,10 @@ from configs.load_configs import configs
 from src.db_function.init_db import ensure_db_schema
 from src.log import get_log_path, setup_logger
 from src.notification.account_tracker import build_headline_notification_message, build_notification_message
+from src.repositories.guild_onboarding_repository import (
+    is_onboarding_dismissed,
+    set_onboarding_dismissed,
+)
 from src.repositories.runtime_metrics_repository import (
     get_runtime_source_status_map,
     list_runtime_client_statuses,
@@ -1233,6 +1237,11 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
         for source in sources_payload
         if source.get('runtime_state') == 'warning' and source.get('last_error_message')
     ]
+    onboarding_sessions_ready = not delivery_sessions_required
+    onboarding_monitors_ready = usage['source_count'] > 0
+    onboarding_completed = onboarding_sessions_ready and onboarding_monitors_ready
+    onboarding_dismissed = await is_onboarding_dismissed(notifier_service.db_path, guild_id)
+    onboarding_show = True if not onboarding_completed else not onboarding_dismissed
     delivered_sources = [payload for payload in sources_payload if payload.get('last_delivery_success_at_raw')]
     if delivered_sources:
         delivered_sources = sorted(
@@ -1319,9 +1328,11 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                     )
                 ],
                 'onboarding': {
-                    'show': delivery_sessions_required or usage['source_count'] == 0,
-                    'sessions_ready': not delivery_sessions_required,
-                    'monitors_ready': usage['source_count'] > 0,
+                    'show': onboarding_show,
+                    'completed': onboarding_completed,
+                    'dismissed': onboarding_dismissed,
+                    'sessions_ready': onboarding_sessions_ready,
+                    'monitors_ready': onboarding_monitors_ready,
                 },
                 'health': {
                     'oauth_enabled': _get_discord_oauth_config() is not None,
@@ -1631,6 +1642,13 @@ async def create_guild_portal_session(request: Request, guild_id: str) -> dict[s
     except BillingConfigurationError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return {'url': portal_url}
+
+
+@app.post('/guilds/{guild_id}/onboarding/dismiss')
+async def dismiss_onboarding_banner(request: Request, guild_id: str) -> dict[str, bool]:
+    _require_guild_access(request, guild_id)
+    await set_onboarding_dismissed(notifier_service.db_path, guild_id, True)
+    return {'ok': True}
 
 
 @app.post('/billing/webhook')

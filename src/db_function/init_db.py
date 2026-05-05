@@ -204,6 +204,12 @@ async def ensure_db_schema() -> str:
                 await db.execute(f'ALTER TABLE guild_entitlement ADD COLUMN {column_name} {definition}')
                 log.info(f'added missing guild_entitlement.{column_name} column')
 
+        async with db.execute("PRAGMA table_info(guild_onboarding_state)") as cursor:
+            onboarding_columns = {row[1] async for row in cursor}
+        if 'onboarding_dismissed' not in onboarding_columns:
+            await db.execute('ALTER TABLE guild_onboarding_state ADD COLUMN onboarding_dismissed INTEGER DEFAULT 0')
+            log.info('added missing guild_onboarding_state.onboarding_dismissed column')
+
         await db.execute(
             '''
             INSERT OR IGNORE INTO user_client_state (user_id, client_used, lastest_tweet)

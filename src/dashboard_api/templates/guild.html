@@ -276,8 +276,14 @@
         </div>
 
         {% if overview.get('onboarding', {}).get('show') %}
-        <section class="notice notice--warning">
-          <strong>Start here:</strong> finish the first-time setup flow for this server.
+        <section class="notice notice--warning onboarding-banner">
+          {% set onboarding_steps_done = (1 if overview.get('onboarding', {}).get('sessions_ready') else 0) + (1 if overview.get('onboarding', {}).get('monitors_ready') else 0) %}
+          <div class="onboarding-banner-head">
+            <strong>Start here:</strong> finish the first-time setup flow for this server <span class="entity-meta">({{ onboarding_steps_done }}/2 steps completed)</span>.
+          </div>
+          {% if overview.get('onboarding', {}).get('completed') %}
+          <button type="button" class="button-secondary onboarding-dismiss-button" id="dismiss-onboarding-banner">Dismiss</button>
+          {% endif %}
           <div class="status-detail-list">
             <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('sessions_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
               {{ 'Sessions connected' if overview.get('onboarding', {}).get('sessions_ready') else 'Connect a session' }}
@@ -829,7 +835,10 @@
                 <div class="field-help">Use <strong>Send Test Alert</strong> to preview a non-pinging sample.</div>
 
                 <div class="actions">
-                  <button type="submit" {{ 'disabled' if delivery_sessions_required else '' }}>Save Monitor</button>
+                  <button id="source-save-button" type="submit" {{ 'disabled' if delivery_sessions_required else '' }}>
+                    <span class="button-spinner" aria-hidden="true"></span>
+                    <span class="button-label">Save Monitor</span>
+                  </button>
                   <button type="button" class="button-secondary" id="source-send-test" {{ 'disabled' if delivery_sessions_required else '' }}>Send Test Alert</button>
                 </div>
                 <div id="source-form-status" class="form-banner form-banner--inline form-banner--hidden" hidden></div>
@@ -1389,6 +1398,7 @@
       const unsavedSave = document.getElementById('unsaved-save');
       const unsavedDiscard = document.getElementById('unsaved-discard');
       let pendingNavigationHref = null;
+      let suppressBeforeUnloadWarning = false;
 
       function markFormClean(form) {
         if (!form) {
@@ -1451,12 +1461,20 @@
       }
 
       window.addEventListener('beforeunload', function (event) {
+        if (suppressBeforeUnloadWarning) {
+          return;
+        }
         if (!hasUnsavedChanges()) {
           return;
         }
         event.preventDefault();
         event.returnValue = '';
       });
+
+      function reloadWithoutUnsavedPrompt() {
+        suppressBeforeUnloadWarning = true;
+        window.location.reload();
+      }
 
       document.addEventListener('click', function (event) {
         const link = event.target.closest('a[href]');
@@ -1583,6 +1601,35 @@
         return response.json();
       }
 
+      function setButtonLoading(button, isLoading, loadingText) {
+        if (!button) {
+          return;
+        }
+        const label = button.querySelector('.button-label');
+        if (!button.dataset.originalText) {
+          button.dataset.originalText = label ? label.textContent : button.textContent;
+        }
+        if (isLoading) {
+          button.disabled = true;
+          button.classList.add('is-loading');
+          button.setAttribute('aria-busy', 'true');
+          if (label) {
+            label.textContent = loadingText || button.dataset.originalText;
+          } else {
+            button.textContent = loadingText || button.dataset.originalText;
+          }
+        } else {
+          button.disabled = false;
+          button.classList.remove('is-loading');
+          button.removeAttribute('aria-busy');
+          if (label) {
+            label.textContent = button.dataset.originalText;
+          } else {
+            button.textContent = button.dataset.originalText;
+          }
+        }
+      }
+
       const ruleForm = document.getElementById('rule-form');
       if (ruleForm) {
         trackUnsavedChanges(ruleForm);
@@ -1645,7 +1692,7 @@
               body: JSON.stringify(payload),
             });
             markFormClean(ruleForm);
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             setStatus(`Failed to save rule: ${error.message}`, true);
           }
@@ -1666,7 +1713,7 @@
               }),
             });
             markFormClean(planForm);
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             setStatus(`Failed to save plan: ${error.message}`, true);
           }
@@ -1684,7 +1731,7 @@
                 clear_override: true,
               }),
             });
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             setStatus(`Failed to clear override: ${error.message}`, true);
           }
@@ -1709,7 +1756,7 @@
               }),
             });
             markFormClean(entitlementForm);
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             setStatus(`Failed to save entitlement: ${error.message}`, true);
           }
@@ -1726,6 +1773,7 @@
               method: 'POST',
               body: JSON.stringify({ plan: selectedPlan }),
             });
+            suppressBeforeUnloadWarning = true;
             window.location.href = result.url;
           } catch (error) {
             setStatus(`Failed to start checkout: ${error.message}`, true);
@@ -1740,9 +1788,22 @@
             const result = await jsonRequest(`/guilds/${guildId}/billing/portal`, {
               method: 'POST',
             });
+            suppressBeforeUnloadWarning = true;
             window.location.href = result.url;
           } catch (error) {
             setStatus(`Failed to open billing portal: ${error.message}`, true);
+          }
+        });
+      }
+
+      const dismissOnboardingBanner = document.getElementById('dismiss-onboarding-banner');
+      if (dismissOnboardingBanner) {
+        dismissOnboardingBanner.addEventListener('click', async function () {
+          try {
+            await jsonRequest(`/guilds/${guildId}/onboarding/dismiss`, { method: 'POST' });
+            reloadWithoutUnsavedPrompt();
+          } catch (error) {
+            setStatus(`Failed to dismiss onboarding: ${error.message}`, true);
           }
         });
       }
@@ -1824,7 +1885,7 @@
               }),
             });
             markFormClean(twitterSessionForm);
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             setFormStatus('twitter-session-status', `Failed to connect Twitter session: ${error.message}`, true);
           }
@@ -1853,7 +1914,7 @@
             await jsonRequest(`/guilds/${guildId}/twitter-sessions/${encodeURIComponent(sessionName)}`, {
               method: 'DELETE',
             });
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             button.dataset.confirming = 'false';
             button.textContent = 'Remove';
@@ -1868,6 +1929,7 @@
       }
       if (sourceForm) {
         trackUnsavedChanges(sourceForm);
+        const sourceSaveButton = document.getElementById('source-save-button');
         sourceForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           resetSourceFieldValidation();
@@ -1883,6 +1945,8 @@
           }
 
           try {
+            setButtonLoading(sourceSaveButton, true, 'Saving monitor...');
+            setFormStatus('source-form-status', 'Saving monitor... this can take a few seconds while Tweeticcini follows the account.');
             const mode = document.getElementById('source-edit-mode').value;
             const payload = {
               role_id: document.getElementById('source-role-id-edit').value.trim(),
@@ -1937,10 +2001,12 @@
             }
             setFormStatus('source-form-status', 'Account settings saved.');
             markFormClean(sourceForm);
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             setFormStatus('source-form-status', `Failed to save source: ${error.message}`, true);
             setStatus(`Failed to save source: ${error.message}`, true);
+          } finally {
+            setButtonLoading(sourceSaveButton, false);
           }
         });
       }
@@ -2048,7 +2114,7 @@
             await jsonRequest(`/guilds/${guildId}/sources/${encodeURIComponent(button.dataset.username)}/${encodeURIComponent(button.dataset.channelId)}`, {
               method: 'DELETE',
             });
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             button.dataset.confirming = 'false';
             button.textContent = 'Remove';
@@ -2076,7 +2142,7 @@
             await jsonRequest(`/guilds/${guildId}/rules/${encodeURIComponent(ruleName)}`, {
               method: 'DELETE',
             });
-            window.location.reload();
+            reloadWithoutUnsavedPrompt();
           } catch (error) {
             button.dataset.confirming = 'false';
             button.textContent = 'Delete';

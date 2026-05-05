@@ -401,7 +401,7 @@ class AccountTracker():
                                     )
                                     should_include_force_everyone_support_footer = self._should_include_force_everyone_support_footer(
                                         server_id=str(channel.guild.id),
-                                        force_everyone=alert_decision.force_everyone,
+                                        force_everyone=bool(getattr(alert_decision, 'should_force_everyone', False)),
                                     )
                                     support_prompt_text = None
                                     support_prompt_url = None
