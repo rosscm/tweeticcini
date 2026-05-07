@@ -412,27 +412,38 @@ class AccountTracker():
                                             support_prompt_url = vote_url
 
                                     if presentation.effective.embed_type == 'fx_twitter':
-                                        await channel.send(content=msg, view=view)
+                                        fx_embeds = []
+                                        if support_prompt_url:
+                                            fx_embeds.append(
+                                                discord.Embed(
+                                                    description=f'{support_prompt_text}\n{support_prompt_url}',
+                                                    color=0xF6C453,
+                                                )
+                                            )
+                                        send_kwargs = {'content': msg, 'view': view}
+                                        if fx_embeds:
+                                            send_kwargs['embeds'] = fx_embeds
+                                        await channel.send(**send_kwargs)
                                     else:
                                         footer = 'twitter.png' if presentation.effective.built_in_legacy_logo else 'x.png'
                                         file = discord.File(f'images/{footer}', filename='footer.png')
+                                        embeds = await gen_embed(
+                                            tweet,
+                                            use_fx_image=presentation.effective.built_in_fx_image,
+                                            use_legacy_logo=presentation.effective.built_in_legacy_logo,
+                                        )
+                                        if support_prompt_url:
+                                            support_embed = discord.Embed(
+                                                description=f'{support_prompt_text}\n{support_prompt_url}',
+                                                color=0xF6C453,
+                                            )
+                                            embeds.append(support_embed)
                                         await channel.send(
                                             content=msg,
                                             file=file,
-                                            embeds=await gen_embed(
-                                                tweet,
-                                                use_fx_image=presentation.effective.built_in_fx_image,
-                                                use_legacy_logo=presentation.effective.built_in_legacy_logo,
-                                            ),
+                                            embeds=embeds,
                                             view=view,
                                         )
-                                    if support_prompt_url:
-                                        try:
-                                            await channel.send(content=f'{support_prompt_text}\n{support_prompt_url}')
-                                        except Exception as support_prompt_exc:
-                                            log.warning(
-                                                f"unable to send support prompt in channel {channel.id} for {username}: {support_prompt_exc}"
-                                            )
                                     await record_source_delivery_success(
                                         self.db_path,
                                         str(channel.guild.id),
