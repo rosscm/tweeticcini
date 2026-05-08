@@ -24,6 +24,7 @@ from src.repositories.guild_onboarding_repository import (
     is_onboarding_dismissed,
     set_onboarding_dismissed,
 )
+from src.repositories.bot_runtime_health_repository import get_bot_runtime_health
 from src.repositories.runtime_metrics_repository import (
     get_runtime_source_status_map,
     list_runtime_client_statuses,
@@ -274,6 +275,19 @@ def _classify_source_runtime_error(error_message: Optional[str]) -> Optional[str
     if 'thread' in normalized and 'archived' in normalized:
         return 'Archived thread'
     return 'Delivery issue'
+
+
+def _is_discord_upstream_error(error_message: Optional[str]) -> bool:
+    if not error_message:
+        return False
+    normalized = error_message.lower()
+    return (
+        'discordservererror' in normalized
+        or ('503 service unavailable' in normalized and 'error code: 0' in normalized)
+        or 'no healthy upstream' in normalized
+        or 'service resource is being rate limited' in normalized
+        or '429 too many requests' in normalized
+    )
 
 
 def _serialize_twitter_session(
@@ -1249,6 +1263,24 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     onboarding_completed = onboarding_sessions_ready and onboarding_monitors_ready
     onboarding_dismissed = await is_onboarding_dismissed(notifier_service.db_path, guild_id)
     onboarding_show = True if not onboarding_completed else not onboarding_dismissed
+    bot_runtime_health = await get_bot_runtime_health(notifier_service.db_path)
+    bot_runtime_issue = None
+    if bot_runtime_health and bot_runtime_health.get('state') == 'error':
+        error_message = bot_runtime_health.get('last_error_message')
+        if _is_discord_upstream_error(error_message):
+            bot_runtime_issue = {
+                'label': 'Discord API outage (temporary)',
+                'message': 'Discord is currently rate limiting or unstable. Tweeticcini will auto-retry until Discord recovers.',
+                'last_error_at': _format_dashboard_timestamp(bot_runtime_health.get('last_error_at'))
+                or bot_runtime_health.get('last_error_at'),
+            }
+        else:
+            bot_runtime_issue = {
+                'label': 'Bot runtime issue',
+                'message': 'Tweeticcini hit a startup/runtime issue and is retrying automatically.',
+                'last_error_at': _format_dashboard_timestamp(bot_runtime_health.get('last_error_at'))
+                or bot_runtime_health.get('last_error_at'),
+            }
     delivered_sources = [payload for payload in sources_payload if payload.get('last_delivery_success_at_raw')]
     if delivered_sources:
         delivered_sources = sorted(
@@ -1324,6 +1356,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'latest_delivery': latest_delivery,
                 'recent_deliveries': recent_deliveries,
                 'runtime_issue_sources': runtime_issue_sources,
+                'bot_runtime_issue': bot_runtime_issue,
                 'session_breakdown': [
                     {
                         'session_name': session_display_names.get(client_key, client_key),

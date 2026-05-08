@@ -143,6 +143,13 @@ async def ensure_db_schema() -> str:
                 server_id TEXT PRIMARY KEY,
                 onboarding_sent_at TEXT DEFAULT NULL
             );
+            CREATE TABLE IF NOT EXISTS bot_runtime_health (
+                singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+                state TEXT DEFAULT 'unknown',
+                last_error_message TEXT DEFAULT NULL,
+                last_error_at TEXT DEFAULT NULL,
+                last_recovered_at TEXT DEFAULT NULL
+            );
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:

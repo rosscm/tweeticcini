@@ -295,6 +295,15 @@
         </section>
         {% endif %}
 
+        {% if overview.get('bot_runtime_issue') %}
+        <section class="notice notice--warning">
+          <strong>{{ overview.bot_runtime_issue.label }}:</strong> {{ overview.bot_runtime_issue.message }}
+          {% if overview.bot_runtime_issue.last_error_at %}
+          <div class="field-help" style="margin-top: 0.5rem;">Last seen: {{ overview.bot_runtime_issue.last_error_at }}</div>
+          {% endif %}
+        </section>
+        {% endif %}
+
         {% if overview.get('runtime_issue_sources') %}
         <section class="notice notice--warning">
           <strong>Delivery issues detected:</strong> Tweeticcini needs attention for {{ overview.runtime_issue_sources|length }} monitor{{ '' if overview.runtime_issue_sources|length == 1 else 's' }} because one or more alert destinations could not receive a recent post.

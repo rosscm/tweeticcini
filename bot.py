@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+from datetime import datetime, timezone
 
 import discord
 from discord import app_commands
@@ -15,6 +16,7 @@ from src.presence_updater import update_presence
 from src.log import setup_logger
 from src.notification.account_tracker import AccountTracker
 from src.repositories.guild_cleanup_repository import cleanup_guild_data
+from src.repositories.bot_runtime_health_repository import mark_bot_runtime_error, mark_bot_runtime_recovered
 from src.settings import get_db_path
 
 log = setup_logger(__name__)
@@ -57,6 +59,11 @@ async def on_ready():
 
     if account_tracker is None:
         account_tracker = AccountTracker(bot)
+
+    await mark_bot_runtime_recovered(
+        get_db_path(),
+        datetime.now(timezone.utc).isoformat(timespec='seconds'),
+    )
 
     await update_presence(bot)
 
@@ -152,4 +159,17 @@ async def on_guild_remove(guild: discord.Guild):
 
 
 if __name__ == '__main__':
-    bot.run(os.getenv('BOT_TOKEN'))
+    try:
+        bot.run(os.getenv('BOT_TOKEN'))
+    except Exception as exc:
+        try:
+            asyncio.run(
+                mark_bot_runtime_error(
+                    get_db_path(),
+                    str(exc),
+                    datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                )
+            )
+        except Exception:
+            pass
+        raise
