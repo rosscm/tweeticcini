@@ -260,6 +260,13 @@ def _classify_source_runtime_error(error_message: Optional[str]) -> Optional[str
         return 'Channel permissions'
 
     normalized = error_message.lower()
+    if (
+        'discordservererror' in normalized
+        or ('503 service unavailable' in normalized and 'error code: 0' in normalized)
+        or 'no healthy upstream' in normalized
+        or 'remote refused stream reset' in normalized
+    ):
+        return 'Discord API outage (temporary)'
     if 'categorychannel' in normalized and 'send' in normalized:
         return 'Invalid destination channel'
     if 'forumchannel' in normalized and 'send' in normalized:
