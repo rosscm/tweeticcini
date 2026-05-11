@@ -10,7 +10,7 @@ from urllib.parse import urlencode, urlparse
 
 import aiohttp
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.sessions import SessionMiddleware
@@ -18,6 +18,7 @@ from starlette.templating import Jinja2Templates
 
 from configs.load_configs import configs
 from src.db_function.init_db import ensure_db_schema
+from src.db_function.readonly_db import connect_readonly
 from src.log import get_log_path, setup_logger
 from src.notification.account_tracker import build_headline_notification_message, build_notification_message
 from src.repositories.guild_onboarding_repository import (
@@ -1013,6 +1014,26 @@ twitter_session_service = TwitterSessionService()
 @app.get('/', include_in_schema=False)
 async def root() -> RedirectResponse:
     return RedirectResponse(url='/dashboard')
+
+
+@app.get('/public/stats', include_in_schema=False)
+async def public_stats() -> JSONResponse:
+    async with connect_readonly(notifier_service.db_path) as db:
+        async with db.execute(
+            '''
+            SELECT COUNT(DISTINCT server_id)
+            FROM channel
+            '''
+        ) as cursor:
+            row = await cursor.fetchone()
+    server_count = int(row[0] or 0) if row else 0
+    return JSONResponse(
+        {'server_count': server_count},
+        headers={
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-store',
+        },
+    )
 
 
 @app.get('/dashboard', response_class=HTMLResponse, include_in_schema=False)

@@ -470,7 +470,7 @@
               <div id="twitter-session-status" class="form-banner form-banner--hidden" hidden></div>
               {% if twitter_session_limit_reached %}
               <div class="form-banner form-banner--warning">
-                Session limit reached on the {{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan. Upgrade on <a href="/dashboard/guilds/{{ guild_id }}/billing">Billing</a> to connect more sessions, spread monitors across them, and add extra flexibility as your setup grows.
+                Session limit reached on the {{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan. Upgrade on <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to connect more sessions, spread monitors across multiple accounts, and keep alerts reliable as this server grows.
               </div>
               {% endif %}
 
@@ -716,9 +716,9 @@
             <section class="notice notice--plain notice--compact">
               <strong>Free plan is active.</strong>
               {% if not guild_presentation.entitlement.trial_used_at %}
-              Upgrade to a paid plan with a <strong>7-day free trial</strong>.
+              Start a paid plan with a <strong>7-day free trial</strong> to unlock faster alert speed, higher limits, and advanced controls.
               {% else %}
-              This server has already used its free trial. Starting checkout will begin a paid subscription.
+              This server has already used its free trial. Starting checkout will begin a paid subscription immediately.
               {% endif %}
             </section>
             {% endif %}
@@ -761,7 +761,7 @@
 
           {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
           <section class="notice notice--warning">
-            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan. Upgrade on <a href="/dashboard/guilds/{{ guild_id }}/billing">Billing</a> to add more.
+            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan. Upgrade on <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to track more accounts and scale alert coverage.
           </section>
           {% endif %}
 
@@ -1012,7 +1012,7 @@
               <form id="rule-form" class="stack {{ 'is-locked' if rules_locked else '' }}">
                 <div class="form-banner">
                   {% if guild_presentation.features.max_rules == 0 %}
-                  This server is using Tweeticcini's standard monitor controls. Start <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to add Rules for one tracked account or across the whole server. Use <code>Mute alerts</code> to suppress noise, or <code>Ping everyone</code> for high-priority posts that should stand out.
+                  This server is using Tweeticcini's standard monitor controls. Start <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to unlock Rules for one tracked account or across the whole server. Use <code>Mute alerts</code> to suppress noise, or <code>Ping everyone</code> to surface high-priority posts.
                   {% else %}
                   Build a rule for one tracked account or apply it across the whole server.<br>
                   Use <code>Mute alerts</code> rules to suppress noise, or use <code>Ping everyone</code> for high-priority posts that should stand out.

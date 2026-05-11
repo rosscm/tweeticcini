@@ -17,7 +17,6 @@ from src.repositories.notifier_repository import (
     update_user_latest_tweet_for_client,
 )
 from src.repositories.runtime_metrics_repository import (
-    get_server_support_prompt_counter,
     increment_server_support_prompt_counter,
     record_client_poll_error,
     record_client_poll_success,
@@ -453,13 +452,6 @@ class AccountTracker():
                                         alert_decision.matched_rule_name,
                                         datetime.now(timezone.utc).isoformat(timespec='seconds'),
                                     )
-                                    if should_include_support_footer:
-                                        await self._record_support_prompt_delivery(
-                                            server_id=str(channel.guild.id),
-                                            presentation_plan=presentation.plan,
-                                            channel_id=str(channel.id),
-                                        )
-
                                 except Exception as e:
                                     if channel is not None:
                                         await record_source_delivery_error(
@@ -498,8 +490,12 @@ class AccountTracker():
             return False
         if not self._is_support_prompt_eligible(server_id, presentation_plan, channel_id):
             return False
-        current_count = await get_server_support_prompt_counter(self.db_path, server_id)
-        return (current_count + 1) >= self.support_prompt_threshold
+        return await increment_server_support_prompt_counter(
+            self.db_path,
+            server_id,
+            datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            threshold=self.support_prompt_threshold,
+        )
 
     def _should_include_force_everyone_support_footer(self, server_id: str, force_everyone: bool) -> bool:
         if not force_everyone:
@@ -507,16 +503,6 @@ class AccountTracker():
         if not _get_top_gg_vote_url():
             return False
         return server_id in self.support_prompt_server_ids
-
-    async def _record_support_prompt_delivery(self, server_id: str, presentation_plan: str, channel_id: str) -> None:
-        if not self._is_support_prompt_eligible(server_id, presentation_plan, channel_id):
-            return
-        await increment_server_support_prompt_counter(
-            self.db_path,
-            server_id,
-            datetime.now(timezone.utc).isoformat(timespec='seconds'),
-            threshold=self.support_prompt_threshold,
-        )
 
     async def tweetsUpdater(self, app):
         updater_name = asyncio.current_task().get_name().split('_', 1)[1]

@@ -41,15 +41,29 @@
               <div class="site-brand-name">Twitter alert routing for Discord</div>
             </div>
           </div>
-          <h1>Real-time Twitter alerts for Discord, with the control you want and none of the noise.</h1>
+          <h1>Never miss high-value drops, updates, and announcements in Discord.</h1>
           <p class="lede">
-            Follow the accounts that matter, route them cleanly, and keep basic post filtering simple on Free while saving deeper alert control for Premium.
+            Tweeticcini turns noisy Twitter/X feeds into actionable Discord alerts with smart filtering, routing, and clear escalation when a post matters.
           </p>
+          <div class="workflow-strip" aria-label="How Tweeticcini routes alerts">
+            <span class="workflow-step">Tweet posted</span>
+            <span class="workflow-arrow" aria-hidden="true">→</span>
+            <span class="workflow-step">Rule match</span>
+            <span class="workflow-arrow" aria-hidden="true">→</span>
+            <span class="workflow-step">Role ping</span>
+            <span class="workflow-arrow" aria-hidden="true">→</span>
+            <span class="workflow-step">Routed alert</span>
+          </div>
           <ul class="hero-points">
-            <li>📡 Follow the Twitter accounts your server actually cares about</li>
-            <li>🎯 Filter noise, route alerts cleanly, and escalate urgent posts when needed</li>
-            <li>🧠 Manage monitors, rules, appearance, and billing in one place</li>
+            <li>📡 Track trusted accounts your community relies on for important updates</li>
+            <li>🎯 Cut noise with post/media filters and phrase-based Rules</li>
+            <li>🧠 Manage monitors, alert style, and premium controls in one dashboard</li>
           </ul>
+          <p class="proof-line proof-line-mobile" aria-label="Tweeticcini adoption and reliability signals">
+            <span class="proof-kicker">Used daily by active communities</span>
+            <span class="proof-primary"><strong><span class="server-count">31</span> active servers</strong> using Tweeticcini today</span>
+            <span class="proof-secondary">24/7 monitoring with up to <strong>12s priority alert speed</strong></span>
+          </p>
           <div class="hero-actions">
             <a class="button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
             <a class="button button-secondary" href="https://app.tweeticcini.com">Open Dashboard</a>
@@ -138,6 +152,11 @@
               </div>
             </div>
           </div>
+          <p class="proof-line" aria-label="Tweeticcini adoption and reliability signals">
+            <span class="proof-kicker">Used daily by active communities</span>
+            <span class="proof-primary"><strong><span class="server-count">31</span> active servers</strong> using Tweeticcini today</span>
+            <span class="proof-secondary">24/7 monitoring with up to <strong>12s priority alert speed</strong></span>
+          </p>
         </aside>
       </section>
 
@@ -312,5 +331,22 @@
         </div>
       </footer>
     </main>
+    <script>
+      (async function () {
+        const countNodes = document.querySelectorAll('.server-count');
+        if (!countNodes.length) return;
+        try {
+          const response = await fetch('https://app.tweeticcini.com/public/stats', { cache: 'no-store' });
+          if (!response.ok) return;
+          const payload = await response.json();
+          const count = Number(payload.server_count);
+          if (!Number.isFinite(count) || count < 0) return;
+          countNodes.forEach(function (node) {
+            node.textContent = String(count);
+          });
+        } catch (_error) {
+        }
+      })();
+    </script>
   </body>
 </html>
