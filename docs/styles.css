@@ -295,6 +295,119 @@ body {
   line-height: 1.6;
 }
 
+.workflow-demo {
+  margin-top: 22px;
+  padding: 24px;
+  background:
+    linear-gradient(145deg, rgba(30, 36, 49, 0.98), rgba(17, 20, 29, 0.98)),
+    var(--panel-strong);
+}
+
+.workflow-demo h2 {
+  margin: 0;
+}
+
+.workflow-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.workflow-lane {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.workflow-lane h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.workflow-lane-sub {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.signal-flow {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(7, 10, 16, 0.42);
+  color: #e4e9fb;
+  font-size: 0.92rem;
+}
+
+.signal-arrow {
+  color: #8f9ab8;
+  font-weight: 700;
+}
+
+.workflow-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #d7def4;
+  font-size: 0.9rem;
+}
+
+.workflow-lane--basic {
+  border-color: rgba(120, 138, 180, 0.32);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.workflow-lane--tweeticcini {
+  border-color: rgba(98, 117, 255, 0.45);
+  background: linear-gradient(145deg, rgba(88, 101, 242, 0.12), rgba(255, 255, 255, 0.03));
+}
+
+.workflow-lane--accent {
+  box-shadow: inset 0 0 0 1px rgba(125, 138, 255, 0.22), 0 0 24px rgba(88, 101, 242, 0.12);
+}
+
+.workflow-outcomes-wrap {
+  margin-top: 14px;
+}
+
+.workflow-outcomes {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.workflow-outcomes th,
+.workflow-outcomes td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(144, 156, 187, 0.14);
+}
+
+.workflow-outcomes thead th {
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.9rem;
+}
+
+.workflow-outcomes tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.workflow-outcomes td:first-child {
+  color: #c7d0e8;
+}
+
+.workflow-outcomes td:last-child {
+  color: #e8ecff;
+}
+
 .setup-video-panel {
   margin-top: 22px;
 }
@@ -1045,7 +1158,8 @@ a {
   .hero-app,
   .proof-panel,
   .cta-panel,
-  .mid-grid {
+  .mid-grid,
+  .workflow-demo-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1116,6 +1230,11 @@ a {
   .proof-line-mobile {
     display: grid;
     margin-top: 8px;
+  }
+
+  .workflow-outcomes th,
+  .workflow-outcomes td {
+    font-size: 0.88rem;
   }
 
   .cta-panel {

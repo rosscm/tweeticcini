@@ -1021,12 +1021,27 @@ async def public_stats() -> JSONResponse:
     async with connect_readonly(notifier_service.db_path) as db:
         async with db.execute(
             '''
-            SELECT COUNT(DISTINCT server_id)
-            FROM channel
+            SELECT value
+            FROM app_meta
+            WHERE key = 'connected_servers_count'
+            LIMIT 1
             '''
         ) as cursor:
-            row = await cursor.fetchone()
-    server_count = int(row[0] or 0) if row else 0
+            app_meta_row = await cursor.fetchone()
+        if app_meta_row and str(app_meta_row[0]).isdigit():
+            server_count = int(app_meta_row[0])
+        else:
+            server_count = 0
+
+        if server_count <= 0:
+            async with db.execute(
+                '''
+                SELECT COUNT(DISTINCT server_id)
+                FROM channel
+                '''
+            ) as cursor:
+                row = await cursor.fetchone()
+            server_count = int(row[0] or 0) if row else 0
     return JSONResponse(
         {'server_count': server_count},
         headers={

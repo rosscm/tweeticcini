@@ -3,6 +3,7 @@ import os
 import sys
 from datetime import datetime, timezone
 
+import aiosqlite
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -27,6 +28,19 @@ intents = discord.Intents(guilds=True, messages=True, message_content=True, emoj
 bot = commands.Bot(command_prefix=configs['prefix'], intents=intents)
 DEFAULT_COGS = ['dashboard', 'about']
 account_tracker = None
+
+
+async def _persist_connected_server_count() -> None:
+    async with aiosqlite.connect(get_db_path()) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('connected_servers_count', ?)",
+            (str(len(bot.guilds)),),
+        )
+        await db.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('connected_servers_count_updated_at', ?)",
+            (datetime.now(timezone.utc).isoformat(timespec='seconds'),),
+        )
+        await db.commit()
 
 
 @bot.event
@@ -64,6 +78,7 @@ async def on_ready():
         get_db_path(),
         datetime.now(timezone.utc).isoformat(timespec='seconds'),
     )
+    await _persist_connected_server_count()
 
     await update_presence(bot)
 
@@ -150,12 +165,18 @@ async def on_command_error(ctx: commands.context.Context, error: commands.errors
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
     summary = await cleanup_guild_data(get_db_path(), str(guild.id))
+    await _persist_connected_server_count()
     log.info(
         'cleaned up guild %s (%s) after removal: %s',
         guild.id,
         guild.name,
         summary,
     )
+
+
+@bot.event
+async def on_guild_join(_guild: discord.Guild):
+    await _persist_connected_server_count()
 
 
 if __name__ == '__main__':

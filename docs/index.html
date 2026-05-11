@@ -45,15 +45,6 @@
           <p class="lede">
             Tweeticcini turns noisy Twitter/X feeds into actionable Discord alerts with smart filtering, routing, and clear escalation when a post matters.
           </p>
-          <div class="workflow-strip" aria-label="How Tweeticcini routes alerts">
-            <span class="workflow-step">Tweet posted</span>
-            <span class="workflow-arrow" aria-hidden="true">→</span>
-            <span class="workflow-step">Rule match</span>
-            <span class="workflow-arrow" aria-hidden="true">→</span>
-            <span class="workflow-step">Role ping</span>
-            <span class="workflow-arrow" aria-hidden="true">→</span>
-            <span class="workflow-step">Routed alert</span>
-          </div>
           <ul class="hero-points">
             <li>📡 Track trusted accounts your community relies on for important updates</li>
             <li>🎯 Cut noise with post/media filters and phrase-based Rules</li>
@@ -61,7 +52,7 @@
           </ul>
           <p class="proof-line proof-line-mobile" aria-label="Tweeticcini adoption and reliability signals">
             <span class="proof-kicker">Used daily by active communities</span>
-            <span class="proof-primary"><strong><span class="server-count">31</span> active servers</strong> using Tweeticcini today</span>
+            <span class="proof-primary"><strong><span class="server-count">—</span> active servers</strong> using Tweeticcini today</span>
             <span class="proof-secondary">24/7 monitoring with up to <strong>12s priority alert speed</strong></span>
           </p>
           <div class="hero-actions">
@@ -154,7 +145,7 @@
           </div>
           <p class="proof-line" aria-label="Tweeticcini adoption and reliability signals">
             <span class="proof-kicker">Used daily by active communities</span>
-            <span class="proof-primary"><strong><span class="server-count">31</span> active servers</strong> using Tweeticcini today</span>
+            <span class="proof-primary"><strong><span class="server-count">—</span> active servers</strong> using Tweeticcini today</span>
             <span class="proof-secondary">24/7 monitoring with up to <strong>12s priority alert speed</strong></span>
           </p>
         </aside>
@@ -274,12 +265,70 @@
         </section>
       </section>
 
+      <section class="panel workflow-demo">
+        <p class="eyebrow">Workflow ✨</p>
+        <h2>Stop flooding Discord with irrelevant alerts</h2>
+        <p class="panel-copy">
+          Basic relay bots forward everything. Tweeticcini filters, prioritizes, and routes the signals that actually matter.
+        </p>
+        <div class="workflow-demo-grid">
+          <article class="workflow-lane workflow-lane--basic">
+            <h3>Basic Relay</h3>
+            <div class="signal-flow">
+              <span>Tweet posted</span>
+              <span class="signal-arrow">↓</span>
+              <span>Post/media filters applied</span>
+              <span class="signal-arrow">↓</span>
+              <span>Sent with basic channel + role routing</span>
+              <span class="signal-arrow">↓</span>
+              <span>Limited per-account prioritization</span>
+            </div>
+          </article>
+          <article class="workflow-lane workflow-lane--tweeticcini workflow-lane--accent">
+            <h3>Tweeticcini Intelligence</h3>
+            <div class="signal-flow">
+              <span>Tweet posted</span>
+              <span class="signal-arrow">↓</span>
+              <span>Post/media filters + Rules applied</span>
+              <span class="signal-arrow">↓</span>
+              <span>Per-account priority and Rules evaluated</span>
+              <span class="signal-arrow">↓</span>
+              <span>Urgent alerts escalated with targeted mentions</span>
+            </div>
+          </article>
+        </div>
+        <div class="workflow-outcomes-wrap">
+          <table class="workflow-outcomes" aria-label="Basic relay versus Tweeticcini outcomes">
+            <thead>
+              <tr>
+                <th>Basic Relay</th>
+                <th>Tweeticcini</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Core routing + filtering</td>
+                <td>Rule-driven routing + prioritization</td>
+              </tr>
+              <tr>
+                <td>Broad monitor-level controls</td>
+                <td>Fine-grained per-account controls</td>
+              </tr>
+              <tr>
+                <td>Limited urgency handling</td>
+                <td>Escalation for high-priority posts</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel-grid">
         <section class="panel">
           <p class="eyebrow">Setup 🛠️</p>
-          <h2>How to set up your alert flow</h2>
+          <h2>Set up your first alert flow</h2>
           <p class="panel-copy">
-            Start with the practical setup path: add the bot, connect Twitter, choose the accounts you want to follow, and route alerts where they belong before layering on more advanced control.
+            Add the bot, connect a session, pick accounts to monitor, and route alerts into your Discord channels. This guide covers the full first-time setup path.
           </p>
           <div class="link-list">
             <a class="button button-secondary" href="./how-to-send-twitter-alerts-to-discord.html">Read the guide</a>
@@ -288,9 +337,9 @@
 
         <section class="panel">
           <p class="eyebrow">Details 📘</p>
-          <h2>Why cleaner control matters</h2>
+          <h2>Unlock finer alert control</h2>
           <p class="panel-copy">
-            If you are comparing Tweeticcini to basic relay bots, start here. This guide explains where standard monitoring ends and why Premium Rules and delivery control make the difference.
+            See exactly how Rules, priority escalation, and per-account controls reduce noise and keep urgent posts visible in busy community channels.
           </p>
           <div class="link-list">
             <a class="button button-secondary" href="./twitter-alerts-for-discord.html">Read the overview</a>
@@ -335,12 +384,19 @@
       (async function () {
         const countNodes = document.querySelectorAll('.server-count');
         if (!countNodes.length) return;
+        const cachedCount = window.localStorage.getItem('tweeticcini_server_count');
+        if (cachedCount && /^\d+$/.test(cachedCount)) {
+          countNodes.forEach(function (node) {
+            node.textContent = cachedCount;
+          });
+        }
         try {
           const response = await fetch('https://app.tweeticcini.com/public/stats', { cache: 'no-store' });
           if (!response.ok) return;
           const payload = await response.json();
           const count = Number(payload.server_count);
           if (!Number.isFinite(count) || count < 0) return;
+          window.localStorage.setItem('tweeticcini_server_count', String(count));
           countNodes.forEach(function (node) {
             node.textContent = String(count);
           });
