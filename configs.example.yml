@@ -1,5 +1,5 @@
 prefix: '.'
-activity_name: '/about | tweeticcini.com'
+activity_name: '/about | {count} servers | tweeticcini.com'
 activity_type: 'watching'
 users_list_pagination_size: 8
 users_list_page_counter_position: 'title'

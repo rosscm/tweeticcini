@@ -2,16 +2,12 @@ import discord
 
 from discord.ext import commands
 from configs.load_configs import configs
-from src.db_function.readonly_db import connect_readonly
-from src.settings import get_db_path
 
 
 async def update_presence(bot: commands.Bot):
     """
-    Updates the bot's presence based on the number of enabled accounts in the database.
+    Updates the bot's presence based on the number of connected Discord servers.
     """
-    async with connect_readonly(get_db_path()) as db:
-        async with db.execute('SELECT username FROM user WHERE enabled = 1') as cursor:
-            count = len(await cursor.fetchall())
-            presence_message = configs["activity_name"].format(count=str(count))
+    count = len(bot.guilds)
+    presence_message = configs["activity_name"].format(count=str(count))
     await bot.change_presence(activity=discord.Activity(name=presence_message, type=getattr(discord.ActivityType, configs['activity_type'])))
