@@ -187,24 +187,29 @@ class AccountTracker():
     async def _ensure_twitter_updaters(self, exit_on_failure: bool = False) -> None:
         required_clients = {client_used for _, client_used in await self.twitter_session_service_pairs()}
         latest_accounts = await self._load_available_accounts(required_clients)
-        self.accounts_data = latest_accounts
         await self._refresh_client_poll_intervals()
+        available_accounts: dict[str, dict[str, str]] = {}
         for account_name in latest_accounts.keys():
             self.tweets.setdefault(account_name, [])
 
         active_task_names = {task.get_name() for task in asyncio.all_tasks()}
         for account_name, account_config in latest_accounts.items():
             if f'TweetsUpdater_{account_name}' in active_task_names:
+                available_accounts[account_name] = account_config
                 continue
             try:
                 app = await self._authenticate_account(account_name, account_config)
                 self.bot.loop.create_task(self.tweetsUpdater(app)).set_name(f'TweetsUpdater_{account_name}')
                 log.info(f'loaded Twitter/X session {account_name} without bot restart')
+                available_accounts[account_name] = account_config
             except Exception:
                 # Never let one bad session credential take the whole bot offline.
                 log.error(
                     f'skipping unavailable Twitter/X session {account_name} until it can authenticate successfully'
                 )
+
+        # Keep monitoring focused on sessions that are currently running/healthy.
+        self.accounts_data = available_accounts
 
         for task in asyncio.all_tasks():
             task_name = task.get_name()
