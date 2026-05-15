@@ -232,11 +232,16 @@ class AccountTracker():
 
         usernames_and_clients = await self.twitter_session_service_pairs()
 
+        active_task_names = {task.get_name() for task in asyncio.all_tasks()}
         for username, client_used in usernames_and_clients:
             if client_used not in self.tweets:
                 log.warning(f'skipping task for {username}; Twitter/X session {client_used} is not available')
                 continue
-            self.bot.loop.create_task(self.notification(username, client_used)).set_name(self._task_name(username, client_used))
+            task_name = self._task_name(username, client_used)
+            if task_name in active_task_names:
+                continue
+            self.bot.loop.create_task(self.notification(username, client_used)).set_name(task_name)
+            active_task_names.add(task_name)
         self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
 
     async def notification(self, username: str, client_used: str):
@@ -553,6 +558,13 @@ class AccountTracker():
             taskSet = {task.get_name() for task in all_tasks}
             aliveTasks = taskSet & set(expected_tasks.keys())
             staleTaskNames = [name for name in taskSet if '::' in name and name not in expected_tasks]
+            task_name_groups: dict[str, list[asyncio.Task]] = {}
+
+            for task in all_tasks:
+                task_name = task.get_name()
+                if '::' not in task_name:
+                    continue
+                task_name_groups.setdefault(task_name, []).append(task)
 
             for task in all_tasks:
                 task_name = task.get_name()
@@ -563,6 +575,17 @@ class AccountTracker():
                     log.info(f'removed stale task {task_name}')
                 except Exception as e:
                     log.warning(f'failed to remove stale task {task_name}: {e}')
+
+            # Keep only one notification task per username/client pair.
+            for task_name, group in task_name_groups.items():
+                if len(group) <= 1:
+                    continue
+                for duplicate in group[1:]:
+                    try:
+                        duplicate.cancel()
+                        log.info(f'removed duplicate task {task_name}')
+                    except Exception as e:
+                        log.warning(f'failed to remove duplicate task {task_name}: {e}')
 
             if aliveTasks != set(expected_tasks.keys()):
                 deadTasks = [expected_tasks[name] for name in (set(expected_tasks.keys()) - aliveTasks)]
@@ -596,8 +619,12 @@ class AccountTracker():
         return f'{username}::{client_used}'
 
     async def addTask(self, username: str, client_used: str):
-        self.bot.loop.create_task(self.notification(username, client_used)).set_name(self._task_name(username, client_used))
-        log.info(f'new task {username} added successfully using {client_used}')
+        task_name = self._task_name(username, client_used)
+        if task_name not in {task.get_name() for task in asyncio.all_tasks()}:
+            self.bot.loop.create_task(self.notification(username, client_used)).set_name(task_name)
+            log.info(f'new task {username} added successfully using {client_used}')
+        else:
+            log.info(f'task {username} already exists using {client_used}, skipping duplicate add')
 
         for task in asyncio.all_tasks():
             if task.get_name() == 'TasksMonitor':
