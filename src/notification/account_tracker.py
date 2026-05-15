@@ -1,5 +1,4 @@
 import asyncio
-import sys
 import re
 import os
 from datetime import datetime, timezone, timedelta
@@ -202,9 +201,10 @@ class AccountTracker():
                 self.bot.loop.create_task(self.tweetsUpdater(app)).set_name(f'TweetsUpdater_{account_name}')
                 log.info(f'loaded Twitter/X session {account_name} without bot restart')
             except Exception:
-                if exit_on_failure:
-                    sys.exit(1)
-                log.error(f'skipping unavailable Twitter/X session {account_name} until it can authenticate successfully')
+                # Never let one bad session credential take the whole bot offline.
+                log.error(
+                    f'skipping unavailable Twitter/X session {account_name} until it can authenticate successfully'
+                )
 
         for task in asyncio.all_tasks():
             task_name = task.get_name()

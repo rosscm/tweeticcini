@@ -26,7 +26,7 @@ load_dotenv()
 
 intents = discord.Intents(guilds=True, messages=True, message_content=True, emojis=True)
 bot = commands.Bot(command_prefix=configs['prefix'], intents=intents)
-DEFAULT_COGS = ['dashboard', 'about']
+DEFAULT_COGS = ['dashboard', 'about', 'notification']
 account_tracker = None
 
 
