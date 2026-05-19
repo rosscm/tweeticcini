@@ -11,6 +11,7 @@ tweets_updater_retry_delay: 5
 tasks_monitor_check_period: 1
 tasks_monitor_log_period: 4
 auth_max_attempts: 2
+auth_retry_cooldown_minutes: 15
 
 auto_change_client: false
 auto_turn_off_notification: true

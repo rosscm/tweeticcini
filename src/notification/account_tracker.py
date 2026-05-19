@@ -101,6 +101,7 @@ class AccountTracker():
         self.tweets = {}
         self.poll_error_states: dict[str, str] = {}
         self.client_poll_intervals: dict[str, int] = {}
+        self.auth_retry_after: dict[str, datetime] = {}
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         self.support_prompt_server_ids = _get_support_prompt_server_ids()
         self.support_prompt_channel_overrides = _get_support_prompt_channel_overrides()
@@ -189,6 +190,8 @@ class AccountTracker():
         latest_accounts = await self._load_available_accounts(required_clients)
         await self._refresh_client_poll_intervals()
         available_accounts: dict[str, dict[str, str]] = {}
+        now = datetime.now(timezone.utc)
+        cooldown_minutes = max(int(configs.get('auth_retry_cooldown_minutes', 15) or 15), 1)
         for account_name in latest_accounts.keys():
             self.tweets.setdefault(account_name, [])
 
@@ -197,15 +200,23 @@ class AccountTracker():
             if f'TweetsUpdater_{account_name}' in active_task_names:
                 available_accounts[account_name] = account_config
                 continue
+            retry_after = self.auth_retry_after.get(account_name)
+            if retry_after is not None and now < retry_after:
+                continue
             try:
                 app = await self._authenticate_account(account_name, account_config)
                 self.bot.loop.create_task(self.tweetsUpdater(app)).set_name(f'TweetsUpdater_{account_name}')
                 log.info(f'loaded Twitter/X session {account_name} without bot restart')
                 available_accounts[account_name] = account_config
+                self.auth_retry_after.pop(account_name, None)
             except Exception:
                 # Never let one bad session credential take the whole bot offline.
+                self.auth_retry_after[account_name] = now + timedelta(minutes=cooldown_minutes)
                 log.error(
                     f'skipping unavailable Twitter/X session {account_name} until it can authenticate successfully'
+                )
+                log.info(
+                    f'next authentication retry for {account_name} in {cooldown_minutes} minute(s)'
                 )
 
         # Keep monitoring focused on sessions that are currently running/healthy.
