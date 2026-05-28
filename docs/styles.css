@@ -48,7 +48,13 @@ body {
 }
 
 .status-banner p {
+  display: flex;
+  gap: 10px;
   margin: 0;
+}
+
+.status-banner-icon {
+  flex: 0 0 auto;
 }
 
 .hero,
@@ -1196,6 +1202,10 @@ a {
   .status-banner {
     margin-bottom: 14px;
     padding: 12px 14px;
+  }
+
+  .status-banner p {
+    gap: 8px;
   }
 
   .hero,
