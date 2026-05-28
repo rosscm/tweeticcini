@@ -32,6 +32,25 @@ body {
   padding: 32px 0 72px;
 }
 
+.status-banner {
+  margin: 0 0 18px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 213, 128, 0.4);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(255, 186, 73, 0.18), rgba(255, 255, 255, 0.04));
+  color: #fff4cf;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  line-height: 1.5;
+}
+
+.status-banner strong {
+  color: #ffffff;
+}
+
+.status-banner p {
+  margin: 0;
+}
+
 .hero,
 .panel,
 .pricing-card,
@@ -1172,6 +1191,11 @@ a {
   .site-shell {
     width: min(100vw - 24px, 1180px);
     padding: 20px 0 56px;
+  }
+
+  .status-banner {
+    margin-bottom: 14px;
+    padding: 12px 14px;
   }
 
   .hero,
