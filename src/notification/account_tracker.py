@@ -91,7 +91,18 @@ def build_headline_notification_message(mention: str, text: str, url: str) -> st
     return f"{mention}{headline}: {url}" if headline else f"{mention}{url}"
 
 class AccountTracker():
+    _instance = None
+
+    def __new__(cls, bot: commands.Bot):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self, bot: commands.Bot):
+        if self._initialized:
+            return
+        self._initialized = True
         self.bot = bot
         self.accounts_data = get_accounts()
         self.db_path = get_db_path()
@@ -106,7 +117,30 @@ class AccountTracker():
         self.support_prompt_server_ids = _get_support_prompt_server_ids()
         self.support_prompt_channel_overrides = _get_support_prompt_channel_overrides()
         self.support_prompt_threshold = 20
+        self.tweet_cache_limit = max(int(configs.get('tweet_cache_limit', 500) or 500), 1)
+        self.max_tweets_per_source_cycle = max(int(configs.get('max_tweets_per_source_cycle', 1) or 1), 1)
         bot.loop.create_task(self.setup_tasks())
+
+    def _tweet_cache_key(self, tweet) -> str:
+        for attr in ('id', 'tweet_id', 'id_str', 'url'):
+            value = getattr(tweet, attr, None)
+            if value:
+                return str(value)
+        author = getattr(getattr(tweet, 'author', None), 'username', '')
+        text = (
+            getattr(tweet, 'rawContent', None)
+            or getattr(tweet, 'content', None)
+            or getattr(tweet, 'text', None)
+            or getattr(tweet, 'full_text', None)
+            or ''
+        )
+        return f"{author}:{getattr(tweet, 'created_on', '')}:{text}"
+
+    def _merge_tweet_cache(self, existing_tweets: list, fetched_tweets: list) -> list:
+        merged = {self._tweet_cache_key(tweet): tweet for tweet in existing_tweets}
+        for tweet in fetched_tweets:
+            merged[self._tweet_cache_key(tweet)] = tweet
+        return sorted(merged.values(), key=lambda tweet: tweet.created_on, reverse=True)[:self.tweet_cache_limit]
 
     @staticmethod
     def _base_poll_interval() -> int:
@@ -264,6 +298,13 @@ class AccountTracker():
                 continue
 
             log.debug(f'found {len(lastest_tweets)} new tweet(s) for {username} using {client_used}')
+            tweets_to_send = lastest_tweets[-self.max_tweets_per_source_cycle:]
+            skipped_tweets_count = len(lastest_tweets) - len(tweets_to_send)
+            if skipped_tweets_count:
+                log.info(
+                    f'skipping {skipped_tweets_count} older tweet(s) for {username} using {client_used}; '
+                    f'sending latest {len(tweets_to_send)} only'
+                )
             async with aiosqlite.connect(self.db_path) as db:
                 db.row_factory = aiosqlite.Row
                 async with db.cursor() as cursor:
@@ -277,7 +318,7 @@ class AccountTracker():
                         )
                         await db.commit()
 
-                    for tweet in lastest_tweets:
+                    for tweet in tweets_to_send:
                         notifications = await get_enabled_notifications_for_user_client(cursor, user['id'], client_used)
                         log.debug(f'found {len(notifications)} notification target(s) for {username} using {client_used}')
                         for data in notifications:
@@ -529,14 +570,18 @@ class AccountTracker():
         updater_name = asyncio.current_task().get_name().split('_', 1)[1]
         while True:
             try:
-                self.tweets[updater_name] = await app.get_tweet_notifications()
+                fetched_tweets = await app.get_tweet_notifications() or []
+                self.tweets[updater_name] = self._merge_tweet_cache(
+                    self.tweets.get(updater_name, []),
+                    fetched_tweets,
+                )
                 if updater_name in self.poll_error_states:
                     last_error = self.poll_error_states.pop(updater_name)
                     log.info(f'tweets updater {updater_name} recovered after polling issue: {last_error}')
                 await record_client_poll_success(
                     self.db_path,
                     updater_name,
-                    len(self.tweets[updater_name]),
+                    len(fetched_tweets),
                     datetime.now(timezone.utc).isoformat(timespec='seconds'),
                 )
                 await asyncio.sleep(self._get_client_poll_interval(updater_name))

@@ -131,6 +131,8 @@ Important production parameters:
 - `tweets_check_period`
 - `plus_tweets_check_period`
 - `free_tweets_check_period`
+- `tweet_cache_limit`
+- `max_tweets_per_source_cycle`
 - `tweets_updater_retry_delay`
 - `tasks_monitor_check_period`
 - `auth_max_attempts`
@@ -148,6 +150,8 @@ Polling behavior:
 - `free_tweets_check_period` is the slower long-term cadence used for Free servers
 - if `plus_tweets_check_period` is omitted, Tweeticcini falls back to `45` seconds for Plus servers
 - if `free_tweets_check_period` is omitted, Tweeticcini falls back to `90` seconds for Free servers
+- `tweet_cache_limit` controls how many recently fetched notification tweets are kept in memory per Twitter/X session so source tasks do not miss items between polling cycles
+- `max_tweets_per_source_cycle` controls how many new tweets are sent per monitored source each cycle; set to `1` to send only the latest tweet after downtime or noisy periods while still advancing past older missed tweets
 
 ## 🖥 Dashboard
 

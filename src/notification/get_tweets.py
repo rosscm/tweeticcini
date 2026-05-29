@@ -10,7 +10,7 @@ from src.notification.date_comparator import date_comparator
 async def get_tweets(tweets: list[Tweet], username: str, client_used: str) -> Optional[list[Tweet]]:
     last_tweet_at = await get_last_tweet_at(get_db_path(), username, client_used)
 
-    tweets = [tweet for tweet in tweets if tweet.author.username == username and date_comparator(tweet.created_on, last_tweet_at) == 1]
+    tweets = [tweet for tweet in tweets if tweet.author.username.lower() == username.lower() and date_comparator(tweet.created_on, last_tweet_at) == 1]
 
     if tweets != []:
         return sorted(tweets, key=lambda x: x.created_on)

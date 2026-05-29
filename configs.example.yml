@@ -7,6 +7,8 @@ users_list_page_counter_position: 'title'
 tweets_check_period: 10
 plus_tweets_check_period: 45
 free_tweets_check_period: 90
+tweet_cache_limit: 500
+max_tweets_per_source_cycle: 1
 tweets_updater_retry_delay: 5
 tasks_monitor_check_period: 1
 tasks_monitor_log_period: 4
