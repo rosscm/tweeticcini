@@ -24,7 +24,7 @@ from src.repositories.runtime_metrics_repository import (
 )
 from src.services.guild_settings_service import GuildSettingsService
 from src.log import setup_logger
-from src.services.alert_rule_service import AlertRuleService
+from src.services.alert_rule_service import AlertDecision, AlertRuleService
 from src.notification.display_tools import gen_embed, get_action
 from src.notification.get_tweets import get_tweets
 from src.notification.utils import is_match_media_type, is_match_type, replace_emoji
@@ -148,7 +148,7 @@ class AccountTracker():
 
     @classmethod
     def _free_poll_interval(cls) -> int:
-        configured = int(configs.get('free_tweets_check_period', 90))
+        configured = int(configs.get('free_tweets_check_period', 120))
         return max(configured, cls._base_poll_interval())
 
     @classmethod
@@ -388,12 +388,15 @@ class AccountTracker():
 
                                     log.debug(f"new tweet from {username}: {preview or '[no text]'}")
 
-                                    alert_decision = await self.alert_rule_service.resolve_alert_decision(
-                                        server_id=str(channel.guild.id),
-                                        channel_id=str(channel.id),
-                                        source_username=username,
-                                        text=text,
-                                    )
+                                    if presentation.features.max_rules > 0:
+                                        alert_decision = await self.alert_rule_service.resolve_alert_decision(
+                                            server_id=str(channel.guild.id),
+                                            channel_id=str(channel.id),
+                                            source_username=username,
+                                            text=text,
+                                        )
+                                    else:
+                                        alert_decision = AlertDecision(False, False)
                                     if alert_decision.should_force_everyone and not presentation.features.can_use_everyone_escalation:
                                         matched_rule = f" via rule {alert_decision.matched_rule_name}" if alert_decision.matched_rule_name else ''
                                         log.debug(

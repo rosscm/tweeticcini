@@ -671,7 +671,7 @@
             <p class="eyebrow">Billing</p>
             <h2>Review &amp; Manage Plans</h2>
             <p class="section-copy section-copy--wide">See this server's current plan, start a paid plan, and manage subscription billing.</p>
-            <div class="form-banner billing-followup-banner">Free includes <strong>1 monitored account</strong> with standard polling (90s). Plus is <strong>$3.99/month</strong> for 3 accounts and balanced polling (45s). Premium is <strong>$6.99/month</strong> for 10 accounts, priority polling (12s), and advanced controls.</div>
+            <div class="form-banner billing-followup-banner">Free includes <strong>1 monitored account</strong> with standard polling (120s). Plus is <strong>$3.99/month</strong> for 3 accounts and balanced polling (45s). Premium is <strong>$6.99/month</strong> for 10 accounts, priority polling (12s), and advanced controls.</div>
           </div>
         </div>
 
@@ -992,7 +992,7 @@
             </div>
           </div>
 
-          {% set rules_locked = guild_presentation.plan == 'free' or delivery_sessions_required or plan_usage.source_count == 0 %}
+          {% set rules_locked = guild_presentation.features.max_rules == 0 or delivery_sessions_required or plan_usage.source_count == 0 %}
           {% if guild_presentation.features.max_rules > 0 and (plan_usage.rule_count >= guild_presentation.features.max_rules or plan_usage.trigger_keyword_count >= guild_presentation.features.max_trigger_keywords_total or plan_usage.exclude_keyword_count >= guild_presentation.features.max_exclude_keywords_total) %}
           <section class="notice notice--warning">
             <strong>Rule capacity:</strong>
