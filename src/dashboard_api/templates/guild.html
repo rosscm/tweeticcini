@@ -233,8 +233,8 @@
 
       {% set can_start_paid_trial = guild_presentation.plan == 'free' and not guild_presentation.entitlement.trial_used_at %}
       <section class="notice notice--announcement">
-        <strong>📣 New simpler plans are live.</strong> Free now includes <strong>1 monitored account</strong>, Plus is <strong>$3.99/month</strong> for 3 accounts and faster polling, and Premium is <strong>$6.99/month</strong> for 10 accounts plus Rules. Existing Free servers keep their current monitor allowance!<br>
-        <strong>Thank you for supporting Tweeticcini and the indie dev behind it 💖</strong>{% if can_start_paid_trial %} <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Try for free for 7 days</a>{% endif %}
+        <span class="announcement-line"><strong>📣 New simpler plans are live.</strong> Free now includes <strong>1 monitored account</strong>, Plus is <strong>$3.99/month</strong> for 3 accounts and faster polling, and Premium is <strong>$6.99/month</strong> for 10 accounts plus Rules. Existing Free servers keep their current monitor allowance!</span>
+        <span class="announcement-line announcement-line--support"><strong>Thank you for supporting Tweeticcini and the indie dev behind it 💖</strong>{% if can_start_paid_trial %} <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Try for free for 7 days</a>{% endif %}</span>
       </section>
 
       <section class="card status-card">
