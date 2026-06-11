@@ -192,7 +192,7 @@ The billing page can create Stripe Checkout sessions, open the Stripe customer p
 - `STRIPE_PRICE_ID_PLUS`
 - `STRIPE_PRICE_ID_PRO`
 
-Current public pricing expects `STRIPE_PRICE_ID_PLUS` to point at the recurring Plus $4/month price and `STRIPE_PRICE_ID_PRO` to point at the recurring Premium $7/month price. The app still uses the internal `pro` plan key for Premium.
+Current public pricing expects `STRIPE_PRICE_ID_PLUS` to point at the recurring Plus $4/month price and `STRIPE_PRICE_ID_PRO` to point at the recurring Premium $6.99/month price. The app still uses the internal `pro` plan key for Premium.
 
 Recommended webhook events:
 

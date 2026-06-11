@@ -671,7 +671,7 @@
             <p class="eyebrow">Billing</p>
             <h2>Review &amp; Manage Plans</h2>
             <p class="section-copy section-copy--wide">See this server's current plan, start a paid plan, and manage subscription billing.</p>
-            <div class="form-banner billing-followup-banner">Free includes <strong>1 monitored account</strong> with standard polling (90s). Plus is <strong>$4/month</strong> for 3 accounts and balanced polling (45s). Premium is <strong>$7/month</strong> for 10 accounts, priority polling (12s), and advanced controls.</div>
+            <div class="form-banner billing-followup-banner">Free includes <strong>1 monitored account</strong> with standard polling (90s). Plus is <strong>$4/month</strong> for 3 accounts and balanced polling (45s). Premium is <strong>$6.99/month</strong> for 10 accounts, priority polling (12s), and advanced controls.</div>
           </div>
         </div>
 
@@ -739,7 +739,7 @@
                 <option value="plus">Plus ($4)</option>
                 {% endif %}
                 {% if 'pro' in billing_context.available_price_plans %}
-                <option value="pro">Premium ($7)</option>
+                <option value="pro">Premium ($6.99)</option>
                 {% endif %}
               </select>
               <button type="button" id="start-checkout" {{ 'disabled' if ('plus' not in billing_context.available_price_plans and 'pro' not in billing_context.available_price_plans) else '' }}>Start Checkout</button>
