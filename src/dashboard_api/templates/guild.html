@@ -233,7 +233,7 @@
 
       {% set can_start_paid_trial = guild_presentation.plan == 'free' and not guild_presentation.entitlement.trial_used_at %}
       <section class="notice notice--announcement">
-        <strong>📣 Plus starts at $3.99/month.</strong> Upgrade for faster polling and room for up to <strong>3 monitored accounts</strong>, or choose Premium for up to <strong>10 monitored accounts</strong>.
+        <strong>📣 New simpler plans are live.</strong> Free now includes <strong>1 monitored account</strong>, Plus is <strong>$3.99/month</strong> for 3 accounts and faster polling, and Premium is <strong>$6.99/month</strong> for 10 accounts plus Rules. Existing Free servers keep their current monitor allowance.
         {% if can_start_paid_trial %}
         <div class="notice-actions">
           <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Try for free for 7 days</a>
