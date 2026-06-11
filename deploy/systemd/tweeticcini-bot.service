@@ -11,6 +11,10 @@ EnvironmentFile=/home/pi/Documents/GitHub/tweeticcini/.env
 ExecStart=/home/pi/Documents/GitHub/tweeticcini/.venv/bin/python bot.py
 Restart=always
 RestartSec=5
+RuntimeMaxSec=12h
+MemoryAccounting=yes
+MemoryHigh=450M
+MemoryMax=650M
 
 [Install]
 WantedBy=multi-user.target

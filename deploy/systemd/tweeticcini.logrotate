@@ -1,0 +1,10 @@
+/home/pi/Documents/GitHub/tweeticcini/data/logs/*.log /home/pi/Documents/GitHub/tweeticcini/data/logs/*.log.errors {
+  weekly
+  maxsize 3M
+  rotate 4
+  compress
+  missingok
+  notifempty
+  copytruncate
+  create 0644 pi pi
+}

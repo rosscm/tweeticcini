@@ -6,6 +6,10 @@ from pathlib import Path
 from src.settings import get_data_path
 
 
+LOG_MAX_BYTES = 3 * 1024 * 1024
+LOG_BACKUP_COUNT = 2
+
+
 def get_log_path() -> Path:
     try:
         base_dir = get_data_path()
@@ -15,6 +19,13 @@ def get_log_path() -> Path:
     log_dir = base_dir / 'logs'
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir / 'tweeticcini.log'
+
+
+def prune_stale_log_backups(log_path: Path, backup_count: int = LOG_BACKUP_COUNT) -> None:
+    for backup in log_path.parent.glob(f'{log_path.name}.*'):
+        suffix = backup.name.removeprefix(f'{log_path.name}.')
+        if suffix.isdigit() and int(suffix) > backup_count:
+            backup.unlink(missing_ok=True)
 
 
 class LogFormatter(logging.Formatter):
@@ -71,6 +82,7 @@ class ConsoleFormatter(LogFormatter):
 
 def setup_logger(module_name: str) -> logging.Logger:
     log_path = get_log_path()
+    prune_stale_log_backups(log_path)
 
     library, _, _ = module_name.partition('.py')
     logger = logging.getLogger(library)
@@ -87,8 +99,8 @@ def setup_logger(module_name: str) -> logging.Logger:
         file_handler = logging.handlers.RotatingFileHandler(
             filename=log_path,
             encoding='utf-8',
-            maxBytes=3 * 1024 * 1024,  # 3 MB per file
-            backupCount=4,            # Keep 4 rotated files (~12 MB max)
+            maxBytes=LOG_MAX_BYTES,
+            backupCount=LOG_BACKUP_COUNT,
         )
         file_handler.setFormatter(LogFormatter())
 
