@@ -1217,11 +1217,11 @@ h2 {
 
 .announcement-line {
   display: block;
-  line-height: 1.65;
+  line-height: 1.8;
 }
 
 .announcement-line--support {
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
 .announcement-line .button-secondary {
