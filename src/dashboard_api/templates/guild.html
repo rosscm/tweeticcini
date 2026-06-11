@@ -233,7 +233,7 @@
 
       {% set can_start_paid_trial = guild_presentation.plan == 'free' and not guild_presentation.entitlement.trial_used_at %}
       <section class="notice notice--announcement">
-        <strong>📣 Plus starts at $4/month.</strong> Upgrade for faster polling and room for up to <strong>3 monitored accounts</strong>, or choose Premium for up to <strong>10 monitored accounts</strong>.
+        <strong>📣 Plus starts at $3.99/month.</strong> Upgrade for faster polling and room for up to <strong>3 monitored accounts</strong>, or choose Premium for up to <strong>10 monitored accounts</strong>.
         {% if can_start_paid_trial %}
         <div class="notice-actions">
           <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Try for free for 7 days</a>
@@ -671,7 +671,7 @@
             <p class="eyebrow">Billing</p>
             <h2>Review &amp; Manage Plans</h2>
             <p class="section-copy section-copy--wide">See this server's current plan, start a paid plan, and manage subscription billing.</p>
-            <div class="form-banner billing-followup-banner">Free includes <strong>1 monitored account</strong> with standard polling (90s). Plus is <strong>$4/month</strong> for 3 accounts and balanced polling (45s). Premium is <strong>$6.99/month</strong> for 10 accounts, priority polling (12s), and advanced controls.</div>
+            <div class="form-banner billing-followup-banner">Free includes <strong>1 monitored account</strong> with standard polling (90s). Plus is <strong>$3.99/month</strong> for 3 accounts and balanced polling (45s). Premium is <strong>$6.99/month</strong> for 10 accounts, priority polling (12s), and advanced controls.</div>
           </div>
         </div>
 
@@ -736,7 +736,7 @@
             <div class="actions billing-actions">
               <select id="checkout-plan">
                 {% if 'plus' in billing_context.available_price_plans %}
-                <option value="plus">Plus ($4)</option>
+                <option value="plus">Plus ($3.99)</option>
                 {% endif %}
                 {% if 'pro' in billing_context.available_price_plans %}
                 <option value="pro">Premium ($6.99)</option>
