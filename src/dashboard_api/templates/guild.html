@@ -233,7 +233,7 @@
 
       {% set can_start_paid_trial = guild_presentation.plan == 'free' and not guild_presentation.entitlement.trial_used_at %}
       <section class="notice notice--announcement">
-        <strong>📣 New: Plus tier is live.</strong> Plus starts at <strong>$4.99/month</strong> and adds faster polling with more monitor capacity.
+        <strong>📣 Plus starts at $4/month.</strong> Upgrade for faster polling and room for up to <strong>3 monitored accounts</strong>, or choose Premium for up to <strong>10 monitored accounts</strong>.
         {% if can_start_paid_trial %}
         <div class="notice-actions">
           <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Try for free for 7 days</a>
@@ -341,6 +341,9 @@
               <h3 class="plan-tile-title">Monitors</h3>
             </div>
             <strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong>
+            {% if guild_presentation.plan == 'free' and guild_presentation.grandfathered_free_source_limit and guild_presentation.grandfathered_free_source_limit > 1 %}
+            <div class="plan-tile-copy">Legacy Free allowance retained</div>
+            {% endif %}
           </div>
           <div class="plan-tile">
             <div class="plan-tile-head">
@@ -668,7 +671,7 @@
             <p class="eyebrow">Billing</p>
             <h2>Review &amp; Manage Plans</h2>
             <p class="section-copy section-copy--wide">See this server's current plan, start a paid plan, and manage subscription billing.</p>
-            <div class="form-banner billing-followup-banner">Free uses <strong>standard polling (90s)</strong>. Plus uses <strong>balanced polling (45s)</strong>. Premium uses <strong>priority polling (12s)</strong>, along with higher limits and more control.</div>
+            <div class="form-banner billing-followup-banner">Free includes <strong>1 monitored account</strong> with standard polling (90s). Plus is <strong>$4/month</strong> for 3 accounts and balanced polling (45s). Premium is <strong>$7/month</strong> for 10 accounts, priority polling (12s), and advanced controls.</div>
           </div>
         </div>
 
@@ -715,6 +718,9 @@
             {% else %}
             <section class="notice notice--plain notice--compact">
               <strong>Free plan is active.</strong>
+              {% if guild_presentation.grandfathered_free_source_limit and guild_presentation.grandfathered_free_source_limit > 1 %}
+              This server keeps its legacy allowance of <strong>{{ guild_presentation.grandfathered_free_source_limit }} monitored accounts</strong>.
+              {% endif %}
               {% if not guild_presentation.entitlement.trial_used_at %}
               Start a paid plan with a <strong>7-day free trial</strong> to unlock faster alert speed, higher limits, and advanced controls.
               {% else %}
@@ -730,10 +736,10 @@
             <div class="actions billing-actions">
               <select id="checkout-plan">
                 {% if 'plus' in billing_context.available_price_plans %}
-                <option value="plus">Plus ($4.99)</option>
+                <option value="plus">Plus ($4)</option>
                 {% endif %}
                 {% if 'pro' in billing_context.available_price_plans %}
-                <option value="pro">Premium ($9.99)</option>
+                <option value="pro">Premium ($7)</option>
                 {% endif %}
               </select>
               <button type="button" id="start-checkout" {{ 'disabled' if ('plus' not in billing_context.available_price_plans and 'pro' not in billing_context.available_price_plans) else '' }}>Start Checkout</button>

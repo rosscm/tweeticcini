@@ -392,6 +392,7 @@ def _serialize_guild_presentation(view: GuildPresentationView) -> dict[str, obje
             'can_customize_source_messages': view.features.can_customize_source_messages,
             'can_use_everyone_escalation': view.features.can_use_everyone_escalation,
         },
+        'grandfathered_free_source_limit': view.grandfathered_free_source_limit,
         'has_overrides': view.has_overrides,
         'effective': {
             'default_message': view.effective.default_message,

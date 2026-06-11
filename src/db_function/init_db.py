@@ -150,6 +150,11 @@ async def ensure_db_schema() -> str:
                 last_error_at TEXT DEFAULT NULL,
                 last_recovered_at TEXT DEFAULT NULL
             );
+            CREATE TABLE IF NOT EXISTS guild_plan_grandfather (
+                server_id TEXT PRIMARY KEY,
+                free_source_limit INTEGER NOT NULL,
+                created_at TEXT DEFAULT NULL
+            );
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:
@@ -229,6 +234,47 @@ async def ensure_db_schema() -> str:
         )
 
         await db.commit()
+
+        async with db.execute(
+            "SELECT value FROM app_meta WHERE key = 'free_source_limit_grandfathered'"
+        ) as cursor:
+            grandfather_row = await cursor.fetchone()
+
+        if grandfather_row is None:
+            await db.execute(
+                '''
+                INSERT OR IGNORE INTO guild_plan_grandfather (server_id, free_source_limit, created_at)
+                SELECT
+                    source_counts.server_id,
+                    MIN(source_counts.source_count, 3),
+                    datetime('now')
+                FROM (
+                    SELECT channel.server_id, COUNT(*) AS source_count
+                    FROM notification
+                    JOIN channel ON notification.channel_id = channel.id
+                    WHERE notification.enabled = 1
+                    GROUP BY channel.server_id
+                    HAVING COUNT(*) > 1
+                ) AS source_counts
+                LEFT JOIN guild_entitlement
+                  ON guild_entitlement.server_id = source_counts.server_id
+                LEFT JOIN guild_settings
+                  ON guild_settings.server_id = source_counts.server_id
+                WHERE NOT (
+                    COALESCE(guild_entitlement.manual_plan_override, '') IN ('plus', 'pro')
+                    OR (
+                        COALESCE(guild_entitlement.subscribed_plan, '') IN ('plus', 'pro')
+                        AND COALESCE(guild_entitlement.entitlement_status, '') IN ('active', 'trialing')
+                    )
+                    OR COALESCE(guild_settings.plan, '') IN ('plus', 'pro')
+                )
+                '''
+            )
+            await db.execute(
+                "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('free_source_limit_grandfathered', '1')"
+            )
+            await db.commit()
+            log.info('captured legacy free source allowances for existing servers')
 
     async with aiosqlite.connect(db_path) as db:
         async with db.execute(

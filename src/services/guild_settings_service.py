@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional
 
 from src.db_function.guild_settings import (
@@ -10,6 +10,7 @@ from src.repositories.guild_entitlement_repository import (
     upsert_guild_entitlement,
 )
 from src.repositories.guild_settings_repository import (
+    get_guild_grandfathered_free_source_limit,
     get_guild_settings_row,
     upsert_guild_settings,
 )
@@ -45,7 +46,7 @@ class GuildPlanFeatures:
 PLAN_FEATURES = {
     PLAN_FREE: GuildPlanFeatures(
         max_twitter_sessions=1,
-        max_sources=3,
+        max_sources=1,
         max_rules=0,
         max_trigger_keywords_total=0,
         max_exclude_keywords_total=0,
@@ -55,7 +56,7 @@ PLAN_FEATURES = {
     ),
     PLAN_PLUS: GuildPlanFeatures(
         max_twitter_sessions=2,
-        max_sources=10,
+        max_sources=3,
         max_rules=10,
         max_trigger_keywords_total=40,
         max_exclude_keywords_total=60,
@@ -65,7 +66,7 @@ PLAN_FEATURES = {
     ),
     PLAN_PRO: GuildPlanFeatures(
         max_twitter_sessions=5,
-        max_sources=25,
+        max_sources=10,
         max_rules=30,
         max_trigger_keywords_total=150,
         max_exclude_keywords_total=250,
@@ -84,6 +85,7 @@ class GuildPresentationView:
     has_overrides: bool
     entitlement: 'GuildEntitlementView'
     compliance: 'GuildComplianceView'
+    grandfathered_free_source_limit: Optional[int]
 
 
 @dataclass(frozen=True)
@@ -126,17 +128,20 @@ class GuildSettingsService:
         row = await get_guild_settings_row(self.db_path, server_id)
         entitlement = await self.get_entitlement_view(server_id)
         plan = entitlement.effective_plan
+        features = await self.get_effective_plan_features(server_id, plan)
+        grandfathered_free_source_limit = await self.get_grandfathered_free_source_limit(server_id)
         defaults = get_default_guild_presentation_settings()
         compliance = await self.get_compliance_view(server_id, plan=plan, settings_row=row)
 
         if row is None:
             return GuildPresentationView(
                 plan=plan,
-                features=PLAN_FEATURES[plan],
+                features=features,
                 effective=defaults,
                 has_overrides=False,
                 entitlement=entitlement,
                 compliance=compliance,
+                grandfathered_free_source_limit=grandfathered_free_source_limit,
             )
 
         effective = EffectiveGuildPresentationSettings(
@@ -154,12 +159,26 @@ class GuildSettingsService:
 
         return GuildPresentationView(
             plan=plan,
-            features=PLAN_FEATURES[plan],
+            features=features,
             effective=effective,
             has_overrides=self._row_has_presentation_overrides(row),
             entitlement=entitlement,
             compliance=compliance,
+            grandfathered_free_source_limit=grandfathered_free_source_limit,
         )
+
+    async def get_grandfathered_free_source_limit(self, server_id: str) -> Optional[int]:
+        return await get_guild_grandfathered_free_source_limit(self.db_path, server_id)
+
+    async def get_effective_plan_features(self, server_id: str, plan: Optional[str] = None) -> GuildPlanFeatures:
+        effective_plan = self._normalize_plan(plan)
+        features = PLAN_FEATURES[effective_plan]
+        if effective_plan != PLAN_FREE:
+            return features
+        grandfathered_limit = await self.get_grandfathered_free_source_limit(server_id)
+        if grandfathered_limit is None or grandfathered_limit <= features.max_sources:
+            return features
+        return replace(features, max_sources=grandfathered_limit)
 
     async def get_compliance_view(
         self,
@@ -184,6 +203,7 @@ class GuildSettingsService:
             )
 
         row = settings_row if settings_row is not None else await get_guild_settings_row(self.db_path, server_id)
+        features = await self.get_effective_plan_features(server_id, effective_plan)
         sessions = await list_server_twitter_sessions(self.db_path, server_id)
         sources = await list_dashboard_sources(self.db_path, server_id)
         rules = await list_alert_rules(self.db_path, server_id)
@@ -192,9 +212,9 @@ class GuildSettingsService:
         session_count = len([session for session in sessions if bool(session['is_active'])])
         source_count = len(sources)
         rule_count = len(active_rules)
-        over_session_limit = session_count > PLAN_FEATURES[PLAN_FREE].max_twitter_sessions
-        over_source_limit = source_count > PLAN_FEATURES[PLAN_FREE].max_sources
-        over_rule_limit = rule_count > PLAN_FEATURES[PLAN_FREE].max_rules
+        over_session_limit = session_count > features.max_twitter_sessions
+        over_source_limit = source_count > features.max_sources
+        over_rule_limit = rule_count > features.max_rules
         has_premium_rules = any(bool(rule['force_everyone']) for rule in active_rules)
         has_premium_presentation = self._row_has_presentation_overrides(row)
         has_premium_source_overrides = any(

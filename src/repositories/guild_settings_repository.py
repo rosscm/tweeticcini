@@ -30,6 +30,18 @@ async def get_guild_settings_row(db_path, server_id: str):
             return await cursor.fetchone()
 
 
+async def get_guild_grandfathered_free_source_limit(db_path, server_id: str) -> int | None:
+    async with connect_readonly(db_path) as db:
+        async with db.execute(
+            'SELECT free_source_limit FROM guild_plan_grandfather WHERE server_id = ?',
+            (server_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+    if row is None:
+        return None
+    return int(row[0])
+
+
 async def upsert_guild_settings(
     db_path,
     server_id: str,
