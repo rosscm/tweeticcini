@@ -56,6 +56,10 @@ def _get_support_prompt_server_ids() -> set[str]:
     return {server_id.strip() for server_id in raw.split(',') if server_id.strip()}
 
 
+def _get_managed_support_prompt_text() -> Optional[str]:
+    return os.getenv('SUPPORT_PROMPT_MANAGED_SERVER_TEXT', '').strip() or None
+
+
 def _get_support_prompt_channel_overrides() -> dict[str, set[str]]:
     raw = os.getenv('SUPPORT_PROMPT_CHANNEL_OVERRIDES', '').strip()
     if not raw:
@@ -116,6 +120,7 @@ class AccountTracker():
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         self.support_prompt_server_ids = _get_support_prompt_server_ids()
         self.support_prompt_channel_overrides = _get_support_prompt_channel_overrides()
+        self.managed_support_prompt_text = _get_managed_support_prompt_text()
         self.support_prompt_threshold = 20
         self.tweet_cache_limit = max(int(configs.get('tweet_cache_limit', 500) or 500), 1)
         self.max_tweets_per_source_cycle = max(int(configs.get('max_tweets_per_source_cycle', 1) or 1), 1)
@@ -472,7 +477,7 @@ class AccountTracker():
                                     if should_include_support_footer or should_include_force_everyone_support_footer:
                                         vote_url = _get_top_gg_vote_url()
                                         if vote_url:
-                                            support_prompt_text = 'Enjoying Tweeticcini? Vote on top.gg 💛'
+                                            support_prompt_text = self._get_support_prompt_text(str(channel.guild.id))
                                             support_prompt_url = vote_url
 
                                     if presentation.effective.embed_type == 'fx_twitter':
@@ -548,6 +553,11 @@ class AccountTracker():
             if allowed_channels is not None:
                 return channel_id in allowed_channels
         return True
+
+    def _get_support_prompt_text(self, server_id: str) -> str:
+        if server_id in self.support_prompt_server_ids and self.managed_support_prompt_text:
+            return self.managed_support_prompt_text
+        return 'Enjoying Tweeticcini? Vote on top.gg 💛'
 
     async def _should_include_support_footer(self, server_id: str, presentation_plan: str, channel_id: str) -> bool:
         vote_url = _get_top_gg_vote_url()
