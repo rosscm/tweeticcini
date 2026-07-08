@@ -37,6 +37,13 @@ def _get_top_gg_vote_url() -> Optional[str]:
     return f'https://top.gg/bot/{client_id}/vote'
 
 
+def _get_buy_me_a_coffee_url() -> Optional[str]:
+    explicit_url = os.getenv('BUY_ME_A_COFFEE_URL', '').strip()
+    if explicit_url:
+        return explicit_url
+    return 'https://buymeacoffee.com/pokaccini'
+
+
 class Dashboard(Cog_Extension):
     @app_commands.default_permissions(administrator=True)
     @app_commands.command(name='dashboard', description='Get a link to the configuration dashboard')

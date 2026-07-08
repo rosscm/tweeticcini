@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from configs.load_configs import configs
 from core.classes import Cog_Extension
-from cogs.dashboard import _get_dashboard_base_url, _get_top_gg_vote_url
+from cogs.dashboard import _get_buy_me_a_coffee_url, _get_dashboard_base_url, _get_top_gg_vote_url
 from src.services.alert_rule_service import AlertRuleService
 from src.services.guild_settings_service import GuildSettingsService
 from src.services.notifier_service import NotifierService
@@ -119,7 +119,8 @@ class About(Cog_Extension):
         base_url = _get_dashboard_base_url()
         support_server_url = os.getenv('SUPPORT_SERVER_URL', '').strip()
         vote_url = _get_top_gg_vote_url()
-        if base_url or support_server_url or vote_url:
+        support_url = _get_buy_me_a_coffee_url()
+        if base_url or support_server_url or vote_url or support_url:
             view = discord.ui.View()
             if base_url:
                 view.add_item(
@@ -140,6 +141,13 @@ class About(Cog_Extension):
                     discord.ui.Button(
                         label='Vote on top.gg',
                         url=vote_url,
+                    )
+                )
+            if support_url:
+                view.add_item(
+                    discord.ui.Button(
+                        label='Buy Me a Coffee',
+                        url=support_url,
                     )
                 )
 

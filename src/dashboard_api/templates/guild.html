@@ -744,6 +744,11 @@
             {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
             <div class="field-help">This server is currently using a manual support or testing override.</div>
             {% endif %}
+            {% if buy_me_a_coffee_url %}
+            <section class="notice notice--plain notice--compact">
+              <strong>Prefer one-time support?</strong> If Tweeticcini helps this server and a subscription is not the right fit yet, you can <a class="inline-link" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">buy Pokaccini a coffee</a> instead.
+            </section>
+            {% endif %}
           </div>
 
         </div>

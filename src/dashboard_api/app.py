@@ -473,6 +473,13 @@ def _get_top_gg_vote_url() -> Optional[str]:
     return f'https://top.gg/bot/{client_id}/vote'
 
 
+def _get_buy_me_a_coffee_url() -> Optional[str]:
+    explicit_url = os.getenv('BUY_ME_A_COFFEE_URL', '').strip()
+    if explicit_url:
+        return explicit_url
+    return 'https://buymeacoffee.com/pokaccini'
+
+
 def _build_discord_login_url(request: Request, state: str) -> Optional[str]:
     oauth = _get_discord_oauth_config()
     if oauth is None:
@@ -601,6 +608,7 @@ def _render_dashboard_access_denied(request: Request, guild_id: str) -> HTMLResp
             'token_setup_video_url': _get_token_setup_video_url(),
             'support_server_url': _get_support_server_url(),
             'top_gg_vote_url': _get_top_gg_vote_url(),
+            'buy_me_a_coffee_url': _get_buy_me_a_coffee_url(),
         },
     )
 
@@ -1077,6 +1085,7 @@ async def dashboard_home(request: Request):
             'token_setup_video_url': _get_token_setup_video_url(),
             'support_server_url': _get_support_server_url(),
             'top_gg_vote_url': _get_top_gg_vote_url(),
+            'buy_me_a_coffee_url': _get_buy_me_a_coffee_url(),
             'oauth_enabled': _get_discord_oauth_config() is not None,
             'discord_login_url': _build_discord_login_url(request, state),
             'discord_user': _get_session_user(request),
@@ -1436,6 +1445,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'token_setup_video_url': _get_token_setup_video_url(),
             'support_server_url': _get_support_server_url(),
             'top_gg_vote_url': _get_top_gg_vote_url(),
+            'buy_me_a_coffee_url': _get_buy_me_a_coffee_url(),
         },
     )
 
