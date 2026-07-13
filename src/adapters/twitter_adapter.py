@@ -1,5 +1,7 @@
 import os
 import shutil
+import json
+from typing import Optional
 
 from tweety import Twitter
 
@@ -44,6 +46,24 @@ class TwitterSessionAdapter:
 
     async def unfollow_user(self, target):
         return await self._client.unfollow_user(target)
+
+    def get_authenticated_user_identity(self) -> tuple[Optional[str], Optional[str]]:
+        session_path = get_twitter_session_path(self.client_name)
+        if not session_path.exists():
+            return None, None
+
+        try:
+            payload = json.loads(session_path.read_text())
+        except Exception:
+            return None, None
+
+        user = payload.get('user') or {}
+        user_id = user.get('id') or user.get('rest_id')
+        username = user.get('username') or user.get('screen_name')
+        return (
+            str(user_id).strip() if user_id else None,
+            str(username).strip() if username else None,
+        )
 
 
 def create_twitter_session(client_name: str) -> TwitterSessionAdapter:

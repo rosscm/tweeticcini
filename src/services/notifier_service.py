@@ -124,6 +124,10 @@ class DuplicateNotifierError(NotifierServiceError):
     pass
 
 
+class SelfMonitoringSessionError(NotifierServiceError):
+    pass
+
+
 class NotifierService:
     def __init__(self, db_path=None):
         self.db_path = db_path or get_db_path()
@@ -375,6 +379,8 @@ class NotifierService:
         except Exception as e:
             raise UserNotFoundError from e
 
+        self._assert_not_self_monitoring(app, target_user)
+
         if match_user is None:
             async with lock:
                 await db.execute('BEGIN')
@@ -438,6 +444,8 @@ class NotifierService:
         except Exception as e:
             raise UserNotFoundError from e
 
+        self._assert_not_self_monitoring(app, target_user)
+
         follow_status = await app.follow_user(target_user)
         if follow_status:
             log.info(f'successfully followed {request.username} using {request.account_used}')
@@ -449,3 +457,18 @@ class NotifierService:
             log.info(f'successfully turned on notification for {request.username} using {request.account_used}')
         else:
             log.warning(f'unable to turn on notification for {request.username} using {request.account_used}')
+
+    def _assert_not_self_monitoring(self, app, target_user) -> None:
+        session_user_id, session_username = app.get_authenticated_user_identity()
+        target_user_id = getattr(target_user, 'id', None)
+        target_username = getattr(target_user, 'username', None)
+
+        if session_user_id and target_user_id and str(session_user_id) == str(target_user_id):
+            raise SelfMonitoringSessionError(
+                'the connected Twitter account is the same one being monitored. Twitter does not let you follow yourself, so please use a different Twitter account for this monitor.'
+            )
+
+        if session_username and target_username and session_username.lower() == str(target_username).lower():
+            raise SelfMonitoringSessionError(
+                'the connected Twitter account is the same one being monitored. Twitter does not let you follow yourself, so please use a different Twitter account for this monitor.'
+            )

@@ -42,6 +42,7 @@ from src.services.notifier_service import (
     NotifierService,
     NotifierServiceError,
     PlanLimitExceededError,
+    SelfMonitoringSessionError,
     TwitterSessionRequiredError,
     RemoveNotifierRequest,
     UserNotFoundError,
@@ -1598,6 +1599,8 @@ async def create_guild_source(request: Request, guild_id: str, source_request: C
     except AutoChangeClientDisabledError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except PlanLimitExceededError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except SelfMonitoringSessionError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except TwitterSessionRequiredError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error

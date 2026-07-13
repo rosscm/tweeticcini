@@ -18,6 +18,7 @@ from src.services.notifier_service import (
     NotifierServiceError,
     PlanLimitExceededError,
     RemoveNotifierRequest,
+    SelfMonitoringSessionError,
     UserNotFoundError,
 )
 from src.utils import get_accounts
@@ -104,6 +105,9 @@ class Notification(Cog_Extension):
             )
             return
         except PlanLimitExceededError as error:
+            await itn.followup.send(str(error), ephemeral=True)
+            return
+        except SelfMonitoringSessionError as error:
             await itn.followup.send(str(error), ephemeral=True)
             return
         except NotifierServiceError:
