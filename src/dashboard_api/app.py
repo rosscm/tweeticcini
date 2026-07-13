@@ -655,7 +655,11 @@ async def _fetch_guild_resource_names(guild_id: str) -> dict[str, dict[str, str]
                     roles = {
                         str(role.get('id')): str(role.get('name'))
                         for role in role_rows
-                        if role.get('id') and role.get('name')
+                        if role.get('id')
+                        and role.get('name')
+                        and str(role.get('id')) != str(guild_id)
+                        and str(role.get('name')).lower() != '@everyone'
+                        and str(role.get('name')).lower() != 'everyone'
                     }
         except Exception:
             roles = {}

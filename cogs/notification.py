@@ -58,7 +58,6 @@ class Notification(Cog_Extension):
         enable_type="Tweet/Retweet/Quote filtering",
         media_type="Media presence filter",
         account_used="Twitter session to use",
-        force_everyone="Mention @everyone when tweet matches keywords"
     )
     async def notifier(
         self,
@@ -69,7 +68,6 @@ class Notification(Cog_Extension):
         enable_type: str = '11',
         media_type: str = '11',
         account_used: str = '',
-        force_everyone: bool = False,
     ):
         """Add a twitter user to specific channel on your server."""
 
@@ -90,7 +88,7 @@ class Notification(Cog_Extension):
             enable_type=enable_type,
             media_type=media_type,
             account_used=account_used,
-            force_everyone=force_everyone,
+            force_everyone=False,
         )
 
         try:

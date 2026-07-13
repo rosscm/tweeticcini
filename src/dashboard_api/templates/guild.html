@@ -808,6 +808,7 @@
                   {% endfor %}
                 </select>
                 <div class="field-help">Optional. If set, Tweeticcini will mention this role when it posts alerts for this account.</div>
+                <div class="field-help"><strong>@everyone is not configured here.</strong> Server-wide everyone pings are handled through <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/rules"><strong>Rules</strong></a> with <code>Ping everyone</code>, which is a Premium feature.</div>
 
                 <label for="source-enable-type-edit">Post filter</label>
                 <select id="source-enable-type-edit" {{ 'disabled' if delivery_sessions_required else '' }}>
