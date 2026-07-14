@@ -487,7 +487,12 @@ class AccountTracker():
                                             support_prompt_url = vote_url
                                     elif should_include_support_footer:
                                         support_prompt_text = self._get_support_prompt_text(server_id_str)
-                                        support_prompt_url = _get_donation_url()
+                                        if server_id_str in self.support_prompt_server_ids:
+                                            support_prompt_url = _get_top_gg_vote_url()
+                                            if not support_prompt_url:
+                                                support_prompt_text = None
+                                        else:
+                                            support_prompt_url = _get_donation_url()
 
                                     if presentation.effective.embed_type == 'fx_twitter':
                                         fx_embeds = []
