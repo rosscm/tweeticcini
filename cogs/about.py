@@ -16,17 +16,14 @@ from src.services.twitter_session_service import TwitterSessionService
 def _build_about_view(
     *,
     dashboard_url: str | None,
-    billing_url: str | None,
     support_server_url: str | None,
 ) -> discord.ui.View | None:
-    if not dashboard_url and not billing_url and not support_server_url:
+    if not dashboard_url and not support_server_url:
         return None
 
     view = discord.ui.View()
     if dashboard_url:
         view.add_item(discord.ui.Button(label='Open Dashboard', url=dashboard_url))
-    if billing_url:
-        view.add_item(discord.ui.Button(label='Manage Plan', url=billing_url))
     if support_server_url:
         view.add_item(discord.ui.Button(label='Join Support Server', url=support_server_url))
     return view
@@ -63,6 +60,12 @@ def _build_support_view(
         vote_url=vote_url,
         support_url=support_url,
     )
+
+
+SUPPORT_RESPONSE_TEXT = (
+    'Tweeticcini is built and maintained by one developer. '
+    'Joining the community, voting, or buying me a coffee helps keep the bot running and improving. ❤️'
+)
 
 
 class About(Cog_Extension):
@@ -172,10 +175,8 @@ class About(Cog_Extension):
         vote_url = _get_top_gg_vote_url()
         support_url = _get_buy_me_a_coffee_url()
         dashboard_url = f'{base_url}/dashboard?guild_id={itn.guild_id}' if base_url else None
-        billing_url = f'{base_url}/dashboard/guilds/{itn.guild_id}/billing' if base_url else None
         view = _build_about_view(
             dashboard_url=dashboard_url,
-            billing_url=billing_url,
             support_server_url=support_server_url or None,
         )
         if view is not None:
@@ -203,7 +204,7 @@ class About(Cog_Extension):
             return
 
         await itn.response.send_message(
-            'Tweeticcini is independently maintained by one developer. Join the support server, vote on Top.gg, or chip in directly from here.',
+            SUPPORT_RESPONSE_TEXT,
             ephemeral=True,
             view=view,
         )

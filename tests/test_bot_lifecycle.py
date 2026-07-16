@@ -1,6 +1,8 @@
 import importlib
 
 import pytest
+from cogs.about import About
+from cogs.dashboard import Dashboard
 
 
 @pytest.mark.asyncio
@@ -41,7 +43,7 @@ async def test_setup_hook_only_initializes_once(monkeypatch):
     await module.bot.setup_hook()
     await module.bot.setup_hook()
 
-    assert load_calls == ['cogs.dashboard', 'cogs.about', 'cogs.notification']
+    assert load_calls == ['cogs.dashboard', 'cogs.about']
     assert len(sync_calls) == 1
     assert len(tracker_calls) == 1
 
@@ -80,3 +82,18 @@ async def test_on_ready_is_reconnect_safe(monkeypatch):
     assert len(persist_calls) == 2
     assert len(presence_calls) == 2
     assert load_calls == []
+
+
+def test_registered_slash_command_set_is_exact():
+    command_names = {command.name for command in About.__cog_app_commands__} | {
+        command.name for command in Dashboard.__cog_app_commands__
+    }
+
+    assert command_names == {'about', 'dashboard', 'support'}
+    assert 'vote' not in command_names
+    assert 'add' not in command_names
+    assert 'remove' not in command_names
+    assert 'customize' not in command_names
+    assert 'rule' not in command_names
+    assert 'list' not in command_names
+    assert 'sync' not in command_names

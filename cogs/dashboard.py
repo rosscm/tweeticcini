@@ -69,24 +69,5 @@ class Dashboard(Cog_Extension):
 
         await itn.response.send_message(ephemeral=True, view=view)
 
-    @app_commands.command(name='vote', description='Legacy support shortcut: vote for Tweeticcini on Top.gg')
-    async def vote(self, itn: discord.Interaction):
-        vote_url = _get_top_gg_vote_url()
-        if not vote_url:
-            await itn.response.send_message(
-                'The top.gg vote link is not configured yet.',
-                ephemeral=True,
-            )
-            return
-
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(label='Vote on Top.gg', url=vote_url))
-        await itn.response.send_message(
-            'Vote for Tweeticcini on Top.gg to help more communities discover it.',
-            ephemeral=True,
-            view=view,
-        )
-
-
 async def setup(bot: commands.Bot):
     await bot.add_cog(Dashboard(bot))

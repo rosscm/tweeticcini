@@ -24,7 +24,7 @@ log = setup_logger(__name__)
 load_dotenv()
 
 intents = discord.Intents(guilds=True, messages=True, emojis=True)
-DEFAULT_COGS = ['dashboard', 'about', 'notification']
+DEFAULT_COGS = ['dashboard', 'about']
 account_tracker = None
 
 

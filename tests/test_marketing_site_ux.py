@@ -16,13 +16,25 @@ def test_server_count_fallback_copy_replaces_broken_dash():
 def test_pricing_cta_links_include_plan_preselection():
     html = (REPO_ROOT / 'docs' / 'index.html').read_text(encoding='utf8')
 
-    assert 'Add Tweeticcini to Discord' in html
+    assert 'Add to Discord' in html
     assert 'href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&amp;scope=bot%20applications.commands&amp;permissions=0"' not in html
     assert 'href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0"' in html
     assert 'href="https://app.tweeticcini.com/dashboard?plan=plus"' in html
     assert 'href="https://app.tweeticcini.com/dashboard?plan=pro"' in html
-    assert 'Start Plus Trial' in html
-    assert 'Start Premium Trial' in html
+    assert html.count('>Start Trial<') == 2
+    assert 'aria-label="Start Plus trial"' in html
+    assert 'aria-label="Start Premium trial"' in html
+    assert 'Get started' in html
+
+
+def test_marketing_seo_pages_use_shortened_add_to_discord_label():
+    setup_html = (REPO_ROOT / 'docs' / 'how-to-send-twitter-alerts-to-discord.html').read_text(encoding='utf8')
+    overview_html = (REPO_ROOT / 'docs' / 'twitter-alerts-for-discord.html').read_text(encoding='utf8')
+
+    assert 'Add Tweeticcini to Discord' not in setup_html
+    assert 'Add Tweeticcini to Discord' not in overview_html
+    assert '>Add to Discord<' in setup_html
+    assert '>Add to Discord<' in overview_html
 
 
 def test_marketing_site_includes_nav_and_faq_trust_sections():
@@ -85,4 +97,4 @@ def test_no_generic_support_button_label_remains_in_discord_views():
     assert 'Vote on Top.gg' in about_py
     assert 'Join Support Server' in about_py
     assert 'Open Dashboard' in dashboard_py
-    assert 'Vote on Top.gg' in dashboard_py
+    assert "@app_commands.command(name='vote'" not in dashboard_py
