@@ -19,8 +19,6 @@ def apply_tweety_compat_patch() -> None:
     if getattr(Request, '_tweeticcini_compat_patched', False):
         return
 
-    original_init_local_api = Request._init_local_api
-
     async def patched_init_local_api(self):
         global _bootstrap_warning_logged
         cookies = await self.remove_cookies()

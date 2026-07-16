@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 
 from src.settings import get_data_path

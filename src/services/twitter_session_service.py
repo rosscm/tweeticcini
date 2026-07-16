@@ -4,6 +4,7 @@ import json
 import os
 import re
 import secrets
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -357,7 +358,36 @@ class TwitterSessionService:
         return get_twitter_session_path(client_key)
 
     def _write_session_file(self, client_key: str, session_payload: str) -> None:
-        self._session_file_path(client_key).write_text(session_payload)
+        path = self._session_file_path(client_key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            path.parent.chmod(0o700)
+        except OSError:
+            pass
+        for stale_path in path.parent.glob(f'{path.name}.*.tmp'):
+            try:
+                stale_path.unlink()
+            except OSError:
+                continue
+
+        fd, tmp_name = tempfile.mkstemp(prefix=f'{path.name}.', suffix='.tmp', dir=path.parent)
+        try:
+            os.chmod(tmp_name, 0o600)
+            with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+                handle.write(session_payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_name, path)
+            try:
+                path.chmod(0o600)
+            except OSError:
+                pass
+        finally:
+            if os.path.exists(tmp_name):
+                try:
+                    os.unlink(tmp_name)
+                except OSError:
+                    pass
 
     def _read_session_file(self, client_key: str) -> Optional[str]:
         path = self._session_file_path(client_key)

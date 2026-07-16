@@ -25,6 +25,10 @@ def get_db_path() -> Path:
 def get_twitter_session_dir() -> Path:
     session_dir = get_data_path() / 'twitter_sessions'
     session_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        session_dir.chmod(0o700)
+    except OSError:
+        pass
     return session_dir
 
 

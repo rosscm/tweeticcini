@@ -155,6 +155,31 @@ async def ensure_db_schema() -> str:
                 free_source_limit INTEGER NOT NULL,
                 created_at TEXT DEFAULT NULL
             );
+            CREATE TABLE IF NOT EXISTS delivery_outbox (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tweet_id TEXT NOT NULL,
+                source_user_id TEXT NOT NULL,
+                source_username TEXT NOT NULL,
+                client_used TEXT NOT NULL,
+                server_id TEXT NOT NULL,
+                channel_id TEXT NOT NULL,
+                message_content TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                next_attempt_at TEXT DEFAULT NULL,
+                created_at TEXT DEFAULT NULL,
+                delivered_at TEXT DEFAULT NULL,
+                last_error TEXT DEFAULT NULL,
+                last_attempt_at TEXT DEFAULT NULL,
+                matched_rule_name TEXT DEFAULT NULL,
+                lease_token TEXT DEFAULT NULL,
+                lease_expires_at TEXT DEFAULT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_delivery_outbox_tweet_channel
+            ON delivery_outbox (tweet_id, channel_id);
+            CREATE INDEX IF NOT EXISTS idx_delivery_outbox_pending
+            ON delivery_outbox (status, next_attempt_at, created_at);
         """)
 
         async with db.execute("PRAGMA table_info(notification)") as cursor:
@@ -222,6 +247,17 @@ async def ensure_db_schema() -> str:
             await db.execute('ALTER TABLE guild_onboarding_state ADD COLUMN onboarding_dismissed INTEGER DEFAULT 0')
             log.info('added missing guild_onboarding_state.onboarding_dismissed column')
 
+        async with db.execute("PRAGMA table_info(delivery_outbox)") as cursor:
+            outbox_columns = {row[1] async for row in cursor}
+        outbox_column_definitions = {
+            'lease_token': 'TEXT DEFAULT NULL',
+            'lease_expires_at': 'TEXT DEFAULT NULL',
+        }
+        for column_name, definition in outbox_column_definitions.items():
+            if column_name not in outbox_columns:
+                await db.execute(f'ALTER TABLE delivery_outbox ADD COLUMN {column_name} {definition}')
+                log.info(f'added missing delivery_outbox.{column_name} column')
+
         await db.execute(
             '''
             INSERT OR IGNORE INTO user_client_state (user_id, client_used, lastest_tweet)
@@ -282,18 +318,19 @@ async def ensure_db_schema() -> str:
         ) as cursor:
             rules_row = await cursor.fetchone()
 
-        if rules_row is None:
-            migrated_rules = await migrate_legacy_alert_rules_for_existing_guilds(
-                db_path,
-                trigger_keywords=get_legacy_trigger_keywords(),
-                exclude_keywords=get_legacy_exclude_keywords(),
-            )
+    if rules_row is None:
+        migrated_rules = await migrate_legacy_alert_rules_for_existing_guilds(
+            db_path,
+            trigger_keywords=get_legacy_trigger_keywords(),
+            exclude_keywords=get_legacy_exclude_keywords(),
+        )
+        async with aiosqlite.connect(db_path) as db:
             await db.execute(
                 "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('legacy_alert_rules_migrated', '1')"
             )
             await db.commit()
-            if migrated_rules:
-                log.info(f'migrated legacy keyword rules into alert rules for {migrated_rules} server(s)')
+        if migrated_rules:
+            log.info(f'migrated legacy keyword rules into alert rules for {migrated_rules} server(s)')
 
     if db_created:
         log.info('database file not found, a blank database file has been created')

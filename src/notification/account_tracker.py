@@ -2,6 +2,7 @@ import asyncio
 import re
 import os
 from datetime import datetime, timezone, timedelta
+from types import SimpleNamespace
 from typing import Optional
 
 import aiosqlite
@@ -11,7 +12,6 @@ from discord.ext import commands
 from src.adapters.twitter_adapter import create_twitter_session
 from configs.load_configs import configs
 from src.repositories.notifier_repository import (
-    get_enabled_notifications_for_user_client,
     get_user_by_username,
     update_user_latest_tweet_for_client,
 )
@@ -22,12 +22,20 @@ from src.repositories.runtime_metrics_repository import (
     record_source_delivery_error,
     record_source_delivery_success,
 )
+from src.repositories.delivery_outbox_repository import (
+    DeliveryOutboxRecord,
+    claim_due_deliveries,
+    enqueue_delivery,
+    mark_delivery_failed,
+    mark_delivery_retry,
+    mark_delivery_success,
+)
 from src.services.guild_settings_service import GuildSettingsService
 from src.log import setup_logger
 from src.services.alert_rule_service import AlertDecision, AlertRuleService
 from src.notification.display_tools import gen_embed, get_action
 from src.notification.get_tweets import get_tweets
-from src.notification.utils import is_match_media_type, is_match_type, replace_emoji
+from src.notification.utils import is_match_media_type, is_match_type
 from src.services.twitter_session_service import TwitterSessionService
 from src.settings import get_accounts, get_db_path
 from src.utils import get_lock, extract_first_line
@@ -99,6 +107,69 @@ def build_headline_notification_message(mention: str, text: str, url: str) -> st
     headline = extract_first_line(text)
     return f"{mention}{headline}: {url}" if headline else f"{mention}{url}"
 
+
+def _tweet_snapshot(tweet) -> dict[str, object]:
+    author = getattr(tweet, 'author', None)
+    media = []
+    for item in getattr(tweet, 'media', []) or []:
+        media.append(
+            {
+                'type': getattr(item, 'type', None),
+                'media_url_https': getattr(item, 'media_url_https', None),
+                'expanded_url': getattr(item, 'expanded_url', None),
+            }
+        )
+    return {
+        'id': str(getattr(tweet, 'id', None) or getattr(tweet, 'tweet_id', None) or getattr(tweet, 'id_str', None) or getattr(tweet, 'url', '')),
+        'url': getattr(tweet, 'url', ''),
+        'text': (
+            getattr(tweet, 'rawContent', None)
+            or getattr(tweet, 'content', None)
+            or getattr(tweet, 'text', None)
+            or getattr(tweet, 'full_text', None)
+            or ''
+        ),
+        'created_on': getattr(tweet, 'created_on', None).isoformat() if getattr(tweet, 'created_on', None) else None,
+        'is_retweet': bool(getattr(tweet, 'is_retweet', False)),
+        'is_quoted': bool(getattr(tweet, 'is_quoted', False)),
+        'author': {
+            'name': getattr(author, 'name', ''),
+            'username': getattr(author, 'username', ''),
+            'profile_image_url_https': getattr(author, 'profile_image_url_https', ''),
+        },
+        'media': media,
+    }
+
+
+def _tweet_from_snapshot(snapshot: dict[str, object]):
+    author = snapshot.get('author') or {}
+    created_on = snapshot.get('created_on')
+    media = [
+        SimpleNamespace(
+            type=item.get('type'),
+            media_url_https=item.get('media_url_https'),
+            expanded_url=item.get('expanded_url'),
+        )
+        for item in (snapshot.get('media') or [])
+    ]
+    return SimpleNamespace(
+        id=snapshot.get('id'),
+        url=snapshot.get('url'),
+        text=snapshot.get('text') or '',
+        rawContent=snapshot.get('text') or '',
+        content=snapshot.get('text') or '',
+        full_text=snapshot.get('text') or '',
+        created_on=datetime.fromisoformat(created_on) if created_on else datetime.now(timezone.utc),
+        is_retweet=bool(snapshot.get('is_retweet')),
+        is_quoted=bool(snapshot.get('is_quoted')),
+        media=media,
+        author=SimpleNamespace(
+            name=author.get('name', ''),
+            username=author.get('username', ''),
+            profile_image_url_https=author.get('profile_image_url_https', ''),
+        ),
+    )
+
 class AccountTracker():
     _instance = None
 
@@ -129,6 +200,11 @@ class AccountTracker():
         self.support_prompt_threshold = 20
         self.tweet_cache_limit = max(int(configs.get('tweet_cache_limit', 500) or 500), 1)
         self.max_tweets_per_source_cycle = max(int(configs.get('max_tweets_per_source_cycle', 1) or 1), 1)
+        self.delivery_outbox_retry_base_seconds = max(int(os.getenv('DELIVERY_OUTBOX_RETRY_BASE_SECONDS', '30') or 30), 1)
+        self.delivery_outbox_retry_max_seconds = max(int(os.getenv('DELIVERY_OUTBOX_RETRY_MAX_SECONDS', '900') or 900), 1)
+        self.delivery_outbox_max_attempts = max(int(os.getenv('DELIVERY_OUTBOX_MAX_ATTEMPTS', '5') or 5), 1)
+        self.delivery_outbox_poll_seconds = max(int(os.getenv('DELIVERY_OUTBOX_POLL_SECONDS', '15') or 15), 1)
+        self.delivery_outbox_lease_seconds = max(int(os.getenv('DELIVERY_OUTBOX_LEASE_SECONDS', '120') or 120), 30)
         bot.loop.create_task(self.setup_tasks())
 
     def _tweet_cache_key(self, tweet) -> str:
@@ -297,7 +373,10 @@ class AccountTracker():
                 continue
             self.bot.loop.create_task(self.notification(username, client_used)).set_name(task_name)
             active_task_names.add(task_name)
-        self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
+        if 'DeliveryOutboxProcessor' not in active_task_names:
+            self.bot.loop.create_task(self.deliveryOutboxProcessor()).set_name('DeliveryOutboxProcessor')
+        if 'TasksMonitor' not in active_task_names:
+            self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
 
     async def notification(self, username: str, client_used: str):
         while True:
@@ -315,245 +394,302 @@ class AccountTracker():
                     f'skipping {skipped_tweets_count} older tweet(s) for {username} using {client_used}; '
                     f'sending latest {len(tweets_to_send)} only'
                 )
-            async with aiosqlite.connect(self.db_path) as db:
-                db.row_factory = aiosqlite.Row
-                async with db.cursor() as cursor:
-                    user = await get_user_by_username(cursor, username)
-                    async with lock:
-                        await update_user_latest_tweet_for_client(
-                            cursor,
-                            username,
-                            client_used,
-                            str(lastest_tweets[-1].created_on),
+            await self._enqueue_new_tweet_deliveries(username, client_used, lastest_tweets, tweets_to_send)
+
+    async def _enqueue_new_tweet_deliveries(self, username: str, client_used: str, latest_tweets: list, tweets_to_send: list) -> None:
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.cursor() as cursor:
+                user = await get_user_by_username(cursor, username)
+                if user is None:
+                    return
+                await cursor.execute(
+                    '''
+                    SELECT notification.*, channel.server_id
+                    FROM notification
+                    JOIN channel ON channel.id = notification.channel_id
+                    WHERE notification.user_id = ?
+                      AND notification.client_used = ?
+                      AND notification.enabled = 1
+                    ''',
+                    (user['id'], client_used),
+                )
+                notifications = await cursor.fetchall()
+                now = datetime.now(timezone.utc).isoformat(timespec='seconds')
+                for tweet in tweets_to_send:
+                    await self._enqueue_tweet_deliveries(cursor, user, username, client_used, tweet, notifications, now)
+                async with lock:
+                    await update_user_latest_tweet_for_client(
+                        cursor,
+                        username,
+                        client_used,
+                        str(latest_tweets[-1].created_on),
+                    )
+                    await db.commit()
+
+    async def _enqueue_tweet_deliveries(self, cursor, user, username: str, client_used: str, tweet, notifications, created_at: str) -> None:
+        log.debug(f'found {len(notifications)} notification target(s) for {username} using {client_used}')
+        for data in notifications:
+            matches_type = is_match_type(tweet, data['enable_type'])
+            matches_media = is_match_media_type(tweet, data['enable_media_type'])
+            if not matches_type or not matches_media:
+                log.debug(
+                    f"skipping {username} delivery to {data['channel_id']} using {client_used}: "
+                    f"type_match={matches_type} media_match={matches_media}"
+                )
+                continue
+
+            server_id = str(data['server_id'])
+            presentation = await self.guild_settings_service.get_presentation_view(server_id)
+            if presentation.plan == 'free' and presentation.compliance.is_non_compliant:
+                log.debug(
+                    f"skipping delivery for guild {server_id}: "
+                    f"free-plan compliance required ({', '.join(presentation.compliance.reason_labels)})"
+                )
+                continue
+
+            text = (
+                getattr(tweet, 'rawContent', None)
+                or getattr(tweet, 'content', None)
+                or getattr(tweet, 'text', None)
+                or getattr(tweet, 'full_text', None)
+                or ''
+            )
+            preview = re.sub(r'\s+', ' ', text).strip()
+            if len(preview) > 140:
+                preview = f"{preview[:137]}..."
+            log.debug(f"new tweet from {username}: {preview or '[no text]'}")
+
+            if presentation.features.max_rules > 0:
+                alert_decision = await self.alert_rule_service.resolve_alert_decision(
+                    server_id=server_id,
+                    channel_id=str(data['channel_id']),
+                    source_username=username,
+                    text=text,
+                )
+            else:
+                alert_decision = AlertDecision(False, False)
+            if alert_decision.should_force_everyone and not presentation.features.can_use_everyone_escalation:
+                continue
+            if alert_decision.should_exclude:
+                continue
+
+            mention = "@everyone " if alert_decision.should_force_everyone else (f"<@&{data['role_id']}> " if data['role_id'] else '')
+            url = re.sub('twitter', presentation.effective.fx_domain_name, tweet.url) if presentation.effective.embed_type == 'fx_twitter' else tweet.url
+            custom_template = data['customized_msg']
+            default_template = presentation.effective.default_message
+            use_headline_message_override = data['use_headline_message_override']
+            effective_use_headline_message = (
+                presentation.effective.use_headline_message
+                if use_headline_message_override is None
+                else bool(use_headline_message_override)
+            )
+
+            if custom_template:
+                try:
+                    msg = build_notification_message(custom_template, mention, tweet, url)
+                except KeyError as exc:
+                    log.warning(f'invalid message template placeholder {exc} for {username}, falling back to headline message')
+                    msg = build_headline_notification_message(mention, text, url)
+            elif effective_use_headline_message:
+                msg = build_headline_notification_message(mention, text, url)
+            else:
+                try:
+                    msg = build_notification_message(default_template, mention, tweet, url)
+                except KeyError as exc:
+                    log.warning(f'invalid default message template placeholder {exc} for {username}, falling back to headline message')
+                    msg = build_headline_notification_message(mention, text, url)
+            if not msg:
+                msg = build_headline_notification_message(mention, text, url)
+
+            support_prompt_text = None
+            support_prompt_url = None
+            if self._should_include_force_everyone_support_footer(server_id, bool(alert_decision.should_force_everyone)):
+                support_prompt_url = _get_top_gg_vote_url()
+                if support_prompt_url:
+                    support_prompt_text = self._get_support_prompt_text(server_id)
+            elif await self._should_include_support_footer(server_id, presentation.plan, str(data['channel_id'])):
+                support_prompt_text = self._get_support_prompt_text(server_id)
+                if server_id in self.support_prompt_server_ids:
+                    support_prompt_url = _get_top_gg_vote_url()
+                    if not support_prompt_url:
+                        support_prompt_text = None
+                else:
+                    support_prompt_url = _get_donation_url()
+
+            payload = {
+                'tweet': _tweet_snapshot(tweet),
+                'support_prompt_text': support_prompt_text,
+                'support_prompt_url': support_prompt_url,
+            }
+            tweet_id = payload['tweet']['id'] or self._tweet_cache_key(tweet)
+            await enqueue_delivery(
+                cursor,
+                tweet_id=str(tweet_id),
+                source_user_id=str(user['id']),
+                source_username=username,
+                client_used=client_used,
+                server_id=server_id,
+                channel_id=str(data['channel_id']),
+                message_content=msg,
+                payload=payload,
+                created_at=created_at,
+                matched_rule_name=alert_decision.matched_rule_name,
+            )
+
+    async def process_delivery_outbox(self, limit: int = 100) -> None:
+        due_at = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        lease_expires_at = (datetime.now(timezone.utc) + timedelta(seconds=self.delivery_outbox_lease_seconds)).isoformat(timespec='seconds')
+        for delivery in await claim_due_deliveries(self.db_path, due_at, lease_expires_at=lease_expires_at, limit=limit):
+            await self._deliver_outbox_record(delivery)
+
+    async def _deliver_outbox_record(self, delivery: DeliveryOutboxRecord) -> None:
+        attempted_at = datetime.now(timezone.utc)
+        try:
+            channel = self.bot.get_channel(int(delivery.channel_id))
+            if channel is None:
+                channel = await self.bot.fetch_channel(int(delivery.channel_id))
+            existing_message = await self._find_existing_delivery_message(channel, delivery)
+            if existing_message is not None:
+                delivered_at = attempted_at.isoformat(timespec='seconds')
+                await mark_delivery_success(self.db_path, delivery.id, str(delivery.lease_token or ''), delivered_at)
+                await record_source_delivery_success(
+                    self.db_path,
+                    delivery.server_id,
+                    delivery.source_username,
+                    delivery.channel_id,
+                    str(delivery.payload['tweet'].get('url') or ''),
+                    delivery.matched_rule_name,
+                    delivered_at,
+                )
+                return
+            presentation = await self.guild_settings_service.get_presentation_view(delivery.server_id)
+            tweet = _tweet_from_snapshot(delivery.payload['tweet'])
+            view = self._build_delivery_view(tweet, presentation)
+            support_prompt_text = delivery.payload.get('support_prompt_text')
+            support_prompt_url = delivery.payload.get('support_prompt_url')
+            nonce = self._delivery_nonce(delivery)
+
+            if presentation.effective.embed_type == 'fx_twitter':
+                fx_embeds = []
+                if support_prompt_url:
+                    fx_embeds.append(
+                        discord.Embed(
+                            description=f'{support_prompt_text}\n{support_prompt_url}',
+                            color=0xF6C453,
                         )
-                        await db.commit()
+                    )
+                send_kwargs = {'content': delivery.message_content, 'view': view, 'nonce': nonce}
+                if fx_embeds:
+                    send_kwargs['embeds'] = fx_embeds
+                await channel.send(**send_kwargs)
+            else:
+                footer = 'twitter.png' if presentation.effective.built_in_legacy_logo else 'x.png'
+                file = discord.File(f'images/{footer}', filename='footer.png')
+                embeds = await gen_embed(
+                    tweet,
+                    use_fx_image=presentation.effective.built_in_fx_image,
+                    use_legacy_logo=presentation.effective.built_in_legacy_logo,
+                )
+                if support_prompt_url:
+                    embeds.append(
+                        discord.Embed(
+                            description=f'{support_prompt_text}\n{support_prompt_url}',
+                            color=0xF6C453,
+                        )
+                    )
+                await channel.send(content=delivery.message_content, file=file, embeds=embeds, view=view, nonce=nonce)
 
-                    for tweet in tweets_to_send:
-                        notifications = await get_enabled_notifications_for_user_client(cursor, user['id'], client_used)
-                        log.debug(f'found {len(notifications)} notification target(s) for {username} using {client_used}')
-                        for data in notifications:
-                            channel = self.bot.get_channel(int(data['channel_id']))
-                            if channel is None:
-                                try:
-                                    channel = await self.bot.fetch_channel(int(data['channel_id']))
-                                except Exception as exc:
-                                    log.warning(
-                                        f"unable to resolve channel {data['channel_id']} for {username} using {client_used}: {exc}"
-                                    )
-                                    continue
+            delivered_at = attempted_at.isoformat(timespec='seconds')
+            await mark_delivery_success(self.db_path, delivery.id, str(delivery.lease_token or ''), delivered_at)
+            await record_source_delivery_success(
+                self.db_path,
+                delivery.server_id,
+                delivery.source_username,
+                delivery.channel_id,
+                str(delivery.payload['tweet'].get('url') or ''),
+                delivery.matched_rule_name,
+                delivered_at,
+            )
+        except Exception as exc:
+            error_text = str(exc)[:500]
+            attempted_text = attempted_at.isoformat(timespec='seconds')
+            await record_source_delivery_error(
+                self.db_path,
+                delivery.server_id,
+                delivery.source_username,
+                delivery.channel_id,
+                error_text,
+                attempted_text,
+            )
+            if self._is_permanent_delivery_error(exc):
+                await mark_delivery_failed(self.db_path, delivery.id, str(delivery.lease_token or ''), attempted_at=attempted_text, last_error=error_text)
+                log.warning(f'permanent delivery failure for {delivery.source_username} in channel {delivery.channel_id}: {error_text}')
+                return
+            if delivery.attempt_count + 1 >= self.delivery_outbox_max_attempts:
+                await mark_delivery_failed(self.db_path, delivery.id, str(delivery.lease_token or ''), attempted_at=attempted_text, last_error=error_text)
+                log.warning(f'exhausted delivery retries for {delivery.source_username} in channel {delivery.channel_id}: {error_text}')
+                return
 
-                            matches_type = is_match_type(tweet, data['enable_type'])
-                            matches_media = is_match_media_type(tweet, data['enable_media_type'])
-                            if not matches_type or not matches_media:
-                                log.debug(
-                                    f"skipping {username} delivery to {data['channel_id']} using {client_used}: "
-                                    f"type_match={matches_type} media_match={matches_media}"
-                                )
-                                continue
+            next_attempt_at = (
+                attempted_at + timedelta(seconds=self._retry_delay_seconds(delivery.attempt_count + 1))
+            ).isoformat(timespec='seconds')
+            await mark_delivery_retry(
+                self.db_path,
+                delivery.id,
+                str(delivery.lease_token or ''),
+                attempted_at=attempted_text,
+                next_attempt_at=next_attempt_at,
+                last_error=error_text,
+            )
+            log.warning(f'temporary delivery failure for {delivery.source_username} in channel {delivery.channel_id}: {error_text}')
 
-                            if channel is not None:
-                                try:
-                                    presentation = await self.guild_settings_service.get_presentation_view(str(channel.guild.id))
-                                    log.debug(
-                                        f"delivery compliance check for guild {channel.guild.id}: "
-                                        f"plan={presentation.plan} "
-                                        f"non_compliant={presentation.compliance.is_non_compliant} "
-                                        f"reasons={list(presentation.compliance.reason_labels)}"
-                                    )
-                                    if presentation.plan == 'free' and presentation.compliance.is_non_compliant:
-                                        log.debug(
-                                            f"skipping delivery for guild {channel.guild.id}: "
-                                            f"free-plan compliance required ({', '.join(presentation.compliance.reason_labels)})"
-                                        )
-                                        continue
-                                    url = re.sub('twitter', presentation.effective.fx_domain_name, tweet.url) if presentation.effective.embed_type == 'fx_twitter' else tweet.url
-                                    view, create_view = None, False
-                                    if bool(tweet.media) and tweet.media[0].type == 'video' and presentation.effective.embed_type == 'built_in' and presentation.effective.built_in_video_link_button:
-                                        create_view = True
-                                        button_label, button_url = 'View Video', tweet.media[0].expanded_url
-                                    elif presentation.effective.embed_type == 'fx_twitter' and presentation.effective.fx_original_url_button:
-                                        create_view = True
-                                        button_label, button_url = 'View Original', tweet.url
+    async def _find_existing_delivery_message(self, channel, delivery: DeliveryOutboxRecord):
+        history = getattr(channel, 'history', None)
+        if history is None:
+            return None
+        expected_nonce = self._delivery_nonce(delivery)
+        bot_user_id = getattr(getattr(self.bot, 'user', None), 'id', None)
+        async for message in history(limit=25):
+            if getattr(message, 'nonce', None) != expected_nonce:
+                continue
+            if bot_user_id is None:
+                return message
+            if getattr(getattr(message, 'author', None), 'id', None) == bot_user_id:
+                return message
+        return None
 
-                                    if create_view:
-                                        view = discord.ui.View()
-                                        view.add_item(discord.ui.Button(label=button_label, style=discord.ButtonStyle.link, url=button_url))
+    @staticmethod
+    def _delivery_nonce(delivery: DeliveryOutboxRecord) -> str:
+        return f'tweeticcini-outbox-{delivery.id}'
 
-                                    role = channel.guild.get_role(int(data['role_id'])) if data['role_id'] else None
-                                    mention = f"{role.mention} " if role is not None else ''
+    def _build_delivery_view(self, tweet, presentation):
+        if bool(tweet.media) and tweet.media[0].type == 'video' and presentation.effective.embed_type == 'built_in' and presentation.effective.built_in_video_link_button:
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label='View Video', style=discord.ButtonStyle.link, url=tweet.media[0].expanded_url))
+            return view
+        if presentation.effective.embed_type == 'fx_twitter' and presentation.effective.fx_original_url_button:
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label='View Original', style=discord.ButtonStyle.link, url=tweet.url))
+            return view
+        return None
 
-                                    text = (
-                                        getattr(tweet, 'rawContent', None)
-                                        or getattr(tweet, 'content', None)
-                                        or getattr(tweet, 'text', None)
-                                        or getattr(tweet, 'full_text', None)
-                                        or ''
-                                    )
-                                    if not text:
-                                        text = getattr(tweet, 'content', None) or ''
+    def _retry_delay_seconds(self, attempt_count: int) -> int:
+        delay = self.delivery_outbox_retry_base_seconds * (2 ** max(attempt_count - 1, 0))
+        return min(delay, self.delivery_outbox_retry_max_seconds)
 
-                                    preview = re.sub(r'\s+', ' ', text).strip()
-                                    if len(preview) > 140:
-                                        preview = f"{preview[:137]}..."
-
-                                    log.debug(f"new tweet from {username}: {preview or '[no text]'}")
-
-                                    if presentation.features.max_rules > 0:
-                                        alert_decision = await self.alert_rule_service.resolve_alert_decision(
-                                            server_id=str(channel.guild.id),
-                                            channel_id=str(channel.id),
-                                            source_username=username,
-                                            text=text,
-                                        )
-                                    else:
-                                        alert_decision = AlertDecision(False, False)
-                                    if alert_decision.should_force_everyone and not presentation.features.can_use_everyone_escalation:
-                                        matched_rule = f" via rule {alert_decision.matched_rule_name}" if alert_decision.matched_rule_name else ''
-                                        log.debug(
-                                            f"skipping delivery for guild {channel.guild.id}{matched_rule}: "
-                                            'ping everyone rules require Premium'
-                                        )
-                                        continue
-                                    if alert_decision.should_exclude:
-                                        keyword_detail = ''
-                                        if alert_decision.matched_keywords:
-                                            keyword_detail = f" (keywords: {', '.join(alert_decision.matched_keywords)})"
-                                        if alert_decision.matched_rule_name:
-                                            log.debug(
-                                                f"excluded tweet from {username} via rule {alert_decision.matched_rule_name}{keyword_detail}: {preview or '[no text]'}"
-                                            )
-                                        else:
-                                            log.debug(f"excluded tweet from {username}{keyword_detail}: {preview or '[no text]'}")
-                                        continue
-
-                                    if alert_decision.should_force_everyone:
-                                        keyword_detail = ''
-                                        if alert_decision.matched_keywords:
-                                            keyword_detail = f" (keywords: {', '.join(alert_decision.matched_keywords)})"
-                                        if alert_decision.matched_rule_name:
-                                            log.debug(
-                                                f"pinging everyone for {username} via rule {alert_decision.matched_rule_name}{keyword_detail}: {preview or '[no text]'}"
-                                            )
-                                        else:
-                                            log.debug(f"pinging everyone for {username}{keyword_detail}: {preview or '[no text]'}")
-                                        mention = "@everyone "
-
-                                    custom_template = data['customized_msg']
-                                    default_template = presentation.effective.default_message
-                                    use_headline_message_override = data['use_headline_message_override']
-                                    effective_use_headline_message = (
-                                        presentation.effective.use_headline_message
-                                        if use_headline_message_override is None
-                                        else bool(use_headline_message_override)
-                                    )
-
-                                    if custom_template:
-                                        try:
-                                            msg = build_notification_message(custom_template, mention, tweet, url)
-                                        except KeyError as e:
-                                            log.warning(f'invalid message template placeholder {e} for {username}, falling back to headline message')
-                                            msg = build_headline_notification_message(mention, text, url)
-                                    elif effective_use_headline_message:
-                                        msg = build_headline_notification_message(mention, text, url)
-                                    else:
-                                        try:
-                                            msg = build_notification_message(default_template, mention, tweet, url)
-                                        except KeyError as e:
-                                            log.warning(f'invalid default message template placeholder {e} for {username}, falling back to headline message')
-                                            msg = build_headline_notification_message(mention, text, url)
-
-                                    if presentation.effective.emoji_auto_format:
-                                        msg = re.sub(r':([a-zA-Z0-9_]+):', lambda m: replace_emoji(m, channel.guild), msg)
-
-                                    if not msg:
-                                        msg = build_headline_notification_message(mention, text, url)
-
-                                    should_include_support_footer = await self._should_include_support_footer(
-                                        server_id=str(channel.guild.id),
-                                        presentation_plan=presentation.plan,
-                                        channel_id=str(channel.id),
-                                    )
-                                    should_include_force_everyone_support_footer = self._should_include_force_everyone_support_footer(
-                                        server_id=str(channel.guild.id),
-                                        force_everyone=bool(getattr(alert_decision, 'should_force_everyone', False)),
-                                    )
-                                    support_prompt_text = None
-                                    support_prompt_url = None
-                                    server_id_str = str(channel.guild.id)
-                                    if should_include_force_everyone_support_footer:
-                                        vote_url = _get_top_gg_vote_url()
-                                        if vote_url:
-                                            support_prompt_text = self._get_support_prompt_text(server_id_str)
-                                            support_prompt_url = vote_url
-                                    elif should_include_support_footer:
-                                        support_prompt_text = self._get_support_prompt_text(server_id_str)
-                                        if server_id_str in self.support_prompt_server_ids:
-                                            support_prompt_url = _get_top_gg_vote_url()
-                                            if not support_prompt_url:
-                                                support_prompt_text = None
-                                        else:
-                                            support_prompt_url = _get_donation_url()
-
-                                    if presentation.effective.embed_type == 'fx_twitter':
-                                        fx_embeds = []
-                                        if support_prompt_url:
-                                            fx_embeds.append(
-                                                discord.Embed(
-                                                    description=f'{support_prompt_text}\n{support_prompt_url}',
-                                                    color=0xF6C453,
-                                                )
-                                            )
-                                        send_kwargs = {'content': msg, 'view': view}
-                                        if fx_embeds:
-                                            send_kwargs['embeds'] = fx_embeds
-                                        await channel.send(**send_kwargs)
-                                    else:
-                                        footer = 'twitter.png' if presentation.effective.built_in_legacy_logo else 'x.png'
-                                        file = discord.File(f'images/{footer}', filename='footer.png')
-                                        embeds = await gen_embed(
-                                            tweet,
-                                            use_fx_image=presentation.effective.built_in_fx_image,
-                                            use_legacy_logo=presentation.effective.built_in_legacy_logo,
-                                        )
-                                        if support_prompt_url:
-                                            support_embed = discord.Embed(
-                                                description=f'{support_prompt_text}\n{support_prompt_url}',
-                                                color=0xF6C453,
-                                            )
-                                            embeds.append(support_embed)
-                                        await channel.send(
-                                            content=msg,
-                                            file=file,
-                                            embeds=embeds,
-                                            view=view,
-                                        )
-                                    await record_source_delivery_success(
-                                        self.db_path,
-                                        str(channel.guild.id),
-                                        username,
-                                        str(channel.id),
-                                        tweet.url,
-                                        alert_decision.matched_rule_name,
-                                        datetime.now(timezone.utc).isoformat(timespec='seconds'),
-                                    )
-                                except Exception as e:
-                                    if channel is not None:
-                                        await record_source_delivery_error(
-                                            self.db_path,
-                                            str(channel.guild.id),
-                                            username,
-                                            str(channel.id),
-                                            str(e),
-                                            datetime.now(timezone.utc).isoformat(timespec='seconds'),
-                                        )
-                                    if isinstance(e, discord.errors.Forbidden):
-                                        channel_label = channel.mention if channel is not None else f"channel {data['channel_id']}"
-                                        log.warning(
-                                            f'missing permission to send the full alert in {channel_label} for {username} using {client_used}: {e}'
-                                        )
-                                    else:
-                                        channel_label = channel.mention if channel is not None else f"channel {data['channel_id']}"
-                                        log.error(f'an error occurred at {channel_label} while sending notification: {e}')
+    def _is_permanent_delivery_error(self, error: Exception) -> bool:
+        if isinstance(error, (discord.NotFound, discord.Forbidden)):
+            return True
+        message = str(error).lower()
+        return (
+            'unknown channel' in message
+            or 'missing access' in message
+            or 'missing permissions' in message
+            or 'invalid form body' in message
+            or 'categorychannel' in message
+            or 'forumchannel' in message
+        )
 
     def _is_support_prompt_eligible(self, server_id: str, presentation_plan: str, channel_id: str) -> bool:
         is_managed_server = server_id in self.support_prompt_server_ids
@@ -629,6 +765,14 @@ class AccountTracker():
                     log.error(f"an unexpected error occurred, try again in {configs['tweets_updater_retry_delay']} minutes")
                 await asyncio.sleep(configs['tweets_updater_retry_delay'] * 60)
 
+    async def deliveryOutboxProcessor(self):
+        while True:
+            try:
+                await self.process_delivery_outbox()
+            except Exception as exc:
+                log.error(f'delivery outbox processor failure: {exc}')
+            await asyncio.sleep(self.delivery_outbox_poll_seconds)
+
     async def tasksMonitor(self):
         while True:
             await self._ensure_twitter_updaters()
@@ -680,6 +824,10 @@ class AccountTracker():
             for client in self.accounts_data.keys():
                 if f'TweetsUpdater_{client}' not in taskSet:
                     log.warning(f'tweets updater {client} : dead')
+
+            if 'DeliveryOutboxProcessor' not in taskSet:
+                self.bot.loop.create_task(self.deliveryOutboxProcessor()).set_name('DeliveryOutboxProcessor')
+                log.info('restarted delivery outbox processor')
 
             if (datetime.now(timezone.utc) - self.tasksMonitorLogAt).total_seconds() / 3600 >= configs['tasks_monitor_log_period']:
                 log.info(f'alive tasks : {list(aliveTasks)}')

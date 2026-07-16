@@ -21,8 +21,6 @@ from src.services.notifier_service import (
     SelfMonitoringSessionError,
     UserNotFoundError,
 )
-from src.utils import get_accounts
-
 log = setup_logger(__name__)
 
 

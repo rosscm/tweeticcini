@@ -2,6 +2,7 @@ import asyncio
 import os
 import secrets
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -54,10 +55,34 @@ from src.services.twitter_session_service import (
     TwitterSessionService,
     TwitterSessionValidationError,
 )
-from src.settings import get_accounts
 from src.versioning import get_app_version
 
 log = setup_logger(__name__)
+
+SESSION_SECRET_FALLBACK = 'tweeticcini-dashboard-dev-secret'
+INTERNAL_ADMIN_SECRET_HEADER = 'x-tweeticcini-admin-secret'
+
+
+@dataclass(frozen=True)
+class DashboardAuthSettings:
+    app_env: str
+    allow_unauthenticated_dashboard: bool
+    session_secret_configured: bool
+    oauth_client_id_configured: bool
+    oauth_client_secret_configured: bool
+    oauth_redirect_uri_configured: bool
+
+    @property
+    def oauth_complete(self) -> bool:
+        return (
+            self.oauth_client_id_configured
+            and self.oauth_client_secret_configured
+            and self.oauth_redirect_uri_configured
+        )
+
+    @property
+    def requires_discord_oauth(self) -> bool:
+        return not self.allow_unauthenticated_dashboard
 
 
 class AlertRuleResponse(BaseModel):
@@ -157,6 +182,39 @@ class UpdateGuildPresentationRequest(BaseModel):
     built_in_legacy_logo: bool = False
     fx_domain_name: str = 'fxtwitter'
     fx_original_url_button: bool = False
+
+
+def _is_truthy(value: Optional[str]) -> bool:
+    return str(value or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _get_dashboard_auth_settings() -> DashboardAuthSettings:
+    app_env = (os.getenv('APP_ENV') or 'production').strip().lower() or 'production'
+    if app_env not in {'production', 'development', 'test'}:
+        app_env = 'production'
+    allow_unauthenticated = _is_truthy(os.getenv('ALLOW_UNAUTHENTICATED_DASHBOARD'))
+    allow_unauthenticated = allow_unauthenticated and app_env in {'development', 'test'}
+    return DashboardAuthSettings(
+        app_env=app_env,
+        allow_unauthenticated_dashboard=allow_unauthenticated,
+        session_secret_configured=bool(os.getenv('DASHBOARD_SESSION_SECRET')),
+        oauth_client_id_configured=bool(os.getenv('DISCORD_CLIENT_ID')),
+        oauth_client_secret_configured=bool(os.getenv('DISCORD_CLIENT_SECRET')),
+        oauth_redirect_uri_configured=bool(os.getenv('DISCORD_REDIRECT_URI')),
+    )
+
+
+def _validate_dashboard_auth_settings() -> None:
+    settings = _get_dashboard_auth_settings()
+    if not settings.session_secret_configured and settings.app_env == 'production':
+        raise RuntimeError('dashboard session secret is required in production')
+    if settings.requires_discord_oauth and not settings.oauth_complete:
+        raise RuntimeError('discord oauth configuration is incomplete for dashboard access')
+
+
+def _dashboard_oauth_enabled() -> bool:
+    settings = _get_dashboard_auth_settings()
+    return settings.allow_unauthenticated_dashboard or settings.oauth_complete
 
 def _serialize_rule(rule: AlertRuleRecord) -> AlertRuleResponse:
     return AlertRuleResponse(
@@ -420,15 +478,13 @@ def _serialize_plan_usage(sources: list[DashboardSourceRecord], rules: list[Aler
 
 
 def _get_discord_oauth_config() -> Optional[dict[str, str]]:
-    client_id = os.getenv('DISCORD_CLIENT_ID')
-    client_secret = os.getenv('DISCORD_CLIENT_SECRET')
-    redirect_uri = os.getenv('DISCORD_REDIRECT_URI')
-    if not client_id or not client_secret or not redirect_uri:
+    settings = _get_dashboard_auth_settings()
+    if not settings.oauth_complete:
         return None
     return {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'redirect_uri': redirect_uri,
+        'client_id': str(os.getenv('DISCORD_CLIENT_ID')),
+        'client_secret': str(os.getenv('DISCORD_CLIENT_SECRET')),
+        'redirect_uri': str(os.getenv('DISCORD_REDIRECT_URI')),
     }
 
 
@@ -615,15 +671,41 @@ def _render_dashboard_access_denied(request: Request, guild_id: str) -> HTMLResp
 
 
 def _require_guild_access(request: Request, guild_id: str) -> None:
+    settings = _get_dashboard_auth_settings()
+    if settings.allow_unauthenticated_dashboard:
+        return
     oauth = _get_discord_oauth_config()
     if oauth is None:
-        return
+        raise HTTPException(status_code=503, detail='dashboard authentication is unavailable: discord oauth is not fully configured')
     user = _get_session_user(request)
     if user is None:
         raise HTTPException(status_code=401, detail='sign in with Discord to access this dashboard')
     guild_ids = {str(guild.get('id')) for guild in _get_session_guilds(request)}
     if guild_id not in guild_ids:
         raise HTTPException(status_code=403, detail='you do not have dashboard access to this server')
+
+
+def _require_internal_admin_access(request: Request, guild_id: str, action: str) -> None:
+    configured_secret = (os.getenv('DASHBOARD_INTERNAL_ADMIN_SECRET') or '').strip()
+    requester_id = str((_get_session_user(request) or {}).get('id') or 'anonymous')
+    if not configured_secret:
+        log.warning(
+            'blocked manual %s override for guild %s by %s because internal admin auth is not configured',
+            action,
+            guild_id,
+            requester_id,
+        )
+        raise HTTPException(status_code=404, detail='not found')
+
+    provided_secret = request.headers.get(INTERNAL_ADMIN_SECRET_HEADER, '').strip()
+    if not provided_secret or not secrets.compare_digest(provided_secret, configured_secret):
+        log.warning(
+            'blocked unauthorized manual %s override for guild %s by %s',
+            action,
+            guild_id,
+            requester_id,
+        )
+        raise HTTPException(status_code=403, detail='internal authorization required')
 
 
 async def _fetch_guild_resource_names(guild_id: str) -> dict[str, dict[str, str]]:
@@ -894,7 +976,6 @@ def _build_status_banner(
 
     delivery_client_keys = {session['client_key'] for session in delivery_sessions}
     relevant_client_statuses = [row for row in client_statuses if row['client_used'] in delivery_client_keys]
-    healthy_clients = [row for row in relevant_client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']]
     warning_clients = [row for row in relevant_client_statuses if row['last_poll_error_at']]
     recent_polling_activity = _has_recent_dashboard_activity(
         [row.get('last_poll_success_at') for row in relevant_client_statuses]
@@ -988,6 +1069,7 @@ def _build_status_banner(
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await ensure_db_schema()
+    _validate_dashboard_auth_settings()
     yield
 
 
@@ -1004,19 +1086,24 @@ GUILD_SECTIONS = {
 }
 
 
-app = FastAPI(
-    title='Tweeticcini Dashboard API',
-    version=get_app_version(),
-    lifespan=lifespan,
-)
+def create_app() -> FastAPI:
+    dashboard_app = FastAPI(
+        title='Tweeticcini Dashboard API',
+        version=get_app_version(),
+        lifespan=lifespan,
+    )
+    dashboard_app.add_middleware(
+        SessionMiddleware,
+        secret_key=os.getenv('DASHBOARD_SESSION_SECRET', SESSION_SECRET_FALLBACK),
+        same_site='lax',
+        https_only=_get_dashboard_auth_settings().app_env == 'production',
+    )
+    dashboard_app.mount('/dashboard/static', StaticFiles(directory=str(BASE_DIR / 'static')), name='dashboard_static')
+    return dashboard_app
+
+
+app = create_app()
 APP_VERSION = app.version
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv('DASHBOARD_SESSION_SECRET', 'tweeticcini-dashboard-dev-secret'),
-    same_site='lax',
-    https_only=False,
-)
-app.mount('/dashboard/static', StaticFiles(directory=str(BASE_DIR / 'static')), name='dashboard_static')
 
 alert_rule_service = AlertRuleService()
 notifier_service = NotifierService()
@@ -1091,7 +1178,7 @@ async def dashboard_home(request: Request):
             'support_server_url': _get_support_server_url(),
             'top_gg_vote_url': _get_top_gg_vote_url(),
             'buy_me_a_coffee_url': _get_buy_me_a_coffee_url(),
-            'oauth_enabled': _get_discord_oauth_config() is not None,
+            'oauth_enabled': _dashboard_oauth_enabled(),
             'discord_login_url': _build_discord_login_url(request, state),
             'discord_user': _get_session_user(request),
             'manageable_guilds': manageable_guilds,
@@ -1106,6 +1193,8 @@ async def dashboard_login(request: Request) -> RedirectResponse:
         request.session['pending_dashboard_guild_id'] = requested_guild_id
     state = secrets.token_urlsafe(24)
     request.session['discord_oauth_state'] = state
+    if _get_dashboard_auth_settings().allow_unauthenticated_dashboard:
+        return RedirectResponse(url='/dashboard')
     login_url = _build_discord_login_url(request, state)
     if login_url is None:
         raise HTTPException(status_code=503, detail='discord oauth is not configured')
@@ -1185,10 +1274,13 @@ async def dashboard_guild(request: Request, guild_id: str):
 
 
 async def _render_guild_dashboard(request: Request, guild_id: str, active_section: str) -> HTMLResponse:
-    if _get_discord_oauth_config() is not None and _get_session_user(request) is None:
+    settings = _get_dashboard_auth_settings()
+    if settings.allow_unauthenticated_dashboard:
+        pass
+    elif _get_session_user(request) is None:
         request.session['pending_dashboard_guild_id'] = guild_id
         return RedirectResponse(url=f'/dashboard/login?guild_id={guild_id}')
-    if _get_discord_oauth_config() is not None:
+    elif _get_discord_oauth_config() is not None:
         guild_ids = {str(guild.get('id')) for guild in _get_session_guilds(request)}
         if guild_id not in guild_ids:
             return _render_dashboard_access_denied(request, guild_id)
@@ -1426,7 +1518,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                     'monitors_ready': onboarding_monitors_ready,
                 },
                 'health': {
-                    'oauth_enabled': _get_discord_oauth_config() is not None,
+                    'oauth_enabled': _dashboard_oauth_enabled(),
                     'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
                     'twitter_session_count': len(twitter_sessions),
                     'healthy_twitter_session_count': sum(
@@ -1530,7 +1622,7 @@ async def healthcheck() -> dict[str, object]:
     return {
         'status': status,
         'issues': issues,
-        'oauth_enabled': _get_discord_oauth_config() is not None,
+        'oauth_enabled': _dashboard_oauth_enabled(),
         'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
         'twitter_session_count': twitter_session_count,
         'healthy_twitter_session_count': sum(1 for row in client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']),
@@ -1674,6 +1766,7 @@ async def get_guild_presentation(request: Request, guild_id: str) -> dict[str, o
 @app.put('/guilds/{guild_id}/plan')
 async def update_guild_plan(request: Request, guild_id: str, plan_request: UpdateGuildPlanRequest) -> dict[str, object]:
     _require_guild_access(request, guild_id)
+    _require_internal_admin_access(request, guild_id, 'plan')
     override_plan = None if plan_request.clear_override else plan_request.plan
     return _serialize_guild_presentation(await guild_settings_service.set_plan_override(guild_id, override_plan))
 
@@ -1685,6 +1778,7 @@ async def update_guild_entitlement(
     entitlement_request: UpdateGuildEntitlementRequest,
 ) -> dict[str, object]:
     _require_guild_access(request, guild_id)
+    _require_internal_admin_access(request, guild_id, 'entitlement')
     return _serialize_guild_presentation(
         await guild_settings_service.set_subscription_entitlement(
             server_id=guild_id,

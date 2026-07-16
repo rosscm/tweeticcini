@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 from datetime import datetime, timezone
 
 import aiosqlite
@@ -25,7 +24,6 @@ log = setup_logger(__name__)
 load_dotenv()
 
 intents = discord.Intents(guilds=True, messages=True, emojis=True)
-bot = commands.Bot(command_prefix=configs['prefix'], intents=intents)
 DEFAULT_COGS = ['dashboard', 'about', 'notification']
 account_tracker = None
 
@@ -43,52 +41,61 @@ async def _persist_connected_server_count() -> None:
         await db.commit()
 
 
+class TweeticciniBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix=configs['prefix'], intents=intents)
+        self._startup_complete = False
+
+    async def setup_hook(self):
+        global account_tracker
+        if self._startup_complete:
+            return
+
+        await ensure_db_schema()
+        check_upgrade()
+
+        if not check_env():
+            raise RuntimeError('incomplete environment variables detected')
+
+        if not check_configs(configs):
+            raise RuntimeError('incomplete configs file detected')
+
+        invalid_clients = await check_db()
+        if invalid_clients:
+            log.warning('detected environment variable undefined client name in database')
+            if configs['auto_repair_mismatched_clients']:
+                await auto_repair_mismatched_clients(invalid_clients)
+                log.info('automatically replaced mismatched client names with the first configured client name')
+            else:
+                log.warning('set auto_repair_mismatched_clients to true in configs to automatically fix this error or manually update the database or environment variables')
+        else:
+            log.info('database check passed')
+
+        self.tree.on_error = on_tree_error
+        for cog_name in DEFAULT_COGS:
+            if f'cogs.{cog_name}' not in self.extensions:
+                await self.load_extension(f'cogs.{cog_name}')
+
+        if account_tracker is None:
+            account_tracker = AccountTracker(self)
+
+        slash = await self.tree.sync()
+        log.info(f'synced {len(slash)} slash commands')
+        self._startup_complete = True
+
+
+bot = TweeticciniBot()
+
+
 @bot.event
 async def on_ready():
-    global account_tracker
-    await ensure_db_schema()
-        
-    check_upgrade()
-        
-    if not check_env():
-        log.warning('incomplete environment variables detected, will retry in 30 seconds')
-        await asyncio.sleep(30)
-        load_dotenv()
-        
-    if not check_configs(configs):
-        log.warning('incomplete configs file detected, will retry in 30 seconds')
-        await asyncio.sleep(30)
-        os.execv(sys.executable, ['python'] + sys.argv)
-        
-    invalid_clients = await check_db()
-    if invalid_clients:
-        log.warning('detected environment variable undefined client name in database')
-        if configs['auto_repair_mismatched_clients']:
-            await auto_repair_mismatched_clients(invalid_clients)
-            log.info('automatically replace mismatched client names with the first client name in the environment variable, use the sync slash command in discord to ensure notifications are turned on')
-        else:
-            log.warning('set auto_repair_mismatched_clients to true in configs to automatically fix this error or manually update the database or environment variables')
-    else:
-        log.info('database check passed')
-
-    if account_tracker is None:
-        account_tracker = AccountTracker(bot)
-
+    log.info(f'{bot.user} is online')
     await mark_bot_runtime_recovered(
         get_db_path(),
         datetime.now(timezone.utc).isoformat(timespec='seconds'),
     )
     await _persist_connected_server_count()
-
     await update_presence(bot)
-
-    bot.tree.on_error = on_tree_error
-
-    for cog_name in DEFAULT_COGS:
-        await bot.load_extension(f'cogs.{cog_name}')
-    log.info(f'{bot.user} is online')
-    slash = await bot.tree.sync()
-    log.info(f'synced {len(slash)} slash commands')
 
 
 @bot.event
