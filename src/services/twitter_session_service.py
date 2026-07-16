@@ -146,7 +146,7 @@ class TwitterSessionService:
 
     async def list_all_active_client_keys(self) -> set[str]:
         rows = await list_active_server_twitter_sessions(self.db_path)
-        return {str(row['client_key']) for row in rows if bool(row['is_active'])}
+        return {str(row['client_key']) for row in rows}
 
     async def server_has_delivery_session(self, server_id: str) -> bool:
         return bool(await list_server_twitter_session_keys(self.db_path, server_id))

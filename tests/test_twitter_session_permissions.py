@@ -3,6 +3,7 @@ import stat
 
 import pytest
 
+import src.services.twitter_session_service as twitter_session_service_module
 from src.services.twitter_session_service import TwitterSessionService
 from src.settings import get_twitter_session_dir, get_twitter_session_path
 
@@ -29,3 +30,22 @@ def test_session_files_are_written_atomically_with_restricted_permissions(monkey
         assert file_mode == 0o600
     else:
         pytest.skip('POSIX permission bits are not supported on this platform')
+
+
+@pytest.mark.asyncio
+async def test_list_all_active_client_keys_accepts_repository_rows_without_is_active(monkeypatch):
+    async def fake_list_active_server_twitter_sessions(_db_path):
+        return [
+            {'client_key': 'client-a'},
+            {'client_key': 'client-b'},
+        ]
+
+    monkeypatch.setattr(
+        twitter_session_service_module,
+        'list_active_server_twitter_sessions',
+        fake_list_active_server_twitter_sessions,
+    )
+
+    keys = await TwitterSessionService().list_all_active_client_keys()
+
+    assert keys == {'client-a', 'client-b'}
