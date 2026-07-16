@@ -142,7 +142,8 @@ async def ensure_db_schema() -> str:
             CREATE TABLE IF NOT EXISTS guild_onboarding_state (
                 server_id TEXT PRIMARY KEY,
                 onboarding_sent_at TEXT DEFAULT NULL,
-                test_alert_sent_at TEXT DEFAULT NULL
+                test_alert_sent_at TEXT DEFAULT NULL,
+                requires_test_alert_step INTEGER DEFAULT NULL
             );
             CREATE TABLE IF NOT EXISTS bot_runtime_health (
                 singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
@@ -250,6 +251,49 @@ async def ensure_db_schema() -> str:
         if 'test_alert_sent_at' not in onboarding_columns:
             await db.execute('ALTER TABLE guild_onboarding_state ADD COLUMN test_alert_sent_at TEXT DEFAULT NULL')
             log.info('added missing guild_onboarding_state.test_alert_sent_at column')
+        if 'requires_test_alert_step' not in onboarding_columns:
+            await db.execute('ALTER TABLE guild_onboarding_state ADD COLUMN requires_test_alert_step INTEGER DEFAULT NULL')
+            log.info('added missing guild_onboarding_state.requires_test_alert_step column')
+
+        await db.execute(
+            '''
+            INSERT OR IGNORE INTO guild_onboarding_state (
+                server_id,
+                onboarding_sent_at,
+                onboarding_dismissed,
+                test_alert_sent_at,
+                requires_test_alert_step
+            )
+            SELECT
+                existing_guilds.server_id,
+                NULL,
+                0,
+                NULL,
+                0
+            FROM (
+                SELECT DISTINCT server_id FROM channel
+                UNION
+                SELECT DISTINCT server_id FROM server_twitter_session
+                UNION
+                SELECT DISTINCT server_id FROM guild_settings
+                UNION
+                SELECT DISTINCT server_id FROM guild_entitlement
+                UNION
+                SELECT DISTINCT server_id FROM guild_plan_grandfather
+                UNION
+                SELECT DISTINCT server_id FROM guild_onboarding_state
+            ) AS existing_guilds
+            WHERE existing_guilds.server_id IS NOT NULL
+              AND existing_guilds.server_id != ''
+            '''
+        )
+        await db.execute(
+            '''
+            UPDATE guild_onboarding_state
+            SET requires_test_alert_step = 0
+            WHERE requires_test_alert_step IS NULL
+            '''
+        )
 
         async with db.execute("PRAGMA table_info(delivery_outbox)") as cursor:
             outbox_columns = {row[1] async for row in cursor}

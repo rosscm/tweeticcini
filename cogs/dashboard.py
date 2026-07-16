@@ -46,7 +46,7 @@ def _get_buy_me_a_coffee_url() -> Optional[str]:
 
 class Dashboard(Cog_Extension):
     @app_commands.default_permissions(administrator=True)
-    @app_commands.command(name='dashboard', description='Get a link to the configuration dashboard')
+    @app_commands.command(name='dashboard', description='Open the dashboard to choose a server and manage Tweeticcini')
     async def dashboard(self, itn: discord.Interaction):
         base_url = _get_dashboard_base_url()
         if not base_url:
@@ -69,7 +69,7 @@ class Dashboard(Cog_Extension):
 
         await itn.response.send_message(ephemeral=True, view=view)
 
-    @app_commands.command(name='vote', description='Legacy support shortcut: get the top.gg vote link')
+    @app_commands.command(name='vote', description='Legacy support shortcut: vote for Tweeticcini on Top.gg')
     async def vote(self, itn: discord.Interaction):
         vote_url = _get_top_gg_vote_url()
         if not vote_url:
@@ -80,9 +80,9 @@ class Dashboard(Cog_Extension):
             return
 
         view = discord.ui.View()
-        view.add_item(discord.ui.Button(label='Vote on top.gg', url=vote_url))
+        view.add_item(discord.ui.Button(label='Vote on Top.gg', url=vote_url))
         await itn.response.send_message(
-            'If Tweeticcini has been useful to your server, voting on top.gg is a nice way to support it.',
+            'Vote for Tweeticcini on Top.gg to help more communities discover it.',
             ephemeral=True,
             view=view,
         )

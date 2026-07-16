@@ -84,9 +84,9 @@
             {% if discord_user %}
             <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
             {% endif %}
-            <a class="ghost-link" href="/dashboard">Change Server</a>
+            <a class="ghost-link" href="/dashboard">Choose a Server</a>
             {% if public_site_url %}
-            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Learn More</a>
+            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Open Website</a>
             {% endif %}
           </section>
 
@@ -218,9 +218,9 @@
           {% if discord_user %}
           <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
           {% endif %}
-          <a class="ghost-link" href="/dashboard">Change Server</a>
+          <a class="ghost-link" href="/dashboard">Choose a Server</a>
           {% if public_site_url %}
-          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Learn More</a>
+          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Open Website</a>
           {% endif %}
         </div>
       </aside>
@@ -273,24 +273,28 @@
 
         {% if overview.get('onboarding', {}).get('show') %}
         <section class="notice notice--warning onboarding-banner">
-          {% set onboarding_steps_done = (1 if overview.get('onboarding', {}).get('sessions_ready') else 0) + (1 if overview.get('onboarding', {}).get('monitors_ready') else 0) + (1 if overview.get('onboarding', {}).get('test_alert_ready') else 0) %}
+          {% set onboarding_requires_test_alert = overview.get('onboarding', {}).get('test_alert_required') %}
+          {% set onboarding_step_total = 3 if onboarding_requires_test_alert else 2 %}
+          {% set onboarding_steps_done = (1 if overview.get('onboarding', {}).get('sessions_ready') else 0) + (1 if overview.get('onboarding', {}).get('monitors_ready') else 0) + ((1 if overview.get('onboarding', {}).get('test_alert_ready') else 0) if onboarding_requires_test_alert else 0) %}
           <div class="onboarding-banner-head">
             <strong>{{ 'Setup complete:' if overview.get('onboarding', {}).get('completed') else 'Start here:' }}</strong>
             {{ 'this server has finished the first-time setup flow.' if overview.get('onboarding', {}).get('completed') else 'finish the first-time setup flow for this server' }}
-            <span class="entity-meta">({{ onboarding_steps_done }}/3 steps completed)</span>.
+            <span class="entity-meta">({{ onboarding_steps_done }}/{{ onboarding_step_total }} steps completed)</span>.
           </div>
           <div class="status-detail-list onboarding-status-tags">
             <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('sessions_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
-              {{ 'Sessions connected' if overview.get('onboarding', {}).get('sessions_ready') else 'Connect a session' }}
+              {{ 'Twitter/X session connected' if overview.get('onboarding', {}).get('sessions_ready') else 'Connect Twitter/X Session' }}
             </a>
             <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('monitors_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
-              {{ 'Monitor added' if overview.get('onboarding', {}).get('monitors_ready') else 'Add your first monitor' }}
+              {{ 'Monitor added' if overview.get('onboarding', {}).get('monitors_ready') else 'Add Monitor' }}
             </a>
+            {% if onboarding_requires_test_alert %}
             <span class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('test_alert_ready') else 'tag--warning' }}">
-              {{ 'Test alert sent' if overview.get('onboarding', {}).get('test_alert_ready') else 'Send a test alert' }}
+              {{ 'Test alert sent' if overview.get('onboarding', {}).get('test_alert_ready') else 'Send Test Alert' }}
             </span>
+            {% endif %}
           </div>
-          {% if overview.get('onboarding', {}).get('monitors_ready') and overview.get('onboarding', {}).get('test_source') and not overview.get('onboarding', {}).get('test_alert_ready') %}
+          {% if onboarding_requires_test_alert and overview.get('onboarding', {}).get('monitors_ready') and overview.get('onboarding', {}).get('test_source') and not overview.get('onboarding', {}).get('test_alert_ready') %}
           <div class="actions onboarding-actions">
             <button
               type="button"
@@ -300,14 +304,14 @@
               data-channel-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_id') }}"
               data-role-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('role_id') or '' }}"
             >
-              Send test alert
+              Send Test Alert
             </button>
-            <a class="ghost-link" href="/dashboard/guilds/{{ guild_id }}/sources">Review monitor</a>
+            <a class="ghost-link" href="/dashboard/guilds/{{ guild_id }}/sources">Review Monitor</a>
           </div>
           <div class="field-help field-help--body onboarding-help">
             Sends a non-pinging preview using the <strong>@{{ overview.get('onboarding', {}).get('test_source', {}).get('username') }}</strong> monitor into <strong>#{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_name') }}</strong> so you can confirm channel access and formatting safely.
           </div>
-          {% elif overview.get('onboarding', {}).get('test_alert_ready') and overview.get('onboarding', {}).get('test_alert_sent_at') %}
+          {% elif onboarding_requires_test_alert and overview.get('onboarding', {}).get('test_alert_ready') and overview.get('onboarding', {}).get('test_alert_sent_at') %}
           <div class="field-help field-help--body onboarding-help">
             Last successful test alert: <strong>{{ overview.get('onboarding', {}).get('test_alert_sent_at') }}</strong>.
           </div>
@@ -1198,10 +1202,10 @@
           <a class="dashboard-footer-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Website</a>
           {% endif %}
           {% if top_gg_vote_url %}
-          <a class="dashboard-footer-link" href="{{ top_gg_vote_url }}" target="_blank" rel="noreferrer">Vote on top.gg</a>
+          <a class="dashboard-footer-link" href="{{ top_gg_vote_url }}" target="_blank" rel="noreferrer">Vote on Top.gg</a>
           {% endif %}
           {% if support_server_url %}
-          <a class="dashboard-footer-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">Support Server</a>
+          <a class="dashboard-footer-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">Join Support Server</a>
           {% endif %}
           {% if buy_me_a_coffee_url %}
           <a class="dashboard-footer-link" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy Me a Coffee</a>

@@ -23,6 +23,8 @@ from src.db_function.readonly_db import connect_readonly
 from src.log import get_log_path, setup_logger
 from src.notification.account_tracker import build_headline_notification_message, build_notification_message
 from src.repositories.guild_onboarding_repository import (
+    ensure_onboarding_state,
+    get_requires_test_alert_step,
     get_test_alert_sent_at,
     is_onboarding_dismissed,
     mark_test_alert_sent,
@@ -970,6 +972,16 @@ def _filter_active_runtime_client_statuses(
     return [row for row in client_statuses if str(row.get('client_used')) in active_client_keys]
 
 
+def _is_onboarding_complete(
+    *,
+    sessions_ready: bool,
+    monitors_ready: bool,
+    test_alert_required: bool,
+    test_alert_ready: bool,
+) -> bool:
+    return sessions_ready and monitors_ready and (test_alert_ready or not test_alert_required)
+
+
 def _build_status_banner(
     delivery_sessions: list[dict[str, str]],
     usage: dict[str, int],
@@ -1461,9 +1473,23 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     ]
     onboarding_sessions_ready = not delivery_sessions_required
     onboarding_monitors_ready = usage['source_count'] > 0
+    onboarding_requires_test_alert = await get_requires_test_alert_step(notifier_service.db_path, guild_id)
+    if onboarding_requires_test_alert is None:
+        await ensure_onboarding_state(
+            notifier_service.db_path,
+            guild_id,
+            requires_test_alert_step=True,
+        )
+        onboarding_requires_test_alert = True
+
     onboarding_test_alert_sent_at = await get_test_alert_sent_at(notifier_service.db_path, guild_id)
     onboarding_test_alert_ready = bool(onboarding_test_alert_sent_at)
-    onboarding_completed = onboarding_sessions_ready and onboarding_monitors_ready and onboarding_test_alert_ready
+    onboarding_completed = _is_onboarding_complete(
+        sessions_ready=onboarding_sessions_ready,
+        monitors_ready=onboarding_monitors_ready,
+        test_alert_required=onboarding_requires_test_alert,
+        test_alert_ready=onboarding_test_alert_ready,
+    )
     onboarding_dismissed = await is_onboarding_dismissed(notifier_service.db_path, guild_id)
     onboarding_show = True if not onboarding_completed else not onboarding_dismissed
     onboarding_test_source = None
@@ -1589,6 +1615,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                     'sessions_ready': onboarding_sessions_ready,
                     'monitors_ready': onboarding_monitors_ready,
                     'test_alert_ready': onboarding_test_alert_ready,
+                    'test_alert_required': onboarding_requires_test_alert,
                     'test_alert_sent_at': _format_dashboard_timestamp(onboarding_test_alert_sent_at) or onboarding_test_alert_sent_at,
                     'test_source': onboarding_test_source,
                 },

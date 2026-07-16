@@ -26,9 +26,25 @@ def _build_about_view(
     if dashboard_url:
         view.add_item(discord.ui.Button(label='Open Dashboard', url=dashboard_url))
     if billing_url:
-        view.add_item(discord.ui.Button(label='Manage Plan or Upgrade', url=billing_url))
+        view.add_item(discord.ui.Button(label='Manage Plan', url=billing_url))
     if support_server_url:
-        view.add_item(discord.ui.Button(label='Support', url=support_server_url))
+        view.add_item(discord.ui.Button(label='Join Support Server', url=support_server_url))
+    return view
+
+
+def _add_support_buttons(
+    view: discord.ui.View,
+    *,
+    support_server_url: str | None,
+    vote_url: str | None,
+    support_url: str | None,
+) -> discord.ui.View:
+    if support_server_url:
+        view.add_item(discord.ui.Button(label='Join Support Server', url=support_server_url))
+    if vote_url:
+        view.add_item(discord.ui.Button(label='Vote on Top.gg', url=vote_url))
+    if support_url:
+        view.add_item(discord.ui.Button(label='Buy Me a Coffee', url=support_url))
     return view
 
 
@@ -41,14 +57,12 @@ def _build_support_view(
     if not support_server_url and not vote_url and not support_url:
         return None
 
-    view = discord.ui.View()
-    if support_server_url:
-        view.add_item(discord.ui.Button(label='Support Server', url=support_server_url))
-    if vote_url:
-        view.add_item(discord.ui.Button(label='Vote on top.gg', url=vote_url))
-    if support_url:
-        view.add_item(discord.ui.Button(label='Buy Me a Coffee', url=support_url))
-    return view
+    return _add_support_buttons(
+        discord.ui.View(),
+        support_server_url=support_server_url,
+        vote_url=vote_url,
+        support_url=support_url,
+    )
 
 
 class About(Cog_Extension):
@@ -155,6 +169,8 @@ class About(Cog_Extension):
 
         base_url = _get_dashboard_base_url()
         support_server_url = os.getenv('SUPPORT_SERVER_URL', '').strip()
+        vote_url = _get_top_gg_vote_url()
+        support_url = _get_buy_me_a_coffee_url()
         dashboard_url = f'{base_url}/dashboard?guild_id={itn.guild_id}' if base_url else None
         billing_url = f'{base_url}/dashboard/guilds/{itn.guild_id}/billing' if base_url else None
         view = _build_about_view(
@@ -162,6 +178,13 @@ class About(Cog_Extension):
             billing_url=billing_url,
             support_server_url=support_server_url or None,
         )
+        if view is not None:
+            view = _add_support_buttons(
+                view,
+                support_server_url=None,
+                vote_url=vote_url,
+                support_url=support_url,
+            )
 
         await itn.followup.send(embed=embed, view=view, ephemeral=True)
 
@@ -180,7 +203,7 @@ class About(Cog_Extension):
             return
 
         await itn.response.send_message(
-            'Support the project, vote, or open the support server from here.',
+            'Tweeticcini is independently maintained by one developer. Join the support server, vote on Top.gg, or chip in directly from here.',
             ephemeral=True,
             view=view,
         )

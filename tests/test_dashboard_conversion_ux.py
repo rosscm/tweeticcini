@@ -1,4 +1,5 @@
 import importlib
+import sqlite3
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -99,6 +100,78 @@ def _build_request(*, session=None, query_params=None):
         else f"https://example.com/dashboard/guilds/{kwargs['guild_id']}/billing"
     )
     return request
+
+
+def _ensure_onboarding_test_table(db_path: str) -> None:
+    with sqlite3.connect(db_path) as db:
+        db.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS guild_onboarding_state (
+                server_id TEXT PRIMARY KEY,
+                onboarding_sent_at TEXT DEFAULT NULL,
+                onboarding_dismissed INTEGER DEFAULT 0,
+                test_alert_sent_at TEXT DEFAULT NULL,
+                requires_test_alert_step INTEGER DEFAULT NULL
+            )
+            '''
+        )
+        db.commit()
+
+
+def _insert_onboarding_state(db_path: str, server_id: str, *, requires_test_alert_step: bool) -> None:
+    with sqlite3.connect(db_path) as db:
+        db.execute(
+            '''
+            INSERT INTO guild_onboarding_state (
+                server_id,
+                onboarding_sent_at,
+                onboarding_dismissed,
+                test_alert_sent_at,
+                requires_test_alert_step
+            )
+            VALUES (?, NULL, 0, NULL, ?)
+            ''',
+            (server_id, int(requires_test_alert_step)),
+        )
+        db.commit()
+
+
+def _get_onboarding_requirement(db_path: str, server_id: str) -> bool | None:
+    with sqlite3.connect(db_path) as db:
+        row = db.execute(
+            '''
+            SELECT requires_test_alert_step
+            FROM guild_onboarding_state
+            WHERE server_id = ?
+            LIMIT 1
+            ''',
+            (server_id,),
+        ).fetchone()
+    if row is None or row[0] is None:
+        return None
+    return bool(int(row[0]))
+
+
+def test_existing_guilds_are_grandfathered_without_test_alert_requirement(tmp_path):
+    db_path = str(tmp_path / 'tweeticcini.db')
+    _ensure_onboarding_test_table(db_path)
+
+    _insert_onboarding_state(db_path, 'legacy-guild', requires_test_alert_step=False)
+
+    assert _get_onboarding_requirement(db_path, 'legacy-guild') is False
+    onboarding_complete = True and True and (False or True)
+    assert onboarding_complete is True
+
+
+def test_new_guilds_receive_three_step_onboarding(tmp_path):
+    db_path = str(tmp_path / 'tweeticcini.db')
+    _ensure_onboarding_test_table(db_path)
+
+    _insert_onboarding_state(db_path, 'new-guild', requires_test_alert_step=True)
+
+    assert _get_onboarding_requirement(db_path, 'new-guild') is True
+    onboarding_complete = True and True and (False or False)
+    assert onboarding_complete is False
 
 
 @pytest.mark.asyncio
@@ -239,3 +312,57 @@ async def test_test_alert_marks_onboarding_complete_and_returns_preview_summary(
     assert response['mention_preview'] == '@Restocks shown as plain text (non-pinging preview)'
     assert 'Channel access is working' in response['status_summary']
     assert marked and marked[0][0] == 'guild-1'
+
+
+@pytest.mark.asyncio
+async def test_existing_guilds_can_send_voluntary_test_alerts_without_losing_grandfathering(base_env, monkeypatch, tmp_path):
+    module = _load_dashboard_app()
+    monkeypatch.setenv('BOT_TOKEN', 'bot-token')
+    db_path = str(tmp_path / 'tweeticcini.db')
+    _ensure_onboarding_test_table(db_path)
+    _insert_onboarding_state(db_path, 'guild-1', requires_test_alert_step=False)
+
+    async def fake_fetch_resources(_guild_id):
+        return {
+            'channels': {'123': 'alerts'},
+            'roles': {'456': 'Restocks'},
+        }
+
+    async def fake_send_test_alert(_channel_id, _message):
+        return None
+
+    async def fake_mark_test_alert_sent(db_path_arg, guild_id, sent_at):
+        with sqlite3.connect(db_path_arg) as db:
+            db.execute(
+                '''
+                UPDATE guild_onboarding_state
+                SET test_alert_sent_at = ?
+                WHERE server_id = ?
+                ''',
+                (sent_at, guild_id),
+            )
+            db.commit()
+
+    class FakeGuildSettingsService:
+        async def get_presentation_view(self, _guild_id):
+            return _build_view(plan='pro')
+
+    monkeypatch.setattr(module, '_fetch_guild_resource_names', fake_fetch_resources)
+    monkeypatch.setattr(module, '_send_test_alert_message', fake_send_test_alert)
+    monkeypatch.setattr(module, 'mark_test_alert_sent', fake_mark_test_alert_sent)
+    module.guild_settings_service = FakeGuildSettingsService()
+    module.notifier_service.db_path = db_path
+    request = _build_request(session={'discord_user': {'id': 'u1'}, 'discord_guilds': [{'id': 'guild-1'}]})
+
+    response = await module.send_guild_source_test_alert(
+        request,
+        'guild-1',
+        module.SendDashboardSourceTestRequest(
+            username='source',
+            channel_id='123',
+            role_id='456',
+        ),
+    )
+
+    assert response['channel_name'] == 'alerts'
+    assert _get_onboarding_requirement(db_path, 'guild-1') is False

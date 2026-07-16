@@ -11,8 +11,8 @@ def test_about_view_focuses_on_management_actions():
     assert view is not None
     assert [item.label for item in view.children] == [
         'Open Dashboard',
-        'Manage Plan or Upgrade',
-        'Support',
+        'Manage Plan',
+        'Join Support Server',
     ]
 
 
@@ -25,7 +25,7 @@ def test_support_view_contains_vote_and_donation_links():
 
     assert view is not None
     assert [item.label for item in view.children] == [
-        'Support Server',
-        'Vote on top.gg',
+        'Join Support Server',
+        'Vote on Top.gg',
         'Buy Me a Coffee',
     ]
