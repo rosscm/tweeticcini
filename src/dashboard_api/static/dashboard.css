@@ -955,7 +955,7 @@ h2 {
   display: block;
   margin-top: 8px;
   font-size: 0.98rem;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .default-block {
@@ -1189,6 +1189,14 @@ h2 {
 
 .onboarding-banner-head {
   margin-bottom: 4px;
+}
+
+.onboarding-actions {
+  margin-top: 14px;
+}
+
+.onboarding-help {
+  margin-top: 10px;
 }
 
 .onboarding-dismiss-button {
@@ -1630,6 +1638,18 @@ button:hover,
   background: var(--accent-deep);
 }
 
+button:focus-visible,
+.button-secondary:focus-visible,
+.ghost-link:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
 .button-secondary,
 .ghost-link {
   background: rgba(255, 255, 255, 0.04);
@@ -1996,9 +2016,13 @@ code {
     order: 1;
   }
 
+  .onboarding-actions {
+    order: 2;
+  }
+
   .onboarding-dismiss-button {
     position: static;
-    order: 2;
+    order: 3;
     margin-top: 10px;
   }
 
@@ -2100,5 +2124,15 @@ code {
 @media (max-width: 560px) {
   .plan-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

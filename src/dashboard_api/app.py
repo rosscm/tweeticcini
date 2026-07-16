@@ -23,7 +23,9 @@ from src.db_function.readonly_db import connect_readonly
 from src.log import get_log_path, setup_logger
 from src.notification.account_tracker import build_headline_notification_message, build_notification_message
 from src.repositories.guild_onboarding_repository import (
+    get_test_alert_sent_at,
     is_onboarding_dismissed,
+    mark_test_alert_sent,
     set_onboarding_dismissed,
 )
 from src.repositories.bot_runtime_health_repository import get_bot_runtime_health
@@ -61,6 +63,7 @@ log = setup_logger(__name__)
 
 SESSION_SECRET_FALLBACK = 'tweeticcini-dashboard-dev-secret'
 INTERNAL_ADMIN_SECRET_HEADER = 'x-tweeticcini-admin-secret'
+BILLING_PLAN_CHOICES = {'plus', 'pro'}
 
 
 @dataclass(frozen=True)
@@ -651,6 +654,13 @@ def _get_session_guild_icon_url(request: Request, guild_id: str) -> Optional[str
     return None
 
 
+def _normalize_requested_plan(value: Optional[str]) -> Optional[str]:
+    normalized = str(value or '').strip().lower()
+    if normalized in BILLING_PLAN_CHOICES:
+        return normalized
+    return None
+
+
 def _render_dashboard_access_denied(request: Request, guild_id: str) -> HTMLResponse:
     return templates.TemplateResponse(
         request=request,
@@ -1191,9 +1201,14 @@ async def public_stats() -> JSONResponse:
 @app.get('/dashboard', response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_home(request: Request):
     requested_guild_id = request.query_params.get('guild_id')
+    requested_plan = _normalize_requested_plan(request.query_params.get('plan'))
+    if requested_plan:
+        request.session['pending_billing_plan'] = requested_plan
     if requested_guild_id:
         request.session['pending_dashboard_guild_id'] = requested_guild_id
         if requested_guild_id in {str(guild.get('id')) for guild in _get_session_guilds(request)}:
+            if requested_plan:
+                return RedirectResponse(url=f'/dashboard/guilds/{requested_guild_id}/billing?plan={requested_plan}')
             return RedirectResponse(url=f'/dashboard/guilds/{requested_guild_id}/overview')
 
     manageable_guilds = _get_session_guilds(request)
@@ -1218,6 +1233,7 @@ async def dashboard_home(request: Request):
             'discord_login_url': _build_discord_login_url(request, state),
             'discord_user': _get_session_user(request),
             'manageable_guilds': manageable_guilds,
+            'pending_plan': request.session.get('pending_billing_plan'),
         },
     )
 
@@ -1225,8 +1241,11 @@ async def dashboard_home(request: Request):
 @app.get('/dashboard/login', include_in_schema=False)
 async def dashboard_login(request: Request) -> RedirectResponse:
     requested_guild_id = request.query_params.get('guild_id')
+    requested_plan = _normalize_requested_plan(request.query_params.get('plan'))
     if requested_guild_id:
         request.session['pending_dashboard_guild_id'] = requested_guild_id
+    if requested_plan:
+        request.session['pending_billing_plan'] = requested_plan
     state = secrets.token_urlsafe(24)
     request.session['discord_oauth_state'] = state
     if _get_dashboard_auth_settings().allow_unauthenticated_dashboard:
@@ -1293,7 +1312,10 @@ async def dashboard_callback(request: Request, code: str, state: str) -> Redirec
         for guild in manageable_guilds
     ]
     pending_guild_id = request.session.pop('pending_dashboard_guild_id', None)
+    pending_plan = _normalize_requested_plan(request.session.get('pending_billing_plan'))
     if pending_guild_id and pending_guild_id in {str(guild.get('id')) for guild in manageable_guilds}:
+        if pending_plan:
+            return RedirectResponse(url=f'/dashboard/guilds/{pending_guild_id}/billing?plan={pending_plan}')
         return RedirectResponse(url=f'/dashboard/guilds/{pending_guild_id}/overview')
     return RedirectResponse(url='/dashboard')
 
@@ -1439,9 +1461,23 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
     ]
     onboarding_sessions_ready = not delivery_sessions_required
     onboarding_monitors_ready = usage['source_count'] > 0
-    onboarding_completed = onboarding_sessions_ready and onboarding_monitors_ready
+    onboarding_test_alert_sent_at = await get_test_alert_sent_at(notifier_service.db_path, guild_id)
+    onboarding_test_alert_ready = bool(onboarding_test_alert_sent_at)
+    onboarding_completed = onboarding_sessions_ready and onboarding_monitors_ready and onboarding_test_alert_ready
     onboarding_dismissed = await is_onboarding_dismissed(notifier_service.db_path, guild_id)
     onboarding_show = True if not onboarding_completed else not onboarding_dismissed
+    onboarding_test_source = None
+    if sources_payload:
+        first_source = sources_payload[0]
+        onboarding_test_source = {
+            'username': first_source['username'],
+            'channel_id': first_source['channel_id'],
+            'channel_name': resource_names['channels'].get(first_source['channel_id'], first_source['channel_id']),
+            'role_id': first_source['role_id'],
+        }
+    selected_checkout_plan = _normalize_requested_plan(request.query_params.get('plan')) or _normalize_requested_plan(
+        request.session.get('pending_billing_plan')
+    )
     bot_runtime_health = await get_bot_runtime_health(notifier_service.db_path)
     bot_runtime_issue = None
     if bot_runtime_health and bot_runtime_health.get('state') == 'error':
@@ -1552,6 +1588,9 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                     'dismissed': onboarding_dismissed,
                     'sessions_ready': onboarding_sessions_ready,
                     'monitors_ready': onboarding_monitors_ready,
+                    'test_alert_ready': onboarding_test_alert_ready,
+                    'test_alert_sent_at': _format_dashboard_timestamp(onboarding_test_alert_sent_at) or onboarding_test_alert_sent_at,
+                    'test_source': onboarding_test_source,
                 },
                 'health': {
                     'oauth_enabled': _dashboard_oauth_enabled(),
@@ -1579,6 +1618,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'support_server_url': _get_support_server_url(),
             'top_gg_vote_url': _get_top_gg_vote_url(),
             'buy_me_a_coffee_url': _get_buy_me_a_coffee_url(),
+            'selected_checkout_plan': selected_checkout_plan,
         },
     )
 
@@ -1789,10 +1829,27 @@ async def send_guild_source_test_alert(
         url=sample_url,
     )
     await _send_test_alert_message(test_request.channel_id, message)
+    await mark_test_alert_sent(notifier_service.db_path, guild_id, datetime.now(timezone.utc).isoformat(timespec='seconds'))
+    format_label = (
+        'custom message'
+        if test_request.customized_msg.strip()
+        else 'headline-style'
+        if (
+            test_request.use_headline_message_override is True
+            or (
+                test_request.use_headline_message_override is None
+                and presentation.effective.use_headline_message
+            )
+        )
+        else 'server default template'
+    )
     return {
         'channel_id': test_request.channel_id,
         'channel_name': channel_name,
         'message': message,
+        'format_label': format_label,
+        'mention_preview': f'@{role_name} shown as plain text (non-pinging preview)' if role_name else 'no role mention configured',
+        'status_summary': f'Channel access is working and the {format_label} alert format rendered successfully.',
     }
 
 
@@ -1851,6 +1908,7 @@ async def create_guild_checkout_session(
         )
     except BillingConfigurationError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    request.session['pending_billing_plan'] = checkout_request.plan
     return {'url': checkout_url}
 
 

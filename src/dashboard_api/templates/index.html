@@ -22,6 +22,9 @@
         <p class="lede">
           Pick a server to connect Twitter sessions, set up monitors, fine-tune alerts, and customize how Tweeticcini posts.
         </p>
+        {% if pending_plan %}
+        <p class="section-copy">Selected plan: <strong>{{ 'Premium' if pending_plan == 'pro' else 'Plus' }}</strong>. Choose a server and Tweeticcini will take you to that billing flow.</p>
+        {% endif %}
         {% if public_site_url and oauth_enabled and not discord_user %}
         <p class="section-copy">Want a better sense of how it works first? Open the <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Bot Overview</a>, then come back when you're ready to configure a server.</p>
         {% endif %}
@@ -55,7 +58,7 @@
             {% else %}
             <a
               class="guild-link-shell guild-link-shell--ready"
-              href="/dashboard/guilds/{{ guild.id }}"
+              href="/dashboard/guilds/{{ guild.id }}{{ '/billing?plan=' ~ pending_plan if pending_plan else '' }}"
               aria-label="Open {{ guild.name }}"
             >
             {% endif %}

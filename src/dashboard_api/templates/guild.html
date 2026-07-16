@@ -273,9 +273,11 @@
 
         {% if overview.get('onboarding', {}).get('show') %}
         <section class="notice notice--warning onboarding-banner">
-          {% set onboarding_steps_done = (1 if overview.get('onboarding', {}).get('sessions_ready') else 0) + (1 if overview.get('onboarding', {}).get('monitors_ready') else 0) %}
+          {% set onboarding_steps_done = (1 if overview.get('onboarding', {}).get('sessions_ready') else 0) + (1 if overview.get('onboarding', {}).get('monitors_ready') else 0) + (1 if overview.get('onboarding', {}).get('test_alert_ready') else 0) %}
           <div class="onboarding-banner-head">
-            <strong>Start here:</strong> finish the first-time setup flow for this server <span class="entity-meta">({{ onboarding_steps_done }}/2 steps completed)</span>.
+            <strong>{{ 'Setup complete:' if overview.get('onboarding', {}).get('completed') else 'Start here:' }}</strong>
+            {{ 'this server has finished the first-time setup flow.' if overview.get('onboarding', {}).get('completed') else 'finish the first-time setup flow for this server' }}
+            <span class="entity-meta">({{ onboarding_steps_done }}/3 steps completed)</span>.
           </div>
           <div class="status-detail-list onboarding-status-tags">
             <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('sessions_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
@@ -284,7 +286,33 @@
             <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('monitors_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
               {{ 'Monitor added' if overview.get('onboarding', {}).get('monitors_ready') else 'Add your first monitor' }}
             </a>
+            <span class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('test_alert_ready') else 'tag--warning' }}">
+              {{ 'Test alert sent' if overview.get('onboarding', {}).get('test_alert_ready') else 'Send a test alert' }}
+            </span>
           </div>
+          {% if overview.get('onboarding', {}).get('monitors_ready') and overview.get('onboarding', {}).get('test_source') and not overview.get('onboarding', {}).get('test_alert_ready') %}
+          <div class="actions onboarding-actions">
+            <button
+              type="button"
+              class="button-secondary"
+              id="onboarding-send-test-alert"
+              data-username="{{ overview.get('onboarding', {}).get('test_source', {}).get('username') }}"
+              data-channel-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_id') }}"
+              data-role-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('role_id') or '' }}"
+            >
+              Send test alert
+            </button>
+            <a class="ghost-link" href="/dashboard/guilds/{{ guild_id }}/sources">Review monitor</a>
+          </div>
+          <div class="field-help field-help--body onboarding-help">
+            Sends a non-pinging preview using the <strong>@{{ overview.get('onboarding', {}).get('test_source', {}).get('username') }}</strong> monitor into <strong>#{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_name') }}</strong> so you can confirm channel access and formatting safely.
+          </div>
+          {% elif overview.get('onboarding', {}).get('test_alert_ready') and overview.get('onboarding', {}).get('test_alert_sent_at') %}
+          <div class="field-help field-help--body onboarding-help">
+            Last successful test alert: <strong>{{ overview.get('onboarding', {}).get('test_alert_sent_at') }}</strong>.
+          </div>
+          {% endif %}
+          <div id="onboarding-form-status" class="form-banner form-banner--inline form-banner--hidden" hidden></div>
           {% if overview.get('onboarding', {}).get('completed') %}
           <button type="button" class="button-secondary onboarding-dismiss-button" id="dismiss-onboarding-banner">Dismiss</button>
           {% endif %}
@@ -732,10 +760,10 @@
             <div class="actions billing-actions">
               <select id="checkout-plan">
                 {% if 'plus' in billing_context.available_price_plans %}
-                <option value="plus">Plus ($3.99)</option>
+                <option value="plus" {{ 'selected' if selected_checkout_plan == 'plus' else '' }}>Plus ($3.99)</option>
                 {% endif %}
                 {% if 'pro' in billing_context.available_price_plans %}
-                <option value="pro">Premium ($6.99)</option>
+                <option value="pro" {{ 'selected' if selected_checkout_plan == 'pro' or not selected_checkout_plan else '' }}>Premium ($6.99)</option>
                 {% endif %}
               </select>
               <button type="button" id="start-checkout" {{ 'disabled' if ('plus' not in billing_context.available_price_plans and 'pro' not in billing_context.available_price_plans) else '' }}>Start Checkout</button>
@@ -1796,6 +1824,52 @@
         });
       }
 
+      const onboardingSendTest = document.getElementById('onboarding-send-test-alert');
+      if (onboardingSendTest) {
+        onboardingSendTest.addEventListener('click', async function () {
+          const onboardingStatus = document.getElementById('onboarding-form-status');
+          setFormStatus('onboarding-form-status');
+          onboardingSendTest.disabled = true;
+          try {
+            const username = onboardingSendTest.dataset.username || '';
+            const channelId = onboardingSendTest.dataset.channelId || '';
+            const roleId = onboardingSendTest.dataset.roleId || '';
+            const sourceMessage = await jsonRequest(
+              `/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`
+            );
+            const result = await jsonRequest(`/guilds/${guildId}/sources/test-alert`, {
+              method: 'POST',
+              body: JSON.stringify({
+                username,
+                channel_id: channelId,
+                role_id: roleId,
+                customized_msg: sourceMessage.customized_msg || '',
+                use_headline_message_override: sourceMessage.use_headline_message_override,
+              }),
+            });
+            const summary = `${result.status_summary} Mentions were previewed in non-pinging mode: ${result.mention_preview}.`;
+            setFormStatus('onboarding-form-status', summary);
+            setStatus(`Test alert sent to #${result.channel_name}. ${summary}`);
+
+            document.querySelectorAll('.onboarding-status-tags .tag')[2]?.classList.remove('tag--warning');
+            document.querySelectorAll('.onboarding-status-tags .tag')[2]?.classList.add('tag--soft');
+            if (document.querySelectorAll('.onboarding-status-tags .tag')[2]) {
+              document.querySelectorAll('.onboarding-status-tags .tag')[2].textContent = 'Test alert sent';
+            }
+
+            const onboardingHead = document.querySelector('.onboarding-banner-head .entity-meta');
+            if (onboardingHead) {
+              onboardingHead.textContent = '(3/3 steps completed)';
+            }
+          } catch (error) {
+            setFormStatus('onboarding-form-status', `Failed to send test alert: ${error.message}`, true);
+            setStatus(`Failed to send test alert: ${error.message}`, true);
+          } finally {
+            onboardingSendTest.disabled = false;
+          }
+        });
+      }
+
       const presentationForm = document.getElementById('presentation-form');
       if (presentationForm) {
         trackUnsavedChanges(presentationForm);
@@ -2022,8 +2096,9 @@
                 use_headline_message_override: getSourceHeadlineOverrideValue(),
               }),
             });
-            setFormStatus('source-form-status', `Sent a non-pinging test alert to #${result.channel_name}.`);
-            setStatus(`Sent a non-pinging test alert to #${result.channel_name}.`);
+            const summary = `${result.status_summary} Mentions were previewed in non-pinging mode: ${result.mention_preview}.`;
+            setFormStatus('source-form-status', `Sent a non-pinging test alert to #${result.channel_name}. ${summary}`);
+            setStatus(`Sent a non-pinging test alert to #${result.channel_name}. ${summary}`);
           } catch (error) {
             setFormStatus('source-form-status', `Failed to send test alert: ${error.message}`, true);
             setStatus(`Failed to send test alert: ${error.message}`, true);

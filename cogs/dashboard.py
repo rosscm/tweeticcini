@@ -69,7 +69,7 @@ class Dashboard(Cog_Extension):
 
         await itn.response.send_message(ephemeral=True, view=view)
 
-    @app_commands.command(name='vote', description='Get the top.gg link to support Tweeticcini')
+    @app_commands.command(name='vote', description='Legacy support shortcut: get the top.gg vote link')
     async def vote(self, itn: discord.Interaction):
         vote_url = _get_top_gg_vote_url()
         if not vote_url:

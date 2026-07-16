@@ -13,6 +13,44 @@ from src.services.notifier_service import NotifierService
 from src.services.twitter_session_service import TwitterSessionService
 
 
+def _build_about_view(
+    *,
+    dashboard_url: str | None,
+    billing_url: str | None,
+    support_server_url: str | None,
+) -> discord.ui.View | None:
+    if not dashboard_url and not billing_url and not support_server_url:
+        return None
+
+    view = discord.ui.View()
+    if dashboard_url:
+        view.add_item(discord.ui.Button(label='Open Dashboard', url=dashboard_url))
+    if billing_url:
+        view.add_item(discord.ui.Button(label='Manage Plan or Upgrade', url=billing_url))
+    if support_server_url:
+        view.add_item(discord.ui.Button(label='Support', url=support_server_url))
+    return view
+
+
+def _build_support_view(
+    *,
+    support_server_url: str | None,
+    vote_url: str | None,
+    support_url: str | None,
+) -> discord.ui.View | None:
+    if not support_server_url and not vote_url and not support_url:
+        return None
+
+    view = discord.ui.View()
+    if support_server_url:
+        view.add_item(discord.ui.Button(label='Support Server', url=support_server_url))
+    if vote_url:
+        view.add_item(discord.ui.Button(label='Vote on top.gg', url=vote_url))
+    if support_url:
+        view.add_item(discord.ui.Button(label='Buy Me a Coffee', url=support_url))
+    return view
+
+
 class About(Cog_Extension):
     def __init__(self, bot):
         super().__init__(bot)
@@ -35,7 +73,7 @@ class About(Cog_Extension):
         configured = max(int(configs.get('plus_tweets_check_period', 45) or 45), 1)
         return max(configured, cls._base_poll_interval())
 
-    @app_commands.command(name='about', description='Show a compact summary for this server')
+    @app_commands.command(name='about', description='Show this server summary and dashboard shortcuts')
     async def about(self, itn: discord.Interaction):
         if itn.guild_id is None or itn.guild is None:
             await itn.response.send_message(
@@ -115,43 +153,37 @@ class About(Cog_Extension):
             text='Built with ❤️ by Pokaccini'
         )
 
-        view = None
         base_url = _get_dashboard_base_url()
         support_server_url = os.getenv('SUPPORT_SERVER_URL', '').strip()
-        vote_url = _get_top_gg_vote_url()
-        support_url = _get_buy_me_a_coffee_url()
-        if base_url or support_server_url or vote_url or support_url:
-            view = discord.ui.View()
-            if base_url:
-                view.add_item(
-                    discord.ui.Button(
-                        label='Open Dashboard',
-                        url=f'{base_url}/dashboard?guild_id={itn.guild_id}',
-                    )
-                )
-            if support_server_url:
-                view.add_item(
-                    discord.ui.Button(
-                        label='Support Server',
-                        url=support_server_url,
-                    )
-                )
-            if vote_url:
-                view.add_item(
-                    discord.ui.Button(
-                        label='Vote on top.gg',
-                        url=vote_url,
-                    )
-                )
-            if support_url:
-                view.add_item(
-                    discord.ui.Button(
-                        label='Buy Me a Coffee',
-                        url=support_url,
-                    )
-                )
+        dashboard_url = f'{base_url}/dashboard?guild_id={itn.guild_id}' if base_url else None
+        billing_url = f'{base_url}/dashboard/guilds/{itn.guild_id}/billing' if base_url else None
+        view = _build_about_view(
+            dashboard_url=dashboard_url,
+            billing_url=billing_url,
+            support_server_url=support_server_url or None,
+        )
 
         await itn.followup.send(embed=embed, view=view, ephemeral=True)
+
+    @app_commands.command(name='support', description='Open support links, voting, and one-time support options')
+    async def support(self, itn: discord.Interaction):
+        support_server_url = os.getenv('SUPPORT_SERVER_URL', '').strip() or None
+        vote_url = _get_top_gg_vote_url()
+        support_url = _get_buy_me_a_coffee_url()
+        view = _build_support_view(
+            support_server_url=support_server_url,
+            vote_url=vote_url,
+            support_url=support_url,
+        )
+        if view is None:
+            await itn.response.send_message('Support links are not configured yet.', ephemeral=True)
+            return
+
+        await itn.response.send_message(
+            'Support the project, vote, or open the support server from here.',
+            ephemeral=True,
+            view=view,
+        )
 
 
 async def setup(bot: commands.Bot):

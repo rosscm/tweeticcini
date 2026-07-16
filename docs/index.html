@@ -32,15 +32,24 @@
   </head>
   <body>
     <main class="site-shell">
+      <header class="site-header">
+        <div class="site-brand">
+          <img class="site-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
+          <div>
+            <p class="eyebrow">Tweeticcini</p>
+            <div class="site-brand-name">Twitter alert routing for Discord</div>
+          </div>
+        </div>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#setup">Setup</a>
+          <a href="#faq">FAQ</a>
+          <a href="#support">Support</a>
+        </nav>
+      </header>
       <section class="hero hero-app">
         <div class="hero-copy">
-          <div class="site-brand">
-            <img class="site-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
-            <div>
-              <p class="eyebrow">Tweeticcini</p>
-              <div class="site-brand-name">Twitter alert routing for Discord</div>
-            </div>
-          </div>
           <h1>Never miss high-value drops, updates, and announcements in Discord.</h1>
           <p class="lede">
             Tweeticcini turns noisy Twitter/X feeds into actionable Discord alerts with smart filtering, routing, and clear escalation when a post matters.
@@ -52,7 +61,8 @@
           </ul>
           <p class="proof-line proof-line-mobile" aria-label="Tweeticcini adoption and reliability signals">
             <span class="proof-kicker">Used daily by active communities</span>
-            <span class="proof-primary"><strong><span class="server-count">—</span> active servers</strong> using Tweeticcini today</span>
+            <span class="proof-primary proof-primary--fallback">Trusted by Discord communities for round-the-clock alert monitoring.</span>
+            <span class="proof-primary proof-primary--count" hidden><strong><span class="server-count"></span> active servers</strong> using Tweeticcini today</span>
             <span class="proof-secondary">24/7 monitoring with up to <strong>12s priority alert speed</strong></span>
           </p>
           <div class="hero-actions">
@@ -145,13 +155,14 @@
           </div>
           <p class="proof-line" aria-label="Tweeticcini adoption and reliability signals">
             <span class="proof-kicker">Used daily by active communities</span>
-            <span class="proof-primary"><strong><span class="server-count">—</span> active servers</strong> using Tweeticcini today</span>
+            <span class="proof-primary proof-primary--fallback">Trusted by Discord communities for round-the-clock alert monitoring.</span>
+            <span class="proof-primary proof-primary--count" hidden><strong><span class="server-count"></span> active servers</strong> using Tweeticcini today</span>
             <span class="proof-secondary">24/7 monitoring with up to <strong>12s priority alert speed</strong></span>
           </p>
         </aside>
       </section>
 
-      <section class="mid-grid">
+      <section id="features" class="mid-grid">
         <section class="panel proof-panel">
           <div class="proof-copy">
             <p class="eyebrow">Preview 👀</p>
@@ -252,12 +263,18 @@
                     <td>✕</td>
                     <td>✓</td>
                   </tr>
-                  <tr>
-                    <th>Delivery styling</th>
-                    <td>✕</td>
-                    <td>✕</td>
-                    <td>✓</td>
-                  </tr>
+                <tr>
+                  <th>Delivery styling</th>
+                  <td>✕</td>
+                  <td>✕</td>
+                  <td>✓</td>
+                </tr>
+                <tr>
+                  <th>Get started</th>
+                  <td><a class="button pricing-table-button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a></td>
+                  <td><a class="button pricing-table-button" href="https://app.tweeticcini.com/dashboard?plan=plus">Start Plus trial</a></td>
+                  <td><a class="button pricing-table-button" href="https://app.tweeticcini.com/dashboard?plan=pro">Start Premium trial</a></td>
+                </tr>
                 </tbody>
               </table>
             </div>
@@ -323,7 +340,7 @@
         </div>
       </section>
 
-      <section class="panel-grid">
+      <section id="setup" class="panel-grid">
         <section class="panel">
           <p class="eyebrow">Setup 🛠️</p>
           <h2>Set up your first alert flow</h2>
@@ -347,7 +364,53 @@
         </section>
       </section>
 
-      <section class="cta-panel">
+      <section class="panel trust-panel">
+        <p class="eyebrow">Trust 🔐</p>
+        <h2>Why Tweeticcini asks for a Twitter/X session</h2>
+        <div class="trust-grid">
+          <article class="trust-item">
+            <strong>Alert delivery depends on an active session</strong>
+            <p>Tweeticcini needs a connected Twitter/X session so it can check the accounts your server wants to monitor and keep alert polling running.</p>
+          </article>
+          <article class="trust-item">
+            <strong>Stored session information is encrypted</strong>
+            <p>Connected session secrets are stored in encrypted form, and a server administrator can remove the session from the dashboard whenever they want.</p>
+          </article>
+          <article class="trust-item">
+            <strong>Expired sessions fail safely</strong>
+            <p>If a session expires or stops authenticating, Tweeticcini shows the session warning in the dashboard so an admin can reconnect or remove it.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="faq" class="panel faq-panel">
+        <p class="eyebrow">FAQ ❓</p>
+        <h2>Questions people usually ask before connecting a server</h2>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>Why is a Twitter/X session required?</summary>
+            <p>Tweeticcini uses a connected session to watch the Twitter/X accounts your server cares about. Without that session, it cannot keep those monitor checks running.</p>
+          </details>
+          <details class="faq-item">
+            <summary>What happens if the session expires?</summary>
+            <p>The dashboard will show that the session needs attention, and alerts tied to that session may stop until a server admin reconnects it or swaps to another connected session.</p>
+          </details>
+          <details class="faq-item">
+            <summary>How do I reconnect or revoke a session?</summary>
+            <p>Open the dashboard, go to Sessions, and either reconnect the existing session or remove it entirely. Removing the session revokes Tweeticcini’s use of that stored session for your server.</p>
+          </details>
+          <details class="faq-item">
+            <summary>What Discord permissions do I need?</summary>
+            <p>You need to be able to manage the server in Discord to access the dashboard for that server. The bot also needs access to the channels where you want alerts to be posted.</p>
+          </details>
+          <details class="faq-item">
+            <summary>How do trials, cancellation, and billing work?</summary>
+            <p>Paid plans include a 7-day trial when available. You can start checkout from the dashboard, and once a paid subscription is active you can use the billing portal to review or cancel it.</p>
+          </details>
+        </div>
+      </section>
+
+      <section id="support" class="cta-panel">
         <div>
           <p class="eyebrow">Support 🤝</p>
           <h2>Get help without the guesswork</h2>
@@ -383,23 +446,34 @@
     <script>
       (async function () {
         const countNodes = document.querySelectorAll('.server-count');
-        if (!countNodes.length) return;
+        const countClaims = document.querySelectorAll('.proof-primary--count');
+        const fallbackClaims = document.querySelectorAll('.proof-primary--fallback');
+        if (!countNodes.length || !countClaims.length || !fallbackClaims.length) return;
+        const showCount = function (count) {
+          if (!Number.isFinite(count) || count <= 0) return false;
+          countNodes.forEach(function (node) {
+            node.textContent = String(count);
+          });
+          countClaims.forEach(function (node) {
+            node.hidden = false;
+          });
+          fallbackClaims.forEach(function (node) {
+            node.hidden = true;
+          });
+          return true;
+        };
         const cachedCount = window.localStorage.getItem('tweeticcini_server_count');
         if (cachedCount && /^\d+$/.test(cachedCount)) {
-          countNodes.forEach(function (node) {
-            node.textContent = cachedCount;
-          });
+          showCount(Number(cachedCount));
         }
         try {
           const response = await fetch('https://app.tweeticcini.com/public/stats', { cache: 'no-store' });
           if (!response.ok) return;
           const payload = await response.json();
           const count = Number(payload.server_count);
-          if (!Number.isFinite(count) || count < 0) return;
+          if (!Number.isFinite(count) || count <= 0) return;
           window.localStorage.setItem('tweeticcini_server_count', String(count));
-          countNodes.forEach(function (node) {
-            node.textContent = String(count);
-          });
+          showCount(count);
         } catch (_error) {
         }
       })();
