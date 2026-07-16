@@ -924,6 +924,42 @@ def _read_recent_log_health() -> dict[str, object]:
     }
 
 
+def _parse_health_timestamp(value: object) -> Optional[datetime]:
+    if not isinstance(value, str) or not value:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if normalized.endswith('Z'):
+        normalized = f'{normalized[:-1]}+00:00'
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _is_runtime_client_status_healthy(runtime_status: dict[str, object]) -> bool:
+    last_poll_success_at = _parse_health_timestamp(runtime_status.get('last_poll_success_at'))
+    if last_poll_success_at is None:
+        return False
+
+    last_poll_error_at = _parse_health_timestamp(runtime_status.get('last_poll_error_at'))
+    if last_poll_error_at is None:
+        return True
+
+    return last_poll_success_at >= last_poll_error_at
+
+
+def _filter_active_runtime_client_statuses(
+    client_statuses: list[dict[str, object]],
+    active_client_keys: set[str],
+) -> list[dict[str, object]]:
+    return [row for row in client_statuses if str(row.get('client_used')) in active_client_keys]
+
+
 def _build_status_banner(
     delivery_sessions: list[dict[str, str]],
     usage: dict[str, int],
@@ -1525,7 +1561,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                         1
                         for session in twitter_sessions
                         for row in client_statuses
-                        if row['client_used'] == session.client_key and row['last_poll_success_at'] and not row['last_poll_error_at']
+                        if row['client_used'] == session.client_key and _is_runtime_client_status_healthy(row)
                     ),
                     'active_embed_mode': guild_presentation.effective.embed_type,
                     'tweet_check_period': configs.get('tweets_check_period'),
@@ -1612,11 +1648,15 @@ async def healthcheck() -> dict[str, object]:
         issues.append('runtime_client_statuses_unavailable')
 
     try:
-        twitter_session_count = len(await twitter_session_service.list_all_server_twitter_session_keys())
+        active_client_keys = await twitter_session_service.list_all_active_client_keys()
     except Exception as exc:
         log.warning(f'healthcheck could not read twitter session count: {exc}')
-        twitter_session_count = 0
+        active_client_keys = set()
         issues.append('twitter_session_count_unavailable')
+
+    active_client_statuses = _filter_active_runtime_client_statuses(client_statuses, active_client_keys)
+    twitter_session_count = len(active_client_keys)
+    healthy_twitter_session_count = sum(1 for row in active_client_statuses if _is_runtime_client_status_healthy(row))
 
     status = 'ok' if not issues else 'degraded'
     return {
@@ -1625,8 +1665,7 @@ async def healthcheck() -> dict[str, object]:
         'oauth_enabled': _dashboard_oauth_enabled(),
         'discord_lookup_enabled': bool(os.getenv('BOT_TOKEN')),
         'twitter_session_count': twitter_session_count,
-        'healthy_twitter_session_count': sum(1 for row in client_statuses if row['last_poll_success_at'] and not row['last_poll_error_at']),
-        'runtime_client_statuses': client_statuses,
+        'healthy_twitter_session_count': healthy_twitter_session_count,
         'log_health': log_health,
     }
 
