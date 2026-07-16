@@ -1,0 +1,3 @@
+[lint.per-file-ignores]
+"scripts/debug_twitter_auth.py" = ["E402"]
+"scripts/import_twitter_session.py" = ["E402"]
