@@ -1,4 +1,4 @@
-from cogs.about import SUPPORT_RESPONSE_TEXT, _build_about_view, _build_support_view
+from cogs.about import SUPPORT_RESPONSE_TEXT, _build_about_view, _build_support_embed, _build_support_view
 
 
 def test_about_view_focuses_on_management_actions():
@@ -35,3 +35,9 @@ def test_support_copy_is_warm_and_includes_heart():
     assert 'voting' in SUPPORT_RESPONSE_TEXT
     assert 'buying me a coffee' in SUPPORT_RESPONSE_TEXT
     assert '❤️' in SUPPORT_RESPONSE_TEXT
+
+
+def test_support_embed_uses_support_copy():
+    embed = _build_support_embed()
+
+    assert embed.description == SUPPORT_RESPONSE_TEXT

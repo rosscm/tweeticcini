@@ -68,6 +68,13 @@ SUPPORT_RESPONSE_TEXT = (
 )
 
 
+def _build_support_embed() -> discord.Embed:
+    return discord.Embed(
+        description=SUPPORT_RESPONSE_TEXT,
+        color=0x4F7CAC,
+    )
+
+
 class About(Cog_Extension):
     def __init__(self, bot):
         super().__init__(bot)
@@ -204,7 +211,7 @@ class About(Cog_Extension):
             return
 
         await itn.response.send_message(
-            SUPPORT_RESPONSE_TEXT,
+            embed=_build_support_embed(),
             ephemeral=True,
             view=view,
         )
