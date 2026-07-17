@@ -27,9 +27,20 @@ async def upsert_notification(
 ) -> None:
     await cursor.execute(
         '''
-        INSERT OR REPLACE INTO notification
-        (user_id, channel_id, client_used, role_id, enable_type, enable_media_type, force_everyone, use_headline_message_override)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO notification (
+            user_id,
+            channel_id,
+            client_used,
+            role_id,
+            enable_type,
+            enable_media_type,
+            force_everyone,
+            use_headline_message_override,
+            delivery_paused,
+            delivery_pause_reason,
+            delivery_paused_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL)
         ''',
         (
             user_id,
@@ -39,7 +50,11 @@ async def upsert_notification(
             enable_type,
             media_type,
             int(force_everyone),
-            None if use_headline_message_override is None else int(use_headline_message_override),
+            (
+                None
+                if use_headline_message_override is None
+                else int(use_headline_message_override)
+            ),
         ),
     )
 
@@ -151,13 +166,33 @@ async def set_custom_message(cursor, user_id: str, channel_id: str, customized_m
 
 
 async def get_enabled_notifications_for_user(cursor, user_id: str):
-    await cursor.execute('SELECT * FROM notification WHERE user_id = ? AND enabled = 1', (user_id,))
+    await cursor.execute(
+        '''
+        SELECT *
+        FROM notification
+        WHERE user_id = ?
+          AND enabled = 1
+          AND COALESCE(delivery_paused, 0) = 0
+        ''',
+        (user_id,),
+    )
     return await cursor.fetchall()
 
 
-async def get_enabled_notifications_for_user_client(cursor, user_id: str, client_used: str):
+async def get_enabled_notifications_for_user_client(
+    cursor,
+    user_id: str,
+    client_used: str,
+):
     await cursor.execute(
-        'SELECT * FROM notification WHERE user_id = ? AND client_used = ? AND enabled = 1',
+        '''
+        SELECT *
+        FROM notification
+        WHERE user_id = ?
+          AND client_used = ?
+          AND enabled = 1
+          AND COALESCE(delivery_paused, 0) = 0
+        ''',
         (user_id, client_used),
     )
     return await cursor.fetchall()
@@ -181,17 +216,25 @@ async def update_user_latest_tweet_for_client(cursor, username: str, client_used
     )
 
 
-async def get_enabled_user_client_pairs(db_path) -> list[tuple[str, str]]:
+async def get_enabled_user_client_pairs(
+    db_path,
+) -> list[tuple[str, str]]:
     async with connect_readonly(db_path) as db:
         async with db.execute(
             '''
-            SELECT DISTINCT user.username, notification.client_used
+            SELECT DISTINCT
+                user.username,
+                notification.client_used
             FROM user
-            JOIN notification ON notification.user_id = user.id
+            JOIN notification
+                ON notification.user_id = user.id
             WHERE user.enabled = 1
               AND notification.enabled = 1
+              AND COALESCE(notification.delivery_paused, 0) = 0
               AND notification.client_used IS NOT NULL
-            ORDER BY user.username ASC, notification.client_used ASC
+            ORDER BY
+                user.username ASC,
+                notification.client_used ASC
             '''
         ) as cursor:
             return [(row[0], row[1]) async for row in cursor]
@@ -319,16 +362,31 @@ async def update_notification_settings(
         cursor = await db.execute(
             '''
             UPDATE notification
-            SET client_used = ?, role_id = ?, enable_type = ?, enable_media_type = ?, use_headline_message_override = ?
+            SET client_used = ?,
+                role_id = ?,
+                enable_type = ?,
+                enable_media_type = ?,
+                use_headline_message_override = ?,
+                delivery_paused = 0,
+                delivery_pause_reason = NULL,
+                delivery_paused_at = NULL
             WHERE channel_id = ?
-              AND user_id = (SELECT id FROM user WHERE username = ?)
+              AND user_id = (
+                  SELECT id
+                  FROM user
+                  WHERE username = ?
+              )
             ''',
             (
                 client_used,
                 role_id,
                 enable_type,
                 media_type,
-                None if use_headline_message_override is None else int(use_headline_message_override),
+                (
+                    None
+                    if use_headline_message_override is None
+                    else int(use_headline_message_override)
+                ),
                 channel_id,
                 username,
             ),
@@ -430,6 +488,60 @@ async def get_enabled_usernames_for_channel(db_path, channel_id: str) -> list[st
         ) as cursor:
             return [row['username'] async for row in cursor]
 
+
+async def pause_notification_delivery(
+    db_path,
+    username: str,
+    channel_id: str,
+    reason: str,
+    paused_at: str,
+) -> bool:
+    async with connect_writable(db_path) as db:
+        cursor = await db.execute(
+            '''
+            UPDATE notification
+            SET delivery_paused = 1,
+                delivery_pause_reason = ?,
+                delivery_paused_at = ?
+            WHERE channel_id = ?
+              AND enabled = 1
+              AND COALESCE(delivery_paused, 0) = 0
+              AND user_id IN (
+                  SELECT id
+                  FROM user
+                  WHERE lower(username) = lower(?)
+              )
+            ''',
+            (
+                reason[:500],
+                paused_at,
+                str(channel_id),
+                username,
+            ),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def resume_channel_deliveries(
+    db_path,
+    channel_id: str,
+) -> int:
+    async with connect_writable(db_path) as db:
+        cursor = await db.execute(
+            '''
+            UPDATE notification
+            SET delivery_paused = 0,
+                delivery_pause_reason = NULL,
+                delivery_paused_at = NULL
+            WHERE channel_id = ?
+              AND enabled = 1
+              AND COALESCE(delivery_paused, 0) = 1
+            ''',
+            (str(channel_id),),
+        )
+        await db.commit()
+        return int(cursor.rowcount)
 
 @asynccontextmanager
 async def connect_writable(db_path):

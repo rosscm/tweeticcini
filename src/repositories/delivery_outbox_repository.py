@@ -285,3 +285,32 @@ async def mark_delivery_failed(db_path, delivery_id: int, lease_token: str, *, a
             (last_error, attempted_at, delivery_id, lease_token),
         )
         await db.commit()
+
+
+async def fail_open_deliveries_for_destination(
+    db_path,
+    source_username: str,
+    channel_id: str,
+    last_error: str,
+) -> int:
+    async with connect_writable(db_path) as db:
+        cursor = await db.execute(
+            '''
+            UPDATE delivery_outbox
+            SET status = 'failed',
+                next_attempt_at = NULL,
+                last_error = ?,
+                lease_token = NULL,
+                lease_expires_at = NULL
+            WHERE lower(source_username) = lower(?)
+              AND channel_id = ?
+              AND status NOT IN ('delivered', 'failed')
+            ''',
+            (
+                last_error[:500],
+                source_username,
+                str(channel_id),
+            ),
+        )
+        await db.commit()
+        return int(cursor.rowcount)

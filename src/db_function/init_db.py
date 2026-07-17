@@ -40,6 +40,9 @@ async def ensure_db_schema() -> str:
                 customized_msg TEXT DEFAULT NULL,
                 force_everyone INTEGER DEFAULT 0,
                 use_headline_message_override INTEGER DEFAULT NULL,
+                delivery_paused INTEGER NOT NULL DEFAULT 0,
+                delivery_pause_reason TEXT DEFAULT NULL,
+                delivery_paused_at TEXT DEFAULT NULL,
                 FOREIGN KEY (user_id) REFERENCES user (id),
                 FOREIGN KEY (channel_id) REFERENCES channel (id),
                 PRIMARY KEY(user_id, channel_id)
@@ -209,6 +212,30 @@ async def ensure_db_schema() -> str:
         if 'use_headline_message_override' not in columns:
             await db.execute('ALTER TABLE notification ADD COLUMN use_headline_message_override INTEGER DEFAULT NULL')
             log.info('added missing notification.use_headline_message_override column')
+        if 'delivery_paused' not in columns:
+            await db.execute(
+                'ALTER TABLE notification ADD COLUMN '
+                'delivery_paused INTEGER NOT NULL DEFAULT 0'
+            )
+            log.info(
+                'added missing notification.delivery_paused column'
+            )
+        if 'delivery_pause_reason' not in columns:
+            await db.execute(
+                'ALTER TABLE notification ADD COLUMN '
+                'delivery_pause_reason TEXT DEFAULT NULL'
+            )
+            log.info(
+                'added missing notification.delivery_pause_reason column'
+            )
+        if 'delivery_paused_at' not in columns:
+            await db.execute(
+                'ALTER TABLE notification ADD COLUMN '
+                'delivery_paused_at TEXT DEFAULT NULL'
+            )
+            log.info(
+                'added missing notification.delivery_paused_at column'
+            )
 
         async with db.execute("PRAGMA table_info(guild_settings)") as cursor:
             guild_columns = {row[1] async for row in cursor}

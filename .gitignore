@@ -176,3 +176,7 @@ configs.yml
 Dockerfile
 .dockerignore
 fly.toml
+
+# backups
+*.bak
+*.destination*

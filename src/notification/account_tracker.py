@@ -14,6 +14,7 @@ from configs.load_configs import configs
 from src.repositories.notifier_repository import (
     connect_writable,
     get_user_by_username,
+    pause_notification_delivery,
     update_user_latest_tweet_for_client,
 )
 from src.repositories.runtime_metrics_repository import (
@@ -24,9 +25,10 @@ from src.repositories.runtime_metrics_repository import (
     record_source_delivery_success,
 )
 from src.repositories.delivery_outbox_repository import (
-    DeliveryOutboxRecord,
     claim_due_deliveries,
+    DeliveryOutboxRecord,
     enqueue_delivery,
+    fail_open_deliveries_for_destination,
     mark_delivery_failed,
     mark_delivery_retry,
     mark_delivery_success,
@@ -194,6 +196,7 @@ class AccountTracker():
         self.poll_error_states: dict[str, str] = {}
         self.client_poll_intervals: dict[str, int] = {}
         self.auth_retry_after: dict[str, datetime] = {}
+        self.missing_session_tasks: set[str] = set()
         self.tasksMonitorLogAt = datetime.now(timezone.utc) - timedelta(hours=configs['tasks_monitor_log_period'])
         self.support_prompt_server_ids = _get_support_prompt_server_ids()
         self.support_prompt_channel_overrides = _get_support_prompt_channel_overrides()
@@ -546,6 +549,8 @@ class AccountTracker():
                             WHERE notification.user_id = ?
                             AND notification.client_used = ?
                             AND notification.enabled = 1
+
+                            AND COALESCE(notification.delivery_paused, 0) = 0
                             ''',
                             (user['id'], client_used),
                         )
@@ -774,9 +779,52 @@ class AccountTracker():
                 error_text,
                 attempted_text,
             )
+            pause_reason = self._delivery_pause_reason(exc)
+            if pause_reason is not None:
+                await mark_delivery_failed(
+                    self.db_path,
+                    delivery.id,
+                    str(delivery.lease_token or ''),
+                    attempted_at=attempted_text,
+                    last_error=error_text,
+                )
+                newly_paused = await pause_notification_delivery(
+                    self.db_path,
+                    delivery.source_username,
+                    delivery.channel_id,
+                    pause_reason,
+                    attempted_text,
+                )
+                closed_count = (
+                    await fail_open_deliveries_for_destination(
+                        self.db_path,
+                        delivery.source_username,
+                        delivery.channel_id,
+                        error_text,
+                    )
+                )
+                if newly_paused:
+                    log.warning(
+                        f'paused delivery for '
+                        f'{delivery.source_username} in channel '
+                        f'{delivery.channel_id}: {pause_reason}; '
+                        f'closed {closed_count} queued delivery row(s)'
+                    )
+                return
+
             if self._is_permanent_delivery_error(exc):
-                await mark_delivery_failed(self.db_path, delivery.id, str(delivery.lease_token or ''), attempted_at=attempted_text, last_error=error_text)
-                log.warning(f'permanent delivery failure for {delivery.source_username} in channel {delivery.channel_id}: {error_text}')
+                await mark_delivery_failed(
+                    self.db_path,
+                    delivery.id,
+                    str(delivery.lease_token or ''),
+                    attempted_at=attempted_text,
+                    last_error=error_text,
+                )
+                log.warning(
+                    f'permanent one-message delivery failure for '
+                    f'{delivery.source_username} in channel '
+                    f'{delivery.channel_id}: {error_text}'
+                )
                 return
             if delivery.attempt_count + 1 >= self.delivery_outbox_max_attempts:
                 await mark_delivery_failed(self.db_path, delivery.id, str(delivery.lease_token or ''), attempted_at=attempted_text, last_error=error_text)
@@ -829,6 +877,52 @@ class AccountTracker():
     def _retry_delay_seconds(self, attempt_count: int) -> int:
         delay = self.delivery_outbox_retry_base_seconds * (2 ** max(attempt_count - 1, 0))
         return min(delay, self.delivery_outbox_retry_max_seconds)
+
+    @staticmethod
+    def _delivery_pause_reason(error: Exception) -> Optional[str]:
+        error_code = getattr(error, 'code', None)
+        message = str(error).lower()
+
+        if isinstance(error, discord.NotFound):
+            return 'This Discord channel no longer exists.'
+
+        if isinstance(error, discord.Forbidden):
+            if error_code == 50013 or 'missing permissions' in message:
+                return (
+                    'Tweeticcini is missing permission to send messages '
+                    'or embeds in this Discord channel.'
+                )
+            return (
+                'Tweeticcini no longer has access to this Discord channel.'
+            )
+
+        if (
+            error_code == 50001
+            or '50001' in message
+            or 'missing access' in message
+        ):
+            return (
+                'Tweeticcini no longer has access to this Discord channel.'
+            )
+
+        if (
+            error_code == 50013
+            or '50013' in message
+            or 'missing permissions' in message
+        ):
+            return (
+                'Tweeticcini is missing permission to send messages '
+                'or embeds in this Discord channel.'
+            )
+
+        if (
+            error_code == 10003
+            or '10003' in message
+            or 'unknown channel' in message
+        ):
+            return 'This Discord channel no longer exists.'
+
+        return None
 
     def _is_permanent_delivery_error(self, error: Exception) -> bool:
         if isinstance(error, (discord.NotFound, discord.Forbidden)):
@@ -940,11 +1034,71 @@ class AccountTracker():
                 log.error(f'delivery outbox processor failure: {exc}')
             await asyncio.sleep(self.delivery_outbox_poll_seconds)
 
+    def _partition_configured_tasks(
+        self,
+        configured_pairs: list[tuple[str, str]],
+    ) -> tuple[
+        dict[str, tuple[str, str]],
+        dict[str, tuple[str, str]],
+        set[str],
+    ]:
+        configured_tasks = {
+            self._task_name(username, client_used): (
+                username,
+                client_used,
+            )
+            for username, client_used in configured_pairs
+        }
+        available_tasks = {
+            task_name: pair
+            for task_name, pair in configured_tasks.items()
+            if pair[1] in self.accounts_data
+        }
+        missing_tasks = set(configured_tasks) - set(available_tasks)
+        return configured_tasks, available_tasks, missing_tasks
+
+
+    def _update_missing_session_state(
+        self,
+        configured_tasks: dict[str, tuple[str, str]],
+        missing_tasks: set[str],
+    ) -> None:
+        newly_missing = missing_tasks - self.missing_session_tasks
+        recovered = (
+            self.missing_session_tasks - missing_tasks
+        ) & set(configured_tasks)
+
+        for task_name in sorted(newly_missing):
+            username, client_used = configured_tasks[task_name]
+            log.warning(
+                f'suspended {username}; Twitter/X session '
+                f'{client_used} is unavailable'
+            )
+
+        for task_name in sorted(recovered):
+            username, client_used = configured_tasks[task_name]
+            log.info(
+                f'resuming {username}; Twitter/X session '
+                f'{client_used} is available again'
+            )
+
+        self.missing_session_tasks = set(missing_tasks)
+
     async def tasksMonitor(self):
         while True:
             await self._ensure_twitter_updaters()
             users_and_clients = await self.twitter_session_service_pairs()
-            expected_tasks = {self._task_name(username, client_used): (username, client_used) for username, client_used in users_and_clients}
+            (
+                configured_tasks,
+                expected_tasks,
+                missing_tasks,
+            ) = self._partition_configured_tasks(
+                users_and_clients
+            )
+            self._update_missing_session_state(
+                configured_tasks,
+                missing_tasks,
+            )
             all_tasks = list(asyncio.all_tasks())
             taskSet = {task.get_name() for task in all_tasks}
             aliveTasks = taskSet & set(expected_tasks.keys())
@@ -982,9 +1136,6 @@ class AccountTracker():
                 deadTasks = [expected_tasks[name] for name in (set(expected_tasks.keys()) - aliveTasks)]
                 log.warning(f'dead tasks : {deadTasks}')
                 for username, client_used in deadTasks:
-                    if client_used not in self.tweets:
-                        log.warning(f'skipping restart for {username}; Twitter/X session {client_used} is not available')
-                        continue
                     self.bot.loop.create_task(self.notification(username, client_used)).set_name(self._task_name(username, client_used))
                     log.info(f'restart {username} successfully using {client_used}')
 

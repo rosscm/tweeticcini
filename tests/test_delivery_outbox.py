@@ -51,6 +51,21 @@ async def ensure_outbox_test_schema():
     async with aiosqlite.connect(get_db_path()) as db:
         await db.executescript(
             """
+            CREATE TABLE IF NOT EXISTS user (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                enabled INTEGER DEFAULT 1
+            );
+            CREATE TABLE IF NOT EXISTS notification (
+                user_id TEXT NOT NULL,
+                channel_id TEXT NOT NULL,
+                client_used TEXT DEFAULT NULL,
+                enabled INTEGER DEFAULT 1,
+                delivery_paused INTEGER NOT NULL DEFAULT 0,
+                delivery_pause_reason TEXT DEFAULT NULL,
+                delivery_paused_at TEXT DEFAULT NULL,
+                PRIMARY KEY (user_id, channel_id)
+            );
             CREATE TABLE IF NOT EXISTS delivery_outbox (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tweet_id TEXT NOT NULL,
@@ -234,6 +249,51 @@ async def _insert_outbox_row(channel_id: str, *, tweet_id: str = 'tweet-1'):
             await db.commit()
 
 
+async def _insert_notification_destination(
+    channel_id: str,
+    *,
+    username: str = "sourceuser",
+    client_used: str = "client-1",
+) -> None:
+    async with aiosqlite.connect(get_db_path()) as db:
+        await db.execute(
+            """
+            INSERT OR IGNORE INTO user (
+                id,
+                username,
+                enabled
+            )
+            VALUES (?, ?, 1)
+            """,
+            (
+                f"user-{username}",
+                username,
+            ),
+        )
+
+        await db.execute(
+            """
+            INSERT OR REPLACE INTO notification (
+                user_id,
+                channel_id,
+                client_used,
+                enabled,
+                delivery_paused,
+                delivery_pause_reason,
+                delivery_paused_at
+            )
+            VALUES (?, ?, ?, 1, 0, NULL, NULL)
+            """,
+            (
+                f"user-{username}",
+                str(channel_id),
+                client_used,
+            ),
+        )
+
+        await db.commit()
+
+
 @pytest.mark.asyncio
 async def test_delivery_outbox_deduplicates_same_tweet_channel(env):
     with fail_after(20):
@@ -283,6 +343,7 @@ async def test_delivery_outbox_retries_then_succeeds(env):
 @pytest.mark.asyncio
 async def test_delivery_outbox_handles_one_failed_channel_and_one_success(env):
     await ensure_outbox_test_schema()
+    await _insert_notification_destination("202")
     await _insert_outbox_row('201', tweet_id='tweet-a')
     await _insert_outbox_row('202', tweet_id='tweet-b')
     tracker = AccountTracker(
