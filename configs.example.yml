@@ -9,11 +9,14 @@ plus_tweets_check_period: 45
 free_tweets_check_period: 120
 tweet_cache_limit: 500
 max_tweets_per_source_cycle: 1
+max_tweet_backfill_age_minutes: 15
 tweets_updater_retry_delay: 5
 tasks_monitor_check_period: 1
 tasks_monitor_log_period: 4
 auth_max_attempts: 2
 auth_retry_cooldown_minutes: 15
+db_lock_retry_attempts: 3
+db_lock_retry_base_seconds: 0.25
 
 auto_change_client: false
 auto_turn_off_notification: true

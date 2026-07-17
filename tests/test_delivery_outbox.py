@@ -3,8 +3,11 @@ from contextlib import contextmanager
 from dataclasses import replace
 from types import SimpleNamespace
 
-import aiosqlite
 import pytest
+import asyncio
+import aiosqlite
+import sqlite3
+from unittest.mock import AsyncMock
 
 from src.db_function.guild_settings import get_default_guild_presentation_settings
 from src.notification.account_tracker import AccountTracker
@@ -365,3 +368,82 @@ async def test_delivery_outbox_reuses_existing_nonce_after_crash(env):
     due = await list_due_deliveries(get_db_path(), '2030-01-01T00:00:00+00:00')
     assert [row.status for row in due] == ['delivered']
     assert channel.sent_messages == []
+
+@pytest.mark.asyncio
+async def test_enqueue_retries_transient_database_lock(
+    env,
+    monkeypatch,
+):
+    tracker = AccountTracker(FakeBot({}))
+    tracker.db_lock_retry_attempts = 3
+    tracker.db_lock_retry_base_seconds = 0.01
+
+    calls = 0
+
+    async def fake_enqueue_once(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+
+        if calls < 3:
+            raise sqlite3.OperationalError(
+                'database is locked'
+            )
+
+    sleep_mock = AsyncMock()
+
+    monkeypatch.setattr(
+        tracker,
+        '_enqueue_new_tweet_deliveries_once',
+        fake_enqueue_once,
+    )
+    monkeypatch.setattr(
+        asyncio,
+        'sleep',
+        sleep_mock,
+    )
+
+    await tracker._enqueue_new_tweet_deliveries(
+        'CeladonCA',
+        'client-1',
+        [],
+        '2026-07-17 16:00:00+00:00',
+    )
+
+    assert calls == 3
+    assert sleep_mock.await_count == 2
+
+@pytest.mark.asyncio
+async def test_enqueue_lock_exhaustion_preserves_failure(
+    env,
+    monkeypatch,
+):
+    tracker = AccountTracker(FakeBot({}))
+    tracker.db_lock_retry_attempts = 2
+    tracker.db_lock_retry_base_seconds = 0.01
+
+    async def always_locked(*_args, **_kwargs):
+        raise sqlite3.OperationalError(
+            'database is locked'
+        )
+
+    monkeypatch.setattr(
+        tracker,
+        '_enqueue_new_tweet_deliveries_once',
+        always_locked,
+    )
+    monkeypatch.setattr(
+        asyncio,
+        'sleep',
+        AsyncMock(),
+    )
+
+    with pytest.raises(
+        sqlite3.OperationalError,
+        match='database is locked',
+    ):
+        await tracker._enqueue_new_tweet_deliveries(
+            'CeladonCA',
+            'client-1',
+            [],
+            '2026-07-17 16:00:00+00:00',
+        )

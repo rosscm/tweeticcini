@@ -5,18 +5,19 @@ from datetime import datetime, timezone, timedelta
 from types import SimpleNamespace
 from typing import Optional
 
-import aiosqlite
+import sqlite3
 import discord
 from discord.ext import commands
 
 from src.adapters.twitter_adapter import create_twitter_session
 from configs.load_configs import configs
 from src.repositories.notifier_repository import (
+    connect_writable,
     get_user_by_username,
     update_user_latest_tweet_for_client,
 )
 from src.repositories.runtime_metrics_repository import (
-    increment_server_support_prompt_counter,
+    increment_server_support_prompt_counter_with_cursor,
     record_client_poll_error,
     record_client_poll_success,
     record_source_delivery_error,
@@ -200,6 +201,9 @@ class AccountTracker():
         self.support_prompt_threshold = 20
         self.tweet_cache_limit = max(int(configs.get('tweet_cache_limit', 500) or 500), 1)
         self.max_tweets_per_source_cycle = max(int(configs.get('max_tweets_per_source_cycle', 1) or 1), 1)
+        self.max_tweet_backfill_age_minutes = max(int(configs.get('max_tweet_backfill_age_minutes', 15) or 15), 1)
+        self.db_lock_retry_attempts = max(int(configs.get('db_lock_retry_attempts', 3) or 3), 1)
+        self.db_lock_retry_base_seconds = max(float(configs.get('db_lock_retry_base_seconds', 0.25) or 0.25), 0.05)
         self.delivery_outbox_retry_base_seconds = max(int(os.getenv('DELIVERY_OUTBOX_RETRY_BASE_SECONDS', '30') or 30), 1)
         self.delivery_outbox_retry_max_seconds = max(int(os.getenv('DELIVERY_OUTBOX_RETRY_MAX_SECONDS', '900') or 900), 1)
         self.delivery_outbox_max_attempts = max(int(os.getenv('DELIVERY_OUTBOX_MAX_ATTEMPTS', '5') or 5), 1)
@@ -380,52 +384,200 @@ class AccountTracker():
 
     async def notification(self, username: str, client_used: str):
         while True:
-            await asyncio.sleep(self._get_client_poll_interval(client_used))
+            await asyncio.sleep(
+                self._get_client_poll_interval(client_used)
+            )
 
-            lastest_tweets = await get_tweets(self.tweets[client_used], username, client_used)
-            if lastest_tweets is None:
-                continue
-
-            log.debug(f'found {len(lastest_tweets)} new tweet(s) for {username} using {client_used}')
-            tweets_to_send = lastest_tweets[-self.max_tweets_per_source_cycle:]
-            skipped_tweets_count = len(lastest_tweets) - len(tweets_to_send)
-            if skipped_tweets_count:
-                log.info(
-                    f'skipping {skipped_tweets_count} older tweet(s) for {username} using {client_used}; '
-                    f'sending latest {len(tweets_to_send)} only'
+            try:
+                latest_tweets = await get_tweets(
+                    self.tweets[client_used],
+                    username,
+                    client_used,
                 )
-            await self._enqueue_new_tweet_deliveries(username, client_used, lastest_tweets, tweets_to_send)
 
-    async def _enqueue_new_tweet_deliveries(self, username: str, client_used: str, latest_tweets: list, tweets_to_send: list) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.cursor() as cursor:
-                user = await get_user_by_username(cursor, username)
-                if user is None:
-                    return
-                await cursor.execute(
-                    '''
-                    SELECT notification.*, channel.server_id
-                    FROM notification
-                    JOIN channel ON channel.id = notification.channel_id
-                    WHERE notification.user_id = ?
-                      AND notification.client_used = ?
-                      AND notification.enabled = 1
-                    ''',
-                    (user['id'], client_used),
+                if not latest_tweets:
+                    continue
+
+                log.debug(
+                    f'found {len(latest_tweets)} new tweet(s) '
+                    f'for {username} using {client_used}'
                 )
-                notifications = await cursor.fetchall()
-                now = datetime.now(timezone.utc).isoformat(timespec='seconds')
-                for tweet in tweets_to_send:
-                    await self._enqueue_tweet_deliveries(cursor, user, username, client_used, tweet, notifications, now)
-                async with lock:
-                    await update_user_latest_tweet_for_client(
-                        cursor,
-                        username,
-                        client_used,
-                        str(latest_tweets[-1].created_on),
+
+                (
+                    expired_tweets,
+                    tweets_to_process,
+                    deferred_tweets,
+                ) = self._select_tweets_for_cycle(latest_tweets)
+
+                if expired_tweets:
+                    log.info(
+                        f'skipping {len(expired_tweets)} stale tweet(s) '
+                        f'for {username} using {client_used}; '
+                        f'older than '
+                        f'{self.max_tweet_backfill_age_minutes} minute(s)'
                     )
+
+                if deferred_tweets:
+                    log.info(
+                        f'processing oldest '
+                        f'{len(tweets_to_process)} recent tweet(s) '
+                        f'for {username} using {client_used}; '
+                        f'retaining {len(deferred_tweets)} newer tweet(s) '
+                        f'for the next cycle'
+                    )
+
+                if tweets_to_process:
+                    checkpoint_created_on = (
+                        tweets_to_process[-1].created_on
+                    )
+                elif expired_tweets:
+                    # All available tweets are too old. Move the checkpoint
+                    # past them without creating stale alerts.
+                    checkpoint_created_on = (
+                        expired_tweets[-1].created_on
+                    )
+                else:
+                    continue
+
+                await self._enqueue_new_tweet_deliveries(
+                    username,
+                    client_used,
+                    tweets_to_process,
+                    checkpoint_created_on,
+                )
+
+            except asyncio.CancelledError:
+                raise
+
+            except sqlite3.OperationalError as exc:
+                if 'database is locked' in str(exc).lower():
+                    log.warning(
+                        f'database remained locked while processing '
+                        f'{username} using {client_used}; '
+                        'checkpoint left unchanged for the next cycle'
+                    )
+                    continue
+
+                log.exception(
+                    f'SQLite failure while processing '
+                    f'{username} using {client_used}'
+                )
+
+            except Exception:
+                log.exception(
+                    f'notification task error for '
+                    f'{username} using {client_used}; '
+                    'task will continue next cycle'
+                )
+
+    async def _enqueue_new_tweet_deliveries(
+        self,
+        username: str,
+        client_used: str,
+        tweets_to_process: list,
+        checkpoint_created_on,
+    ) -> None:
+        for attempt in range(1, self.db_lock_retry_attempts + 1):
+            try:
+                await self._enqueue_new_tweet_deliveries_once(
+                    username,
+                    client_used,
+                    tweets_to_process,
+                    checkpoint_created_on,
+                )
+                return
+
+            except sqlite3.OperationalError as exc:
+                is_locked = 'database is locked' in str(exc).lower()
+
+                if not is_locked:
+                    raise
+
+                if attempt >= self.db_lock_retry_attempts:
+                    raise
+
+                delay = min(
+                    self.db_lock_retry_base_seconds
+                    * (2 ** (attempt - 1)),
+                    2.0,
+                )
+
+                log.warning(
+                    f'database locked while enqueueing tweets for '
+                    f'{username} using {client_used}; '
+                    f'retrying in {delay:.2f}s '
+                    f'({attempt}/{self.db_lock_retry_attempts})'
+                )
+
+                await asyncio.sleep(delay)
+
+
+    async def _enqueue_new_tweet_deliveries_once(
+        self,
+        username: str,
+        client_used: str,
+        tweets_to_process: list,
+        checkpoint_created_on,
+    ) -> None:
+        # Serialize these short enqueue/checkpoint transactions inside
+        # this bot process.
+        async with lock:
+            async with connect_writable(self.db_path) as db:
+                try:
+                    # Acquire the write lock before evaluating destinations.
+                    await db.execute('BEGIN IMMEDIATE')
+
+                    async with db.cursor() as cursor:
+                        user = await get_user_by_username(
+                            cursor,
+                            username,
+                        )
+
+                        if user is None:
+                            await db.rollback()
+                            return
+
+                        await cursor.execute(
+                            '''
+                            SELECT notification.*, channel.server_id
+                            FROM notification
+                            JOIN channel
+                                ON channel.id = notification.channel_id
+                            WHERE notification.user_id = ?
+                            AND notification.client_used = ?
+                            AND notification.enabled = 1
+                            ''',
+                            (user['id'], client_used),
+                        )
+                        notifications = await cursor.fetchall()
+
+                        now = datetime.now(timezone.utc).isoformat(
+                            timespec='seconds'
+                        )
+
+                        for tweet in tweets_to_process:
+                            await self._enqueue_tweet_deliveries(
+                                cursor,
+                                user,
+                                username,
+                                client_used,
+                                tweet,
+                                notifications,
+                                now,
+                            )
+
+                        await update_user_latest_tweet_for_client(
+                            cursor,
+                            username,
+                            client_used,
+                            str(checkpoint_created_on),
+                        )
+
                     await db.commit()
+
+                except Exception:
+                    await db.rollback()
+                    raise
 
     async def _enqueue_tweet_deliveries(self, cursor, user, username: str, client_used: str, tweet, notifications, created_at: str) -> None:
         log.debug(f'found {len(notifications)} notification target(s) for {username} using {client_used}')
@@ -508,7 +660,7 @@ class AccountTracker():
                 support_prompt_url = _get_top_gg_vote_url()
                 if support_prompt_url:
                     support_prompt_text = self._get_support_prompt_text(server_id)
-            elif await self._should_include_support_footer(server_id, presentation.plan, str(data['channel_id'])):
+            elif await self._should_include_support_footer(cursor, server_id, presentation.plan, str(data['channel_id'])):
                 support_prompt_text = self._get_support_prompt_text(server_id)
                 if server_id in self.support_prompt_server_ids:
                     support_prompt_url = _get_top_gg_vote_url()
@@ -709,14 +861,29 @@ class AccountTracker():
             return self.managed_support_prompt_text
         return 'Enjoying Tweeticcini? Consider a small one-time donation to help keep it running 💛'
 
-    async def _should_include_support_footer(self, server_id: str, presentation_plan: str, channel_id: str) -> bool:
-        if not self._is_support_prompt_eligible(server_id, presentation_plan, channel_id):
-            return False
-        return await increment_server_support_prompt_counter(
-            self.db_path,
+    async def _should_include_support_footer(
+        self,
+        cursor,
+        server_id: str,
+        presentation_plan: str,
+        channel_id: str,
+    ) -> bool:
+        if not self._is_support_prompt_eligible(
             server_id,
-            datetime.now(timezone.utc).isoformat(timespec='seconds'),
-            threshold=self.support_prompt_threshold,
+            presentation_plan,
+            channel_id,
+        ):
+            return False
+
+        return (
+            await increment_server_support_prompt_counter_with_cursor(
+                cursor,
+                server_id,
+                datetime.now(timezone.utc).isoformat(
+                    timespec='seconds'
+                ),
+                threshold=self.support_prompt_threshold,
+            )
         )
 
     def _should_include_force_everyone_support_footer(self, server_id: str, force_everyone: bool) -> bool:
@@ -881,3 +1048,51 @@ class AccountTracker():
 
         self.bot.loop.create_task(self.tasksMonitor()).set_name('TasksMonitor')
         log.info('new TasksMonitor has been started')
+
+    @staticmethod
+    def _tweet_created_at_utc(tweet) -> datetime:
+        created_at = tweet.created_on
+
+        if created_at.tzinfo is None:
+            return created_at.replace(tzinfo=timezone.utc)
+
+        return created_at.astimezone(timezone.utc)
+
+
+    def _select_tweets_for_cycle(
+        self,
+        latest_tweets: list,
+        now: Optional[datetime] = None,
+    ) -> tuple[list, list, list]:
+        current_time = now or datetime.now(timezone.utc)
+
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=timezone.utc)
+        else:
+            current_time = current_time.astimezone(timezone.utc)
+
+        cutoff = current_time - timedelta(
+            minutes=self.max_tweet_backfill_age_minutes
+        )
+
+        expired_tweets = [
+            tweet
+            for tweet in latest_tweets
+            if self._tweet_created_at_utc(tweet) < cutoff
+        ]
+
+        eligible_tweets = [
+            tweet
+            for tweet in latest_tweets
+            if self._tweet_created_at_utc(tweet) >= cutoff
+        ]
+
+        tweets_to_process = eligible_tweets[
+            : self.max_tweets_per_source_cycle
+        ]
+
+        deferred_tweets = eligible_tweets[
+            len(tweets_to_process) :
+        ]
+
+        return expired_tweets, tweets_to_process, deferred_tweets

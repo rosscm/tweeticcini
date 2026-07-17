@@ -96,5 +96,5 @@ def test_no_generic_support_button_label_remains_in_discord_views():
     assert "label='Support'" not in about_py
     assert 'Vote on Top.gg' in about_py
     assert 'Join Support Server' in about_py
-    assert 'Open Dashboard' in dashboard_py
+    assert 'Open Dashboard' in about_py
     assert "@app_commands.command(name='vote'" not in dashboard_py
