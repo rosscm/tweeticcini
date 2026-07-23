@@ -242,11 +242,6 @@
           <div class="app-header-copy">
             <p class="eyebrow">Dashboard</p>
             <h1 class="app-page-title">{{ page_title }}</h1>
-            <div class="app-header-context">
-              <span class="app-header-server">{{ guild_name }}</span>
-              <span class="app-header-dot" aria-hidden="true">·</span>
-              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
-            </div>
           </div>
           <div class="app-header-actions">
             <span class="app-status-badge app-status-badge--{{ status_banner.level }}">{{ status_chip_label }}</span>
@@ -540,7 +535,7 @@
               </a>
               <a class="quick-action" href="/dashboard/guilds/{{ guild_id }}/billing">
                 <strong>Manage Premium</strong>
-                <span>Check plan limits, trial status, and billing details.</span>
+                <span>Compare plans, check trial status, and manage billing details.</span>
               </a>
             </div>
           </div>
@@ -706,7 +701,7 @@
             <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
               {% if not guild_presentation.features.can_customize_presentation %}
               <div class="form-banner">
-                ✨ This feature is available with Premium. Customize how Tweeticcini alerts appear in your Discord server, including message styling, bot display name, and embed behavior.
+                ✨ This feature is available with Premium. Customize how Tweeticcini alerts appear in your Discord server, including message styling, bot display name, and embed behaviour.
                 <div class="actions">
                   <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Explore Premium</a>
                 </div>
@@ -841,6 +836,15 @@
               <button type="button" id="open-billing-portal" {{ 'disabled' if not guild_presentation.entitlement.external_customer_id else '' }}>Manage Subscription</button>
             </div>
             {% else %}
+            <section class="notice notice--plain notice--compact">
+              <strong>🚀 Need more from Tweeticcini?</strong>
+              <div class="section-copy section-copy--tight">Upgrade to Plus or Premium for more monitors, faster checks, and additional control over how posts are delivered.</div>
+              {% if public_site_url %}
+              <div class="actions">
+                <a class="button-secondary" href="{{ public_site_url }}#pricing" target="_blank" rel="noreferrer">Compare plans</a>
+              </div>
+              {% endif %}
+            </section>
             <div class="actions billing-actions">
               <select id="checkout-plan">
                 {% if 'plus' in billing_context.available_price_plans %}
@@ -857,13 +861,14 @@
             <div class="field-help">This server is currently using a manual support or testing override.</div>
             {% endif %}
             <section class="notice notice--plain notice--compact">
-              <strong>Subscriptions and one-time support are separate.</strong> Paid plans unlock higher limits and advanced controls. Buy Me a Coffee is optional and helps with hosting and development.
+              <strong>☕ Happy with the Free plan?</strong>
+              <div class="section-copy section-copy--tight">You do not need a subscription to support Tweeticcini. A one-time contribution through Buy Me a Coffee helps with hosting and ongoing development.</div>
+              {% if buy_me_a_coffee_url %}
+              <div class="actions">
+                <a class="button-secondary" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy me a coffee</a>
+              </div>
+              {% endif %}
             </section>
-            {% if buy_me_a_coffee_url %}
-            <section class="notice notice--plain notice--compact">
-              <strong>Prefer one-time support?</strong> If Tweeticcini helps this server and a subscription is not the right fit yet, you can <a class="inline-link" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">buy Pokaccini a coffee</a> instead.
-            </section>
-            {% endif %}
           </div>
 
         </div>
@@ -883,7 +888,18 @@
 
           {% if plan_usage.source_count >= guild_presentation.features.max_sources %}
           <section class="notice notice--warning">
-            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan. Upgrade on <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to track more accounts and scale alert coverage.
+            {% if guild_presentation.plan == 'free' %}
+            <strong>📡 Your Free monitor is already in use</strong>
+            <div class="section-copy section-copy--tight">You are currently using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} Free monitors. Want to follow another account? Plus supports up to {{ plan_catalog.plus.max_sources }} monitors and checks for new posts more frequently.</div>
+            <div class="actions">
+              <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing?plan=plus">Upgrade to Plus</a>
+              {% if public_site_url %}
+              <a class="button-secondary" href="{{ public_site_url }}#pricing" target="_blank" rel="noreferrer">Compare plans</a>
+              {% endif %}
+            </div>
+            {% else %}
+            <strong>Monitor limit reached:</strong> This server is using {{ plan_usage.source_count }} of {{ guild_presentation.features.max_sources }} monitors on the {{ 'Premium' if guild_presentation.plan == 'pro' else 'Plus' }} plan.
+            {% endif %}
           </section>
           {% endif %}
 
@@ -1135,7 +1151,7 @@
               <form id="rule-form" class="stack {{ 'is-locked' if rules_locked else '' }}">
                 <div class="form-banner">
                   {% if guild_presentation.features.max_rules == 0 %}
-                  ✨ This feature is available with Premium. Use Rules to route matching posts to different channels, suppress unwanted content, and decide when high-priority posts should ping everyone.
+                  ✨ This feature is available with Premium. Use Rules to route matching posts to different channels, suppress unwanted content, and control which roles are mentioned.
                   <div class="actions">
                     <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Explore Premium</a>
                   </div>

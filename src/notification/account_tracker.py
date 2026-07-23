@@ -662,17 +662,14 @@ class AccountTracker():
             support_prompt_text = None
             support_prompt_url = None
             if self._should_include_force_everyone_support_footer(server_id, bool(alert_decision.should_force_everyone)):
-                support_prompt_url = _get_top_gg_vote_url()
+                support_prompt_url = _get_donation_url()
                 if support_prompt_url:
                     support_prompt_text = self._get_support_prompt_text(server_id)
             elif await self._should_include_support_footer(cursor, server_id, presentation.plan, str(data['channel_id'])):
                 support_prompt_text = self._get_support_prompt_text(server_id)
-                if server_id in self.support_prompt_server_ids:
-                    support_prompt_url = _get_top_gg_vote_url()
-                    if not support_prompt_url:
-                        support_prompt_text = None
-                else:
-                    support_prompt_url = _get_donation_url()
+                support_prompt_url = _get_donation_url()
+                if not support_prompt_url:
+                    support_prompt_text = None
 
             payload = {
                 'tweet': _tweet_snapshot(tweet),
@@ -953,7 +950,7 @@ class AccountTracker():
     def _get_support_prompt_text(self, server_id: str) -> str:
         if server_id in self.support_prompt_server_ids and self.managed_support_prompt_text:
             return self.managed_support_prompt_text
-        return 'Enjoying Tweeticcini? Consider a small one-time donation to help keep it running 💛'
+        return '☕ Enjoying Tweeticcini? A small one-time contribution helps cover hosting and continued development.'
 
     async def _should_include_support_footer(
         self,

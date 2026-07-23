@@ -38,7 +38,12 @@ from src.repositories.runtime_metrics_repository import (
 )
 from src.services.alert_rule_service import AlertRuleRecord, AlertRuleService
 from src.services.billing_service import BillingConfigurationError, BillingService
-from src.services.guild_settings_service import GuildSettingsService, GuildPresentationView
+from src.services.guild_settings_service import (
+    PLAN_FEATURES,
+    PLAN_PLUS,
+    GuildPresentationView,
+    GuildSettingsService,
+)
 from src.services.notifier_service import (
     AddNotifierRequest,
     AutoChangeClientDisabledError,
@@ -1646,6 +1651,11 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'top_gg_vote_url': _get_top_gg_vote_url(),
             'buy_me_a_coffee_url': _get_buy_me_a_coffee_url(),
             'selected_checkout_plan': selected_checkout_plan,
+            'plan_catalog': {
+                'plus': {
+                    'max_sources': PLAN_FEATURES[PLAN_PLUS].max_sources,
+                },
+            },
         },
     )
 
@@ -1801,6 +1811,15 @@ async def create_guild_source(request: Request, guild_id: str, source_request: C
     except AutoChangeClientDisabledError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except PlanLimitExceededError as error:
+        presentation = await guild_settings_service.get_presentation_view(guild_id)
+        if presentation.plan == 'free':
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    'Your Free monitor is already in use. '
+                    f'Plus supports up to {PLAN_FEATURES[PLAN_PLUS].max_sources} monitors and checks for new posts more frequently.'
+                ),
+            ) from error
         raise HTTPException(status_code=400, detail=str(error)) from error
     except SelfMonitoringSessionError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
