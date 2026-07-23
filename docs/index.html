@@ -6,7 +6,7 @@
     <title>Real-Time Twitter Alerts for Discord | Tweeticcini</title>
     <meta
       name="description"
-      content="Tweeticcini is a real-time Twitter alert bot for Discord with flexible routing, cleaner delivery, less noise, and one dashboard for setup and billing."
+      content="Tweeticcini routes Twitter alerts into the right Discord channels with filters, rules, alert styling, and one dashboard for setup and billing."
     >
     <meta name="robots" content="index,follow">
     <link rel="canonical" href="https://tweeticcini.com/">
@@ -14,7 +14,7 @@
     <meta property="og:title" content="Real-Time Twitter Alerts for Discord | Tweeticcini">
     <meta
       property="og:description"
-      content="Track the Twitter accounts that matter, route alerts cleanly, and cut down on noise with one dashboard for setup and control."
+      content="A source post appears, Tweeticcini evaluates your server settings, and the right alert reaches the right Discord channel."
     >
     <meta property="og:url" content="https://tweeticcini.com/">
     <meta property="og:image" content="https://tweeticcini.com/tweeticcini-banner.jpg">
@@ -23,363 +23,451 @@
     <meta name="twitter:title" content="Real-Time Twitter Alerts for Discord | Tweeticcini">
     <meta
       name="twitter:description"
-      content="Track the Twitter accounts that matter, route alerts cleanly, and cut down on noise with one dashboard for setup and control."
+      content="Route the Twitter accounts that matter into the right Discord channel with filters, rules, and cleaner delivery."
     >
     <meta name="twitter:image" content="https://tweeticcini.com/tweeticcini-banner.jpg">
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="stylesheet" href="./styles.css">
+    <script src="./site.js" defer></script>
   </head>
   <body>
-    <main class="site-shell">
-      <header class="site-header">
-        <div class="site-brand">
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a class="site-brand" href="./index.html" aria-label="Tweeticcini home">
           <img class="site-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
           <div>
             <p class="eyebrow">Tweeticcini</p>
             <div class="site-brand-name">Twitter alert routing for Discord</div>
           </div>
-        </div>
-        <nav class="site-nav" aria-label="Primary">
-          <a href="#features">Features</a>
+        </a>
+
+        <details class="mobile-nav">
+          <summary aria-label="Toggle navigation">Menu</summary>
+          <nav class="mobile-nav-panel" aria-label="Mobile navigation">
+            <a href="#workflow">Features</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#trust">Trust</a>
+            <a href="#faq">FAQ</a>
+            <a href="#get-started">Get Started</a>
+            <a href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
+            <a href="https://app.tweeticcini.com">Open Dashboard</a>
+          </nav>
+        </details>
+
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="#workflow">Features</a>
+          <a href="#how-it-works">How It Works</a>
           <a href="#pricing">Pricing</a>
-          <a href="#setup">Setup</a>
+          <a href="#trust">Trust</a>
           <a href="#faq">FAQ</a>
-          <a href="#support">Support</a>
+          <a href="#get-started">Get Started</a>
         </nav>
-      </header>
-      <section class="hero hero-app">
+
+        <div class="header-actions">
+          <a class="button button-secondary button-small" href="https://app.tweeticcini.com">Open Dashboard</a>
+          <a class="button button-small" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" class="site-shell">
+      <section class="hero-section">
         <div class="hero-copy">
+          <p class="eyebrow">Live Twitter monitoring, routed for Discord</p>
           <h1>Never miss high-value drops, updates, and announcements in Discord.</h1>
+          <p class="hero-text">
+            A source post appears, Tweeticcini evaluates your server settings, and the right alert reaches the right Discord channel.
+          </p>
           <p class="proof-line" aria-label="Tweeticcini adoption and reliability signals">
-            <span class="proof-kicker">Trusted by Discord communities</span>
-            <span class="proof-primary proof-primary--fallback">Trusted by Discord communities for round-the-clock alert monitoring.</span>
-            <span class="proof-primary proof-primary--count" hidden><strong><span class="server-count"></span> active servers</strong> using Tweeticcini today</span>
-            <span class="proof-secondary">24/7 monitoring with priority alerts in as little as <strong>12 seconds</strong></span>
+            <span class="proof-primary proof-primary--fallback">Trusted by Discord communities</span>
+            <span class="proof-primary proof-primary--count" hidden><span class="server-count"></span> active servers using Tweeticcini</span>
+            <span class="proof-secondary">Priority polling can deliver the right alert in as little as <strong>12 seconds</strong>.</span>
           </p>
-          <p class="lede">
-            Tweeticcini turns noisy Twitter/X feeds into actionable Discord alerts with smart filtering, routing, and clear escalation when a post matters.
-          </p>
-          <ul class="hero-points">
-            <li>📡 Track trusted accounts your community relies on for important updates</li>
-            <li>🎯 Cut noise with post/media filters, then unlock Premium Rules when you need finer control</li>
-            <li>🧠 Manage monitors, speed, alert style, and premium controls in one dashboard</li>
-          </ul>
           <div class="hero-actions">
             <a class="button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
             <a class="button button-secondary" href="https://app.tweeticcini.com">Open Dashboard</a>
           </div>
         </div>
-        <aside class="app-preview">
-          <p class="app-preview-mobile-label">Dashboard preview</p>
-          <div class="app-shell">
-            <div class="app-shell-badge">Preview</div>
-            <div class="preview-sidebar">
-              <div class="preview-brand">
-                <img class="preview-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
-                <div>
-                  <p class="eyebrow">Tweeticcini</p>
-                  <strong>Server Dashboard</strong>
-                </div>
-              </div>
-              <div class="preview-server-name">
-                <span class="status-pill status-pill--pro">Premium Plan</span>
-              </div>
-              <div class="preview-nav">
-                <span class="nav-item nav-item--active"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V20h13V9.5"></path></svg></span> Overview</span>
-                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"></rect><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span> Sessions</span>
-                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.25"></circle><path d="M5.5 19.5c1.8-3.4 4-5.1 6.5-5.1s4.7 1.7 6.5 5.1"></path></svg></span> Monitors</span>
-                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 19h18L12 3Z"></path><path d="M12 9v4.5"></path><path d="M12 17h.01"></path></svg></span> Rules</span>
-                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5a7.5 7.5 0 1 0 0 15c1 0 1.6-.5 1.6-1.3 0-.7-.4-1.2-.4-1.8 0-1.1 1-2 2.3-2H17A4 4 0 0 0 21 10c0-3-3.8-5.5-9-5.5Z"></path><path d="M7.5 11h.01"></path><path d="M9.5 8h.01"></path><path d="M13.5 8h.01"></path></svg></span> Appearance</span>
-                <span class="nav-item"><span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 8 4 3 4-6 4 6 4-3v10H4V8Z"></path></svg></span> Premium</span>
-              </div>
+
+        <aside class="hero-visual" aria-label="Tweeticcini workflow preview">
+          <div class="signal-card">
+            <div class="signal-card-header">
+              <span class="status-dot" aria-hidden="true"></span>
+              <strong>Workflow preview</strong>
             </div>
-            <div class="app-content">
-              <div class="preview-mobile-nav">
-                <button type="button" class="preview-mobile-toggle" aria-label="Open navigation">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </button>
-                <div class="preview-mobile-current">
-                  <span class="nav-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V20h13V9.5"></path></svg></span>
-                  <div>
-                    <span class="metric-label">Overview</span>
-                    <strong>Server Dashboard</strong>
-                  </div>
-                </div>
-                <span class="status-pill status-pill--pro">Premium Plan</span>
+            <div class="workflow-chain" aria-hidden="true">
+              <div class="workflow-chain-step">
+                <span class="chain-label">Source post</span>
+                <strong>@PokemonRestocks</strong>
+                <p>151 Booster Bundles restocked</p>
               </div>
-              <div class="app-panel">
-                <div class="status-preview-card">
-                  <span class="metric-label">Live dashboard status</span>
-                  <strong class="status-copy status-copy--healthy">Healthy. Bot is online with no recent delivery issues.</strong>
-                </div>
-                <div class="metric-row">
-                  <div class="metric-card">
-                    <span class="metric-label">Sessions</span>
-                    <strong>1 / 5</strong>
-                  </div>
-                  <div class="metric-card">
-                    <span class="metric-label">Monitors</span>
-                    <strong>4 / 10</strong>
-                  </div>
-                </div>
-                <div class="feed-card">
-                  <div class="feed-header">
-                    <strong>Alert Configuration</strong>
-                  </div>
-                  <div class="preview-pill-list">
-                    <span class="tag tag--soft">Style: Headline-style</span>
-                    <span class="tag tag--soft">Priority pings: 1</span>
-                    <span class="tag tag--soft">Muted phrases: 12</span>
-                    <span class="tag tag--soft">Scoped rules: 2</span>
-                  </div>
-                </div>
-                <div class="feed-card feed-card--muted">
-                  <div class="feed-header">
-                    <strong>Last Delivery</strong>
-                  </div>
-                  <div class="preview-delivery-list">
-                    <div class="preview-delivery-item">
-                      <div class="preview-delivery-head">
-                        <strong>MyAccount</strong>
-                        <span class="tag tag--soft">2026-04-09 09:55</span>
-                      </div>
-                      <p>Delivered to <code>#alerts-channel</code></p>
-                    </div>
-                  </div>
-                </div>
+              <div class="workflow-chain-arrow">→</div>
+              <div class="workflow-chain-step">
+                <span class="chain-label">Evaluation</span>
+                <strong>Keyword: 151</strong>
+                <p>Priority: High · Media: Optional</p>
+              </div>
+              <div class="workflow-chain-arrow">→</div>
+              <div class="workflow-chain-step">
+                <span class="chain-label">Routing</span>
+                <strong>#pokemon-restocks</strong>
+                <p>@Restock Alerts · Headline-style</p>
               </div>
             </div>
           </div>
         </aside>
       </section>
 
-      <section id="features" class="mid-grid">
-        <section class="panel proof-panel">
-          <div class="proof-copy">
-            <p class="eyebrow">Preview 👀</p>
-            <h2>See alerts land your way</h2>
-            <p>
-              Configure the routing, mention style, and delivery format in the dashboard, then let Tweeticcini handle the final post in Discord.
-            </p>
-          </div>
-          <div class="proof-image-wrap">
-            <div class="proof-image-shell">
-              <img class="proof-image" src="./discord-alert-example.png" alt="Example Tweeticcini alert delivered in Discord">
-            </div>
-            <p class="proof-note">Real delivery from a live server channel 📸</p>
-          </div>
-        </section>
+      <section id="workflow" class="section-band workflow-section" aria-labelledby="workflow-title">
+        <div class="section-heading">
+          <p class="eyebrow">Features</p>
+          <h2 id="workflow-title">See how a post becomes the right Discord alert.</h2>
+          <p>
+            Adjust the example settings and watch the Discord alert update.
+          </p>
+          <p class="section-note">This demonstration uses fictional accounts and server settings.</p>
+        </div>
 
-        <section id="pricing" class="pricing-card">
-          <div class="pricing-header">
-            <div>
-              <p class="eyebrow">Pricing 💳</p>
-              <h2>Simple plans, built around speed and scale</h2>
+        <div class="workflow-demo">
+          <form class="workflow-controls" data-workflow-form>
+            <label>
+              Monitored account
+              <select name="account">
+                <option value="@PokemonRestocks" selected>@PokemonRestocks</option>
+                <option value="@PokeDrops">PokeDrops</option>
+                <option value="@TCGNewsFeed">TCGNewsFeed</option>
+              </select>
+            </label>
+            <label>
+              Source post
+              <input name="post" type="text" value="151 Booster Bundles restocked">
+            </label>
+            <label>
+              Keyword filter
+              <input name="keyword" type="text" value="151">
+            </label>
+            <label>
+              Media requirement
+              <select name="media">
+                <option value="Optional" selected>Optional</option>
+                <option value="Required">Required</option>
+                <option value="No media">No media</option>
+              </select>
+            </label>
+            <label>
+              Destination channel
+              <select name="channel">
+                <option value="#pokemon-restocks" selected>#pokemon-restocks</option>
+                <option value="#drops-feed">#drops-feed</option>
+                <option value="#tcg-news">#tcg-news</option>
+              </select>
+            </label>
+            <label>
+              Role mention
+              <select name="mention">
+                <option value="@Restock Alerts" selected>@Restock Alerts</option>
+                <option value="@Pokemon News">@Pokemon News</option>
+                <option value="No role">No role</option>
+              </select>
+            </label>
+            <label>
+              Priority
+              <select name="priority">
+                <option value="High" selected>High</option>
+                <option value="Standard">Standard</option>
+                <option value="Low">Low</option>
+              </select>
+            </label>
+            <label>
+              Alert style
+              <select name="style">
+                <option value="Headline-style" selected>Headline-style</option>
+                <option value="Template message">Template message</option>
+              </select>
+            </label>
+          </form>
+
+          <div class="workflow-preview">
+            <div class="workflow-stage-list" aria-label="Tweeticcini workflow stages">
+              <article class="stage-card">
+                <span class="stage-label">Source post</span>
+                <strong data-preview-account>@PokemonRestocks</strong>
+                <p data-preview-post>151 Booster Bundles restocked</p>
+              </article>
+              <article class="stage-card">
+                <span class="stage-label">Filters</span>
+                <strong data-preview-keyword>Keyword: 151</strong>
+                <p data-preview-media>Media: Optional</p>
+              </article>
+              <article class="stage-card">
+                <span class="stage-label">Routing decision</span>
+                <strong data-preview-channel>#pokemon-restocks</strong>
+                <p data-preview-decision>@Restock Alerts · Priority: High</p>
+              </article>
+              <article class="stage-card stage-card--result">
+                <span class="stage-label">Discord alert</span>
+                <strong data-preview-status>Delivered</strong>
+                <p data-preview-style>Headline-style</p>
+              </article>
             </div>
+
+            <article class="discord-preview" aria-live="polite">
+              <div class="discord-preview-header">
+                <div>
+                  <strong>Discord alert preview</strong>
+                  <span data-preview-channel-header>#pokemon-restocks</span>
+                </div>
+                <span class="status-badge status-badge--success" data-preview-status-badge>Delivered</span>
+              </div>
+              <div class="discord-message-card">
+                <div class="discord-message-accent" aria-hidden="true"></div>
+                <div class="discord-message-body">
+                  <p class="discord-message-mention" data-preview-mention>@Restock Alerts</p>
+                  <strong class="discord-message-title" data-preview-title>151 Booster Bundles restocked</strong>
+                  <p class="discord-message-meta"><span data-preview-account-inline>@PokemonRestocks</span> · <span data-preview-priority>High</span> priority · <span data-preview-style-inline>Headline-style</span></p>
+                  <p class="discord-message-copy">Matched keyword <strong data-preview-keyword-inline>151</strong>. Media requirement: <span data-preview-media-inline>Optional</span>.</p>
+                </div>
+              </div>
+            </article>
           </div>
-          <div class="pricing-layout">
-            <div class="pricing-copy">
-              <p class="pricing-summary pricing-summary--lead">
-                Free covers one monitored account. Plus adds more speed and capacity from $3.99/month. Premium adds Rules, priority polling, and deeper alert control. <strong>Try paid plans risk-free for 7 days ✨</strong>
-              </p>
-            </div>
-            <div class="pricing-table-wrap">
-              <table class="pricing-table">
-                <colgroup>
-                  <col>
-                  <col>
-                  <col>
-                  <col>
-                </colgroup>
-                <thead>
-                <tr>
-                  <th></th>
-                  <th>Free</th>
-                  <th>Plus</th>
-                  <th>Premium</th>
-                </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <th>Price (monthly)</th>
-                    <td>$0</td>
-                    <td>$3.99</td>
-                    <td>$6.99</td>
-                  </tr>
-                  <tr>
-                    <th>Polling speed</th>
-                    <td>Standard (120s)</td>
-                    <td>Balanced (45s)</td>
-                    <td>Priority (12s)</td>
-                  </tr>
-                  <tr>
-                    <th>Twitter sessions</th>
-                    <td>1</td>
-                    <td>2</td>
-                    <td>5</td>
-                  </tr>
-                  <tr>
-                    <th>Tracked accounts</th>
-                    <td>1</td>
-                    <td>3</td>
-                    <td>10</td>
-                  </tr>
-                  <tr>
-                    <th>Post + media filtering</th>
-                    <td>✓</td>
-                    <td>✓</td>
-                    <td>✓</td>
-                  </tr>
-                  <tr>
-                    <th>Role mentions</th>
-                    <td>✓</td>
-                    <td>✓</td>
-                    <td>✓</td>
-                  </tr>
-                  <tr>
-                    <th>Alert rules</th>
-                    <td>✕</td>
-                    <td>✕</td>
-                    <td>30</td>
-                  </tr>
-                  <tr>
-                    <th><code>@everyone</code> mentions</th>
-                    <td>✕</td>
-                    <td>✕</td>
-                    <td>✓</td>
-                  </tr>
-                  <tr>
-                    <th>Custom messages</th>
-                    <td>✕</td>
-                    <td>✕</td>
-                    <td>✓</td>
-                  </tr>
-                <tr>
-                  <th>Delivery styling</th>
-                  <td>✕</td>
-                  <td>✕</td>
-                  <td>✓</td>
-                </tr>
-                <tr>
-                  <th>Get started</th>
-                  <td><a class="button pricing-table-button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a></td>
-                  <td><a class="button pricing-table-button" href="https://app.tweeticcini.com/dashboard?plan=plus" aria-label="Start Plus trial">Start Trial</a></td>
-                  <td><a class="button pricing-table-button" href="https://app.tweeticcini.com/dashboard?plan=pro" aria-label="Start Premium trial">Start Trial</a></td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+        </div>
       </section>
 
-      <section class="panel workflow-demo">
-        <p class="eyebrow">Workflow ✨</p>
-        <h2>Stop flooding Discord with irrelevant alerts</h2>
-        <p class="panel-copy">
-          Basic relay bots forward everything. Tweeticcini filters, prioritizes, and routes the signals that actually matter.
-        </p>
-        <div class="workflow-demo-grid">
-          <article class="workflow-lane workflow-lane--basic">
-            <h3>Basic Relay</h3>
-            <div class="signal-flow">
-              <span>Tweet posted</span>
-              <span class="signal-arrow">↓</span>
-              <span>Post/media filters applied</span>
-              <span class="signal-arrow">↓</span>
-              <span>Sent with basic channel + role routing</span>
-              <span class="signal-arrow">↓</span>
-              <span>Limited per-account prioritization</span>
+      <section class="section-band proof-section" aria-labelledby="proof-title">
+        <div class="section-heading">
+          <p class="eyebrow">Real Discord Delivery</p>
+          <h2 id="proof-title">See what a live Tweeticcini alert looks like in Discord.</h2>
+          <p>
+            This example shows a real delivered alert with the original post, media, role mention, and destination-channel context.
+          </p>
+        </div>
+        <div class="proof-layout">
+          <div class="proof-image-shell">
+            <img class="proof-image" src="./discord-alert-example.png" alt="Example Tweeticcini alert delivered in Discord">
+          </div>
+          <div class="proof-notes">
+            <div class="support-card">
+              <span class="card-kicker">More Than a Basic Relay</span>
+              <h3>Tweeticcini does more than repost a link.</h3>
+              <p>It evaluates the monitored account, filters, routing settings, mention targets, and available controls before delivering the final alert.</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-band spotlight-section" aria-labelledby="spotlight-title">
+        <div class="section-heading">
+          <p class="eyebrow">Dashboard Spotlight</p>
+          <h2 id="spotlight-title">One dashboard for sessions, monitors, rules, appearance, and premium controls.</h2>
+        </div>
+
+        <div class="tab-demo" data-tab-demo>
+          <div class="tab-list" role="tablist" aria-label="Dashboard preview tabs">
+            <button type="button" class="tab-button is-active" role="tab" aria-selected="true" aria-controls="tab-sessions" id="tab-button-sessions" data-tab-target="tab-sessions">Sessions</button>
+            <button type="button" class="tab-button" role="tab" aria-selected="false" aria-controls="tab-monitors" id="tab-button-monitors" data-tab-target="tab-monitors">Monitors</button>
+            <button type="button" class="tab-button" role="tab" aria-selected="false" aria-controls="tab-rules" id="tab-button-rules" data-tab-target="tab-rules">Rules</button>
+            <button type="button" class="tab-button" role="tab" aria-selected="false" aria-controls="tab-appearance" id="tab-button-appearance" data-tab-target="tab-appearance">Appearance</button>
+            <button type="button" class="tab-button" role="tab" aria-selected="false" aria-controls="tab-premium" id="tab-button-premium" data-tab-target="tab-premium">Premium</button>
+          </div>
+
+          <div class="tab-panels">
+            <section class="tab-panel is-active" id="tab-sessions" role="tabpanel" aria-labelledby="tab-button-sessions">
+              <img class="tab-preview-image" src="./tweeticcini-sessions.png" alt="Tweeticcini dashboard sessions preview">
+              <div class="tab-copy">
+                <h3>Connect and manage Twitter/X sessions</h3>
+                <p>See which sessions are active, which ones need attention, and which monitors depend on them.</p>
+              </div>
+            </section>
+            <section class="tab-panel" id="tab-monitors" role="tabpanel" aria-labelledby="tab-button-monitors">
+              <img class="tab-preview-image" src="./tweeticcini-monitors.png" alt="Tweeticcini dashboard monitors preview">
+              <div class="tab-copy">
+                <h3>Route monitored accounts to the right channels</h3>
+                <p>Assign channels, role mentions, post filters, and per-monitor delivery behavior without editing commands.</p>
+              </div>
+            </section>
+            <section class="tab-panel" id="tab-rules" role="tabpanel" aria-labelledby="tab-button-rules">
+              <img class="tab-preview-image" src="./tweeticcini-rules.png" alt="Tweeticcini dashboard rules preview">
+              <div class="tab-copy">
+                <h3>Apply Premium Rules when precision matters</h3>
+                <p>Promote urgent posts, mute noisy phrases, or scope behavior more tightly once a basic monitor is not enough.</p>
+              </div>
+            </section>
+            <section class="tab-panel" id="tab-appearance" role="tabpanel" aria-labelledby="tab-button-appearance">
+              <img class="tab-preview-image" src="./tweeticcini-appearance.png" alt="Tweeticcini dashboard appearance preview">
+              <div class="tab-copy">
+                <h3>Control how alerts read inside Discord</h3>
+                <p>Choose headline-style or template messages and tune the visual presentation when Premium appearance settings are enabled.</p>
+              </div>
+            </section>
+            <section class="tab-panel" id="tab-premium" role="tabpanel" aria-labelledby="tab-button-premium">
+              <img class="tab-preview-image" src="./tweeticcini-overview.png" alt="Tweeticcini dashboard premium overview preview">
+              <div class="tab-copy">
+                <h3>Upgrade only when the server needs more scale or control</h3>
+                <p>Keep setup in one place, review limits, and start the right plan flow from the dashboard when Free is no longer enough.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="how-it-works" class="section-band how-section" aria-labelledby="how-title">
+        <div class="section-heading">
+          <p class="eyebrow">How It Works</p>
+          <h2 id="how-title">The core loop is simple: monitor, evaluate, route, deliver.</h2>
+        </div>
+        <div class="how-grid">
+          <article class="how-card">
+            <span class="how-step">01</span>
+            <h3>Connect a session</h3>
+            <p>Connect an active Twitter/X session so Tweeticcini can monitor the accounts your server follows.</p>
           </article>
-          <article class="workflow-lane workflow-lane--tweeticcini workflow-lane--accent">
-            <h3>Tweeticcini Intelligence</h3>
-            <div class="signal-flow">
-              <span>Tweet posted</span>
-              <span class="signal-arrow">↓</span>
-              <span>Post/media filters + Premium Rules applied</span>
-              <span class="signal-arrow">↓</span>
-              <span>Per-account priority and premium controls evaluated</span>
-              <span class="signal-arrow">↓</span>
-              <span>Urgent alerts escalated with targeted mentions</span>
-            </div>
+          <article class="how-card">
+            <span class="how-step">02</span>
+            <h3>Add monitors</h3>
+            <p>Choose the account, Discord channel, role mention, filters, and alert style.</p>
+          </article>
+          <article class="how-card">
+            <span class="how-step">03</span>
+            <h3>Apply rules when needed</h3>
+            <p>Use Premium Rules to prioritize urgent posts, mute unwanted phrases, or refine routing behaviour.</p>
+          </article>
+          <article class="how-card">
+            <span class="how-step">04</span>
+            <h3>Deliver the final alert</h3>
+            <p>Tweeticcini evaluates the server’s configuration and sends the final alert to the correct Discord channel.</p>
           </article>
         </div>
-        <div class="workflow-outcomes-wrap">
-          <table class="workflow-outcomes" aria-label="Basic relay versus Tweeticcini outcomes">
+      </section>
+
+      <section id="pricing" class="section-band pricing-section" aria-labelledby="pricing-title">
+        <div class="section-heading">
+          <p class="eyebrow">Pricing</p>
+          <h2 id="pricing-title">Start free, then upgrade when your server needs more speed or control.</h2>
+          <p>Choose the plan that matches how many accounts you monitor and how much control your server needs.</p>
+        </div>
+
+        <div class="pricing-table-wrap">
+          <table class="pricing-table">
             <thead>
               <tr>
-                <th>Basic Relay</th>
-                <th>Tweeticcini</th>
+                <th></th>
+                <th>Free</th>
+                <th>Plus</th>
+                <th>Premium</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>Core routing + filtering</td>
-                <td>Premium rule-driven routing + prioritization</td>
+                <th>Price (monthly)</th>
+                <td>$0</td>
+                <td>$3.99</td>
+                <td>$6.99</td>
               </tr>
               <tr>
-                <td>Broad monitor-level controls</td>
-                <td>Fine-grained per-account controls</td>
+                <th>Polling speed</th>
+                <td>Standard (120s)</td>
+                <td>Balanced (45s)</td>
+                <td>Priority (12s)</td>
               </tr>
               <tr>
-                <td>Limited urgency handling</td>
-                <td>Escalation for high-priority posts</td>
+                <th>Twitter sessions</th>
+                <td>1</td>
+                <td>2</td>
+                <td>5</td>
+              </tr>
+              <tr>
+                <th>Tracked accounts</th>
+                <td>1</td>
+                <td>3</td>
+                <td>10</td>
+              </tr>
+              <tr>
+                <th>Post + media filtering</th>
+                <td>✓</td>
+                <td>✓</td>
+                <td>✓</td>
+              </tr>
+              <tr>
+                <th>Role mentions</th>
+                <td>✓</td>
+                <td>✓</td>
+                <td>✓</td>
+              </tr>
+              <tr>
+                <th>Alert rules</th>
+                <td>✕</td>
+                <td>✕</td>
+                <td>30</td>
+              </tr>
+              <tr>
+                <th><code>@everyone</code> mentions</th>
+                <td>✕</td>
+                <td>✕</td>
+                <td>✓</td>
+              </tr>
+              <tr>
+                <th>Custom messages</th>
+                <td>✕</td>
+                <td>✕</td>
+                <td>✓</td>
+              </tr>
+              <tr>
+                <th>Delivery styling</th>
+                <td>✕</td>
+                <td>✕</td>
+                <td>✓</td>
+              </tr>
+              <tr>
+                <th>Get started</th>
+                <td><a class="button pricing-table-button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a></td>
+                <td><a class="button pricing-table-button" href="https://app.tweeticcini.com/dashboard?plan=plus" aria-label="Start Plus trial">Start Trial</a></td>
+                <td><a class="button pricing-table-button" href="https://app.tweeticcini.com/dashboard?plan=pro" aria-label="Start Premium trial">Start Trial</a></td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <div class="support-note">
+          <p class="support-note-kicker">💛 Prefer to support Tweeticcini another way?</p>
+          <p>Not every server needs a paid plan. If Tweeticcini has been useful to your community, you can support its continued development with a one-time contribution.</p>
+          <a class="button button-secondary" href="https://buymeacoffee.com/pokaccini" target="_blank" rel="noreferrer">Support on Buy Me a Coffee</a>
+        </div>
       </section>
 
-      <section id="setup" class="panel-grid">
-        <section class="panel">
-          <p class="eyebrow">Setup 🛠️</p>
-          <h2>Set up your first alert flow</h2>
-          <p class="panel-copy">
-            Add the bot, connect a session, pick accounts to monitor, and route alerts into your Discord channels. This guide covers the full first-time setup path.
-          </p>
-          <div class="link-list">
-            <a class="button button-secondary" href="./how-to-send-twitter-alerts-to-discord.html">Read the guide</a>
-          </div>
-        </section>
-
-        <section class="panel">
-          <p class="eyebrow">Details 📘</p>
-          <h2>Unlock finer alert control</h2>
-          <p class="panel-copy">
-            See exactly how Premium Rules, priority escalation, and per-account controls reduce noise and keep urgent posts visible in busy community channels.
-          </p>
-          <div class="link-list">
-            <a class="button button-secondary" href="./twitter-alerts-for-discord.html">Read the overview</a>
-          </div>
-        </section>
-      </section>
-
-      <section class="panel trust-panel">
-        <p class="eyebrow">Trust 🔐</p>
-        <h2>Why Tweeticcini asks for a Twitter/X session</h2>
+      <section id="trust" class="section-band trust-section" aria-labelledby="trust-title">
+        <div class="section-heading">
+          <p class="eyebrow">Trust</p>
+          <h2 id="trust-title">Why a Twitter/X session is required, how it is protected, and what administrators control.</h2>
+        </div>
         <div class="trust-grid">
-          <article class="trust-item">
-            <strong>Alert delivery depends on an active session</strong>
-            <p>Tweeticcini needs a connected Twitter/X session so it can check the accounts your server wants to monitor and keep alert polling running.</p>
+          <article class="trust-card">
+            <h3>Why a session is required</h3>
+            <p>Tweeticcini uses a connected Twitter/X session to monitor the accounts configured by your server and continue checking for new posts.</p>
           </article>
-          <article class="trust-item">
-            <strong>Stored session information is encrypted</strong>
-            <p>Connected session secrets are stored in encrypted form, and a server administrator can remove the session from the dashboard whenever they want.</p>
+          <article class="trust-card">
+            <h3>How it is stored</h3>
+            <p>Session information is encrypted at rest. Server administrators can remove or replace a connected session from the dashboard.</p>
           </article>
-          <article class="trust-item">
-            <strong>Expired sessions fail safely</strong>
-            <p>If a session expires or stops authenticating, Tweeticcini shows the session warning in the dashboard so an admin can reconnect or remove it.</p>
+          <article class="trust-card">
+            <h3>What happens if it expires</h3>
+            <p>If a session stops authenticating, Tweeticcini surfaces an actionable warning so an administrator can reconnect it or switch affected monitors to another session.</p>
+          </article>
+          <article class="trust-card">
+            <h3>What Tweeticcini can access</h3>
+            <p>Tweeticcini uses the connected session only to monitor configured accounts. Server administrators control the session and can remove or replace it from the dashboard.</p>
           </article>
         </div>
       </section>
 
-      <section id="faq" class="panel faq-panel">
-        <p class="eyebrow">FAQ ❓</p>
-        <h2>Questions people usually ask before connecting a server</h2>
+      <section id="faq" class="section-band faq-section" aria-labelledby="faq-title">
+        <div class="section-heading">
+          <p class="eyebrow">FAQ</p>
+          <h2 id="faq-title">Questions people usually ask before connecting a server.</h2>
+        </div>
         <div class="faq-list">
           <details class="faq-item">
             <summary>Why is a Twitter/X session required?</summary>
@@ -391,80 +479,65 @@
           </details>
           <details class="faq-item">
             <summary>How do I reconnect or revoke a session?</summary>
-            <p>Open the dashboard, go to Sessions, and either reconnect the existing session or remove it entirely. Removing the session revokes Tweeticcini’s use of that stored session for your server.</p>
+            <p>Open the dashboard, go to Sessions, and either reconnect the existing session or remove it entirely.</p>
           </details>
           <details class="faq-item">
             <summary>What Discord permissions do I need?</summary>
-            <p>You need to be able to manage the server in Discord to access the dashboard for that server. The bot also needs access to the channels where you want alerts to be posted.</p>
+            <p>You need permission to manage the server in Discord to access the dashboard for that server. The bot also needs access to the channels where you want alerts posted.</p>
           </details>
           <details class="faq-item">
             <summary>How do trials, cancellation, and billing work?</summary>
-            <p>Paid plans include a 7-day trial when available. You can start checkout from the dashboard, and once a paid subscription is active you can use the billing portal to review or cancel it.</p>
+            <p>Paid plans include a 7-day trial when available. You can start checkout from the dashboard and use the billing portal to review or cancel an active subscription.</p>
           </details>
         </div>
       </section>
 
-      <section id="support" class="cta-panel">
-        <div>
-          <p class="eyebrow">Support 🤝</p>
-          <h2>Help keep Tweeticcini growing</h2>
-          <p>
-            Tweeticcini is built and maintained by one developer. Voting helps more communities discover the bot, while contributions help cover hosting and keep new features moving.
-          </p>
-        </div>
-        <div class="support-cta">
-          <a class="button button-secondary support-server-button" href="https://discord.gg/kWuft9A3gk" target="_blank" rel="noreferrer">Join Support Server</a>
-          <a class="button button-secondary support-server-button" href="https://top.gg/bot/1385046979662581780/vote" target="_blank" rel="noreferrer">Vote on Top.gg</a>
-          <a class="button button-secondary support-server-button" href="https://buymeacoffee.com/pokaccini" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
+      <section id="get-started" class="section-band final-cta-section" aria-labelledby="final-cta-title">
+        <div class="final-cta-card">
+          <div>
+            <p class="eyebrow">Get Started</p>
+            <h2 id="final-cta-title">Bring the right Twitter/X updates into your Discord server.</h2>
+            <p>Add Tweeticcini, connect a session, and create your first monitor from the dashboard. Start free and upgrade when your server needs more accounts, faster checks, or advanced routing.</p>
+          </div>
+          <div class="hero-actions">
+            <a class="button" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
+            <a class="button button-secondary" href="https://app.tweeticcini.com">Open Dashboard</a>
+          </div>
         </div>
       </section>
 
       <footer class="site-footer">
-        <div class="site-footer-brand">
-          <strong>Built with ❤️ by <a href="https://linktr.ee/pokaccini" target="_blank" rel="noreferrer">Pokaccini</a></strong>
+        <div class="footer-brand-block">
+          <a class="footer-brand" href="./index.html" aria-label="Tweeticcini home">
+            <img class="footer-brand-icon" src="./tweeticcini-icon.png" alt="Tweeticcini icon">
+            <div>
+              <strong>Tweeticcini</strong>
+              <p>Twitter alert routing for Discord</p>
+            </div>
+          </a>
+          <p class="footer-credit">Built with ❤️ by <a href="https://linktr.ee/pokaccini" target="_blank" rel="noreferrer">Pokaccini</a></p>
         </div>
-        <div class="site-footer-links">
-          <a href="./how-to-send-twitter-alerts-to-discord.html">Setup Guide</a>
-          <a href="./twitter-alerts-for-discord.html">Bot Overview</a>
-          <a href="./privacy.html">Privacy Policy</a>
-          <a href="./terms.html">Terms of Service</a>
-        </div>
+        <nav class="footer-links-grid" aria-label="Footer">
+          <div class="footer-link-group">
+            <h2>Product</h2>
+            <a href="./how-to-send-twitter-alerts-to-discord.html">Setup Guide</a>
+            <a href="./twitter-alerts-for-discord.html">Bot Overview</a>
+            <a href="https://app.tweeticcini.com">Open Dashboard</a>
+            <a href="https://discord.com/oauth2/authorize?client_id=1385046979662581780&scope=bot%20applications.commands&permissions=0">Add to Discord</a>
+          </div>
+          <div class="footer-link-group">
+            <h2>Trust and Support</h2>
+            <a href="./privacy.html">Privacy Policy</a>
+            <a href="./terms.html">Terms of Service</a>
+            <a href="https://discord.gg/kWuft9A3gk" target="_blank" rel="noreferrer">Support Server</a>
+          </div>
+          <div class="footer-link-group">
+            <h2>Community</h2>
+            <a href="https://top.gg/bot/1385046979662581780/vote" target="_blank" rel="noreferrer">Vote on Top.gg</a>
+            <a href="https://buymeacoffee.com/pokaccini" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
+          </div>
+        </nav>
       </footer>
     </main>
-    <script>
-      (async function () {
-        const countNodes = document.querySelectorAll('.server-count');
-        const countClaims = document.querySelectorAll('.proof-primary--count');
-        const fallbackClaims = document.querySelectorAll('.proof-primary--fallback');
-        if (!countNodes.length || !countClaims.length || !fallbackClaims.length) return;
-        const showCount = function (count) {
-          if (!Number.isFinite(count) || count <= 0) return false;
-          countNodes.forEach(function (node) {
-            node.textContent = String(count);
-          });
-          countClaims.forEach(function (node) {
-            node.hidden = false;
-          });
-          fallbackClaims.forEach(function (node) {
-            node.hidden = true;
-          });
-          return true;
-        };
-        const cachedCount = window.localStorage.getItem('tweeticcini_server_count');
-        if (cachedCount && /^\d+$/.test(cachedCount)) {
-          showCount(Number(cachedCount));
-        }
-        try {
-          const response = await fetch('https://app.tweeticcini.com/public/stats', { cache: 'no-store' });
-          if (!response.ok) return;
-          const payload = await response.json();
-          const count = Number(payload.server_count);
-          if (!Number.isFinite(count) || count <= 0) return;
-          window.localStorage.setItem('tweeticcini_server_count', String(count));
-          showCount(count);
-        } catch (_error) {
-        }
-      })();
-    </script>
   </body>
 </html>
