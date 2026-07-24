@@ -269,7 +269,11 @@
           <span>Free includes 1 monitored account, Plus includes 3 with faster polling, and Premium includes 10 plus Rules.</span>
         </div>
         <div class="announcement-compact-actions">
-          <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">{{ 'Start trial' if can_start_paid_trial else 'Compare plans' }}</a>
+          {% if can_start_paid_trial %}
+          <button type="button" class="button-secondary" id="announcement-start-trial">Start trial</button>
+          {% else %}
+          <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing" data-bypass-unsaved-warning>Compare plans</a>
+          {% endif %}
           <button type="button" class="button-secondary notice-dismiss" data-announcement-dismiss data-dismiss-target="dashboard-plan-announcement" aria-label="Dismiss updated plans notice">Dismiss</button>
         </div>
       </section>
@@ -857,15 +861,12 @@
             {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
             <div class="field-help">This server is currently using a manual support or testing override.</div>
             {% endif %}
+            {% if guild_presentation.plan == 'free' %}
             <section class="notice notice--plain notice--compact">
               <strong>☕ Happy with the Free plan?</strong>
-              <div class="section-copy section-copy--tight">You do not need a subscription to support Tweeticcini. A one-time contribution through Buy Me a Coffee helps with hosting and ongoing development.</div>
-              {% if buy_me_a_coffee_url %}
-              <div class="actions">
-                <a class="button-secondary" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy me a coffee</a>
-              </div>
-              {% endif %}
+              <div class="section-copy section-copy--tight">Tweeticcini is a one-person project, and I personally cover the hosting and upkeep. If it has been helpful for your server, a small contribution through <a class="inline-link" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy Me a Coffee</a> genuinely helps keep the bot online and moving forward. 💖</div>
             </section>
+            {% endif %}
           </div>
 
         </div>
@@ -1701,6 +1702,7 @@
         }
         if (
           link.target === '_blank' ||
+          link.hasAttribute('data-bypass-unsaved-warning') ||
           link.hasAttribute('download') ||
           link.getAttribute('href').startsWith('#')
         ) {
@@ -1961,6 +1963,22 @@
             const result = await jsonRequest(`/guilds/${guildId}/billing/checkout`, {
               method: 'POST',
               body: JSON.stringify({ plan: selectedPlan }),
+            });
+            suppressBeforeUnloadWarning = true;
+            window.location.href = result.url;
+          } catch (error) {
+            setStatus(`Failed to start checkout: ${error.message}`, true);
+          }
+        });
+      }
+
+      const announcementStartTrial = document.getElementById('announcement-start-trial');
+      if (announcementStartTrial) {
+        announcementStartTrial.addEventListener('click', async function () {
+          try {
+            const result = await jsonRequest(`/guilds/${guildId}/billing/checkout`, {
+              method: 'POST',
+              body: JSON.stringify({ plan: 'plus' }),
             });
             suppressBeforeUnloadWarning = true;
             window.location.href = result.url;

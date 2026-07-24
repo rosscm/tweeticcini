@@ -1011,7 +1011,7 @@ def _get_status_heading(status_level: str, setup_progress: dict[str, object]) ->
     if status_level == 'success':
         return 'Everything is running normally'
     if not bool(setup_progress.get('sessions_ready')) or not bool(setup_progress.get('monitors_ready')):
-        return 'Setup Required'
+        return 'Setup is still required'
     return 'Attention required'
 
 
