@@ -987,6 +987,75 @@ def _is_onboarding_complete(
     return sessions_ready and monitors_ready and (test_alert_ready or not test_alert_required)
 
 
+def _get_plan_badge_tone(plan: str) -> str:
+    return 'premium' if str(plan).lower() == 'pro' else str(plan).lower()
+
+
+def _build_overview_setup_progress(
+    *,
+    sessions_ready: bool,
+    monitors_ready: bool,
+    delivery_ready: bool,
+) -> dict[str, object]:
+    completed_count = sum((1 if sessions_ready else 0, 1 if monitors_ready else 0, 1 if delivery_ready else 0))
+    return {
+        'step_total': 3,
+        'completed_count': completed_count,
+        'sessions_ready': sessions_ready,
+        'monitors_ready': monitors_ready,
+        'delivery_ready': delivery_ready,
+    }
+
+
+def _get_status_heading(status_level: str, setup_progress: dict[str, object]) -> str:
+    if status_level == 'success':
+        return 'Everything is running normally'
+    if not bool(setup_progress.get('sessions_ready')) or not bool(setup_progress.get('monitors_ready')):
+        return 'Setup Required'
+    return 'Attention required'
+
+
+def _build_next_step_panel(
+    setup_progress: dict[str, object],
+    *,
+    has_test_alert_action: bool,
+) -> dict[str, object]:
+    if not bool(setup_progress.get('sessions_ready')):
+        return {
+            'title': 'Connect a session',
+            'body': 'Add a Twitter/X session first so Tweeticcini can watch for new posts for this server.',
+            'cta_label': 'Open Sessions',
+            'cta_href': 'twitter-sessions',
+            'use_test_alert': False,
+        }
+    if not bool(setup_progress.get('monitors_ready')):
+        return {
+            'title': 'Add your first monitor',
+            'body': 'Choose the account to watch and the Discord channel where matching posts should be delivered.',
+            'cta_label': 'Open Monitors',
+            'cta_href': 'sources',
+            'use_test_alert': False,
+        }
+    if not bool(setup_progress.get('delivery_ready')):
+        return {
+            'title': 'Verify delivery',
+            'body': (
+                'Use the existing test alert to confirm channel access and formatting. '
+                'This step completes only after Tweeticcini successfully delivers the first monitored post.'
+            ),
+            'cta_label': 'Send test alert' if has_test_alert_action else 'Review monitors',
+            'cta_href': 'sources',
+            'use_test_alert': has_test_alert_action,
+        }
+    return {
+        'title': 'Setup complete',
+        'body': 'Alerts are operational for this server. You can adjust routing or add more monitored accounts at any time.',
+        'cta_label': 'Manage monitors',
+        'cta_href': 'sources',
+        'use_test_alert': False,
+    }
+
+
 def _build_status_banner(
     delivery_sessions: list[dict[str, str]],
     usage: dict[str, int],
@@ -1552,6 +1621,19 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             }
             for source in delivered_sources[:3]
         ]
+    setup_progress = _build_overview_setup_progress(
+        sessions_ready=onboarding_sessions_ready,
+        monitors_ready=onboarding_monitors_ready,
+        delivery_ready=bool(recent_deliveries),
+    )
+    status_banner = _build_status_banner(
+        delivery_session_options,
+        usage,
+        guild_presentation,
+        log_health,
+        client_statuses,
+        recent_delivery_activity=recent_delivery_activity,
+    )
     return templates.TemplateResponse(
         request=request,
         name='guild.html',
@@ -1577,6 +1659,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'source_options': _serialize_source_options(sources),
             'guild_sections': GUILD_SECTIONS,
             'active_section': active_section,
+            'plan_badge_tone': _get_plan_badge_tone(guild_presentation.plan),
             'billing_context': {
                 'publishable_configured': billing_context.publishable_configured,
                 'secret_configured': billing_context.secret_configured,
@@ -1584,14 +1667,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'portal_configured': billing_context.portal_configured,
                 'available_price_plans': billing_context.available_price_plans,
             },
-            'status_banner': _build_status_banner(
-                delivery_session_options,
-                usage,
-                guild_presentation,
-                log_health,
-                client_statuses,
-                recent_delivery_activity=recent_delivery_activity,
-            ),
+            'status_banner': status_banner,
             'overview': {
                 'escalation_rule_count': escalation_rule_count,
                 'scoped_rule_count': scoped_rule_count,
@@ -1601,6 +1677,12 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 'top_destination_names': top_destination_names,
                 'latest_delivery': latest_delivery,
                 'recent_deliveries': recent_deliveries,
+                'setup_progress': setup_progress,
+                'status_heading': _get_status_heading(status_banner['level'], setup_progress),
+                'next_step': _build_next_step_panel(
+                    setup_progress,
+                    has_test_alert_action=bool(onboarding_test_source) and setup_progress['monitors_ready'] and not setup_progress['delivery_ready'],
+                ),
                 'runtime_issue_sources': runtime_issue_sources,
                 'bot_runtime_issue': bot_runtime_issue,
                 'session_breakdown': [

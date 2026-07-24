@@ -908,20 +908,23 @@ body.mobile-drawer-open {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.plan-badge--premium,
 .server-chip--pro {
+  background: linear-gradient(145deg, rgba(117, 91, 29, 0.28), rgba(57, 42, 11, 0.2));
+  border-color: rgba(214, 173, 76, 0.42);
+  color: #f8e7b5;
+  box-shadow: none;
+}
+
+.plan-badge--plus,
+.server-chip--plus {
   background: linear-gradient(145deg, rgba(111, 140, 255, 0.2), rgba(93, 208, 255, 0.12));
-  border-color: rgba(111, 140, 255, 0.32);
+  border-color: rgba(93, 208, 255, 0.3);
   color: #e4ebff;
   box-shadow: 0 10px 28px rgba(22, 48, 88, 0.18);
 }
 
-.server-chip--plus {
-  background: linear-gradient(145deg, rgba(111, 140, 255, 0.18), rgba(93, 208, 255, 0.1));
-  border-color: rgba(93, 208, 255, 0.26);
-  color: #dde7ff;
-  box-shadow: 0 10px 26px rgba(23, 58, 102, 0.16);
-}
-
+.plan-badge--free,
 .server-chip--free {
   background: rgba(255, 255, 255, 0.06);
 }
@@ -1348,10 +1351,23 @@ h2 {
   text-decoration: none;
 }
 
+.setup-step:hover,
+.setup-step:focus-visible {
+  border-color: rgba(93, 208, 255, 0.26);
+  background: rgba(93, 208, 255, 0.08);
+  color: var(--ink);
+}
+
 .setup-step--complete {
   border-color: rgba(110, 231, 183, 0.28);
   background: rgba(110, 231, 183, 0.08);
   color: var(--ink);
+}
+
+.setup-step--complete:hover,
+.setup-step--complete:focus-visible {
+  border-color: rgba(110, 231, 183, 0.28);
+  background: rgba(110, 231, 183, 0.08);
 }
 
 .setup-step-marker {

@@ -152,6 +152,116 @@ def _get_onboarding_requirement(db_path: str, server_id: str) -> bool | None:
     return bool(int(row[0]))
 
 
+def test_plan_badge_tone_maps_plus_and_premium(base_env):
+    module = _load_dashboard_app()
+
+    assert module._get_plan_badge_tone('free') == 'free'
+    assert module._get_plan_badge_tone('plus') == 'plus'
+    assert module._get_plan_badge_tone('pro') == 'premium'
+
+
+def test_overview_setup_progress_always_uses_three_steps(base_env):
+    module = _load_dashboard_app()
+
+    no_session = module._build_overview_setup_progress(
+        sessions_ready=False,
+        monitors_ready=False,
+        delivery_ready=False,
+    )
+    session_only = module._build_overview_setup_progress(
+        sessions_ready=True,
+        monitors_ready=False,
+        delivery_ready=False,
+    )
+    session_and_monitor = module._build_overview_setup_progress(
+        sessions_ready=True,
+        monitors_ready=True,
+        delivery_ready=False,
+    )
+    delivered = module._build_overview_setup_progress(
+        sessions_ready=True,
+        monitors_ready=True,
+        delivery_ready=True,
+    )
+
+    assert no_session['step_total'] == 3
+    assert no_session['completed_count'] == 0
+    assert session_only['completed_count'] == 1
+    assert session_and_monitor['completed_count'] == 2
+    assert delivered['completed_count'] == 3
+    assert delivered['delivery_ready'] is True
+
+
+def test_status_heading_is_never_attention_for_healthy_server(base_env):
+    module = _load_dashboard_app()
+
+    healthy_progress = module._build_overview_setup_progress(
+        sessions_ready=True,
+        monitors_ready=True,
+        delivery_ready=True,
+    )
+    setup_progress = module._build_overview_setup_progress(
+        sessions_ready=False,
+        monitors_ready=False,
+        delivery_ready=False,
+    )
+    warning_progress = module._build_overview_setup_progress(
+        sessions_ready=True,
+        monitors_ready=True,
+        delivery_ready=False,
+    )
+
+    assert module._get_status_heading('success', healthy_progress) == 'Everything is running normally'
+    assert module._get_status_heading('error', setup_progress) == 'Setup Required'
+    assert module._get_status_heading('warning', warning_progress) == 'Attention required'
+
+
+def test_next_step_panel_uses_setup_state_actions(base_env):
+    module = _load_dashboard_app()
+
+    no_session = module._build_next_step_panel(
+        module._build_overview_setup_progress(
+            sessions_ready=False,
+            monitors_ready=False,
+            delivery_ready=False,
+        ),
+        has_test_alert_action=False,
+    )
+    session_only = module._build_next_step_panel(
+        module._build_overview_setup_progress(
+            sessions_ready=True,
+            monitors_ready=False,
+            delivery_ready=False,
+        ),
+        has_test_alert_action=False,
+    )
+    verify_delivery = module._build_next_step_panel(
+        module._build_overview_setup_progress(
+            sessions_ready=True,
+            monitors_ready=True,
+            delivery_ready=False,
+        ),
+        has_test_alert_action=True,
+    )
+    completed = module._build_next_step_panel(
+        module._build_overview_setup_progress(
+            sessions_ready=True,
+            monitors_ready=True,
+            delivery_ready=True,
+        ),
+        has_test_alert_action=False,
+    )
+
+    assert no_session['title'] == 'Connect a session'
+    assert no_session['cta_href'] == 'twitter-sessions'
+    assert session_only['title'] == 'Add your first monitor'
+    assert session_only['cta_href'] == 'sources'
+    assert verify_delivery['title'] == 'Verify delivery'
+    assert verify_delivery['use_test_alert'] is True
+    assert completed['title'] == 'Setup complete'
+    assert completed['cta_label'] == 'Manage monitors'
+
+
 def test_existing_guilds_are_grandfathered_without_test_alert_requirement(tmp_path):
     db_path = str(tmp_path / 'tweeticcini.db')
     _ensure_onboarding_test_table(db_path)
