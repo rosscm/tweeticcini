@@ -89,6 +89,19 @@ def _load_dashboard_app():
     return importlib.reload(module)
 
 
+class FakeCheckoutBillingService:
+    def __init__(self, *, url='https://stripe.test/session', error=None):
+        self.url = url
+        self.error = error
+        self.calls = []
+
+    def create_checkout_session(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error:
+            raise self.error
+        return self.url
+
+
 def _build_request(*, session=None, query_params=None):
     request = SimpleNamespace()
     request.session = session or {}
@@ -212,7 +225,7 @@ def test_status_heading_is_never_attention_for_healthy_server(base_env):
     )
 
     assert module._get_status_heading('success', healthy_progress) == 'Everything is running normally'
-    assert module._get_status_heading('error', setup_progress) == 'Setup Required'
+    assert module._get_status_heading('error', setup_progress) == 'Setup is still required'
     assert module._get_status_heading('warning', warning_progress) == 'Attention required'
 
 
@@ -358,6 +371,60 @@ async def test_dashboard_callback_redirects_to_billing_when_plan_is_pending(base
     response = await module.dashboard_callback(request, code='code-1', state='state-1')
 
     assert response.headers['location'] == '/dashboard/guilds/guild-1/billing?plan=plus'
+
+
+@pytest.mark.asyncio
+async def test_checkout_session_uses_server_selected_plus_plan(base_env, monkeypatch):
+    module = _load_dashboard_app()
+    module.guild_settings_service = SimpleNamespace(get_presentation_view=lambda _guild_id: _async_return(_build_view()))
+    fake_billing = FakeCheckoutBillingService()
+    module.billing_service = fake_billing
+    monkeypatch.setattr(module, '_get_session_guilds', lambda request: [{'id': 'guild-1', 'name': 'Guild 1'}])
+    monkeypatch.setattr(module, '_get_session_user', lambda request: {'id': 'u1'})
+
+    request = _build_request(session={'discord_guilds': [{'id': 'guild-1', 'name': 'Guild 1'}], 'discord_user': {'id': 'u1'}})
+
+    response = await module.create_guild_checkout_session(
+        request,
+        'guild-1',
+        module.CreateCheckoutSessionRequest(plan='plus'),
+    )
+
+    assert response == {'url': 'https://stripe.test/session'}
+    assert request.session['pending_billing_plan'] == 'plus'
+    assert len(fake_billing.calls) == 1
+    assert fake_billing.calls[0]['plan'] == 'plus'
+    assert fake_billing.calls[0]['guild_id'] == 'guild-1'
+    assert fake_billing.calls[0]['guild_name'] == 'Guild 1'
+    assert fake_billing.calls[0]['discord_user_id'] == 'u1'
+    assert fake_billing.calls[0]['success_url'].endswith('?checkout=success')
+    assert fake_billing.calls[0]['cancel_url'].endswith('?checkout=canceled')
+    assert fake_billing.calls[0]['allow_trial'] is True
+
+
+@pytest.mark.asyncio
+async def test_checkout_session_returns_clear_error_when_stripe_fails(base_env, monkeypatch):
+    module = _load_dashboard_app()
+    module.guild_settings_service = SimpleNamespace(get_presentation_view=lambda _guild_id: _async_return(_build_view()))
+    module.billing_service = FakeCheckoutBillingService(error=RuntimeError('stripe down'))
+    monkeypatch.setattr(module, '_get_session_guilds', lambda request: [{'id': 'guild-1'}])
+    monkeypatch.setattr(module, '_get_session_user', lambda request: {'id': 'u1'})
+
+    request = _build_request(session={'discord_guilds': [{'id': 'guild-1'}], 'discord_user': {'id': 'u1'}})
+
+    with pytest.raises(module.HTTPException) as error_info:
+        await module.create_guild_checkout_session(
+            request,
+            'guild-1',
+            module.CreateCheckoutSessionRequest(plan='plus'),
+        )
+
+    assert error_info.value.status_code == 502
+    assert error_info.value.detail == 'unable to start Stripe checkout right now'
+
+
+async def _async_return(value):
+    return value
 
 
 @pytest.mark.asyncio

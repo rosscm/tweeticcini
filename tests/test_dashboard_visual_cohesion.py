@@ -55,7 +55,8 @@ def test_guild_dashboard_uses_updated_locked_feature_and_support_copy():
     assert 'Explore Premium' in html
     assert 'Need more from Tweeticcini?' in html
     assert 'Happy with the Free plan?' in html
-    assert 'Buy me a coffee' in html
+    assert 'Buy Me a Coffee' in html
+    assert 'one-person project' in html
     assert 'Your Free monitor is already in use' in html
     assert 'Compare plans, check trial status, and manage billing details.' in html
     assert 'sidebar-summary-list' not in html

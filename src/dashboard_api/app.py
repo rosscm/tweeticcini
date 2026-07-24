@@ -73,6 +73,11 @@ INTERNAL_ADMIN_SECRET_HEADER = 'x-tweeticcini-admin-secret'
 BILLING_PLAN_CHOICES = {'plus', 'pro'}
 
 
+def _log_billing_event(event_name: str, **fields: object) -> None:
+    details = ' '.join(f'{key}={fields[key]}' for key in sorted(fields))
+    log.info('billing_event=%s%s', event_name, f' {details}' if details else '')
+
+
 @dataclass(frozen=True)
 class DashboardAuthSettings:
     app_env: str
@@ -2023,6 +2028,7 @@ async def create_guild_checkout_session(
     checkout_request: CreateCheckoutSessionRequest,
 ) -> dict[str, str]:
     _require_guild_access(request, guild_id)
+    _log_billing_event('checkout_requested', guild_id=guild_id, plan=checkout_request.plan)
     try:
         entitlement = (await guild_settings_service.get_presentation_view(guild_id)).entitlement
         checkout_url = billing_service.create_checkout_session(
@@ -2035,14 +2041,20 @@ async def create_guild_checkout_session(
             allow_trial=entitlement.trial_used_at is None,
         )
     except BillingConfigurationError as error:
+        _log_billing_event('checkout_creation_failed', guild_id=guild_id, plan=checkout_request.plan, error='configuration')
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        log.warning('billing_event=checkout_creation_failed guild_id=%s plan=%s error=%s', guild_id, checkout_request.plan, error)
+        raise HTTPException(status_code=502, detail='unable to start Stripe checkout right now') from error
     request.session['pending_billing_plan'] = checkout_request.plan
+    _log_billing_event('checkout_session_created', guild_id=guild_id, plan=checkout_request.plan)
     return {'url': checkout_url}
 
 
 @app.post('/guilds/{guild_id}/billing/portal')
 async def create_guild_portal_session(request: Request, guild_id: str) -> dict[str, str]:
     _require_guild_access(request, guild_id)
+    _log_billing_event('customer_portal_requested', guild_id=guild_id)
     entitlement = (await guild_settings_service.get_presentation_view(guild_id)).entitlement
     if not entitlement.external_customer_id:
         raise HTTPException(status_code=400, detail='no Stripe customer is linked to this guild yet')
@@ -2053,7 +2065,12 @@ async def create_guild_portal_session(request: Request, guild_id: str) -> dict[s
             subscription_id=entitlement.external_subscription_id,
         )
     except BillingConfigurationError as error:
+        _log_billing_event('customer_portal_failed', guild_id=guild_id, error='configuration')
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        log.warning('billing_event=customer_portal_failed guild_id=%s error=%s', guild_id, error)
+        raise HTTPException(status_code=502, detail='unable to open the Stripe customer portal right now') from error
+    _log_billing_event('customer_portal_opened', guild_id=guild_id)
     return {'url': portal_url}
 
 
@@ -2081,6 +2098,7 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
     if event_type == 'checkout.session.completed':
         metadata = data_object.get('metadata', {}) or {}
         guild_id = metadata.get('guild_id') or data_object.get('client_reference_id')
+        subscribed_plan = _normalize_requested_plan(metadata.get('plan'))
         log.info(
             'stripe webhook %s for guild %s: customer=%s subscription=%s',
             event_type,
@@ -2088,7 +2106,7 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
             data_object.get('customer'),
             data_object.get('subscription'),
         )
-        if guild_id:
+        if guild_id and subscribed_plan:
             current_entitlement = await guild_settings_service.get_entitlement_view(str(guild_id))
             incoming_subscription_id = data_object.get('subscription')
             is_new_subscription = (
@@ -2141,7 +2159,7 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
             )
             await guild_settings_service.set_subscription_entitlement(
                 server_id=str(guild_id),
-                subscribed_plan=metadata.get('plan') or 'pro',
+                subscribed_plan=subscribed_plan,
                 entitlement_status=mapped_status,
                 billing_provider='stripe',
                 external_customer_id=data_object.get('customer'),
@@ -2151,12 +2169,16 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 trial_ends_at=trial_ends_at if trial_ends_at is not None else ('' if is_new_subscription else None),
                 is_test=False,
             )
+            _log_billing_event('checkout_completed', guild_id=str(guild_id), plan=subscribed_plan, status=mapped_status)
+        elif guild_id:
+            log.warning('billing_event=webhook_ignored guild_id=%s stripe_event=%s reason=invalid_plan_metadata', guild_id, event_type)
 
     if event_type in {'customer.subscription.updated', 'customer.subscription.deleted'}:
         metadata = data_object.get('metadata', {}) or {}
         guild_id = metadata.get('guild_id')
         if guild_id:
             status = data_object.get('status') or 'none'
+            subscribed_plan = _normalize_requested_plan(metadata.get('plan'))
             mapped_status = (
                 'active' if status == 'active'
                 else 'trialing' if status == 'trialing'
@@ -2195,9 +2217,12 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 current_period_end,
                 trial_ends_at,
             )
+            if mapped_status in {'active', 'trialing', 'past_due'} and not subscribed_plan:
+                log.warning('billing_event=webhook_ignored guild_id=%s stripe_event=%s reason=invalid_plan_metadata', guild_id, event_type)
+                return {'received': True}
             await guild_settings_service.set_subscription_entitlement(
                 server_id=str(guild_id),
-                subscribed_plan=(metadata.get('plan') or 'pro') if mapped_status in {'active', 'trialing', 'past_due'} else None,
+                subscribed_plan=subscribed_plan if mapped_status in {'active', 'trialing', 'past_due'} else None,
                 entitlement_status=mapped_status,
                 billing_provider='stripe',
                 external_customer_id=data_object.get('customer'),
@@ -2207,6 +2232,20 @@ async def stripe_billing_webhook(request: Request) -> dict[str, bool]:
                 trial_ends_at=trial_ends_at,
                 is_test=False,
             )
+            if mapped_status == 'trialing':
+                _log_billing_event('trial_started', guild_id=str(guild_id), plan=subscribed_plan, status=mapped_status)
+            elif mapped_status == 'active':
+                _log_billing_event('subscription_activated', guild_id=str(guild_id), plan=subscribed_plan, status=mapped_status)
+            elif mapped_status == 'past_due':
+                _log_billing_event('subscription_updated', guild_id=str(guild_id), plan=subscribed_plan, status=mapped_status)
+            elif cancel_at_period_end:
+                _log_billing_event('cancellation_scheduled', guild_id=str(guild_id), status=mapped_status)
+            elif mapped_status == 'canceled':
+                _log_billing_event(
+                    'subscription_deleted' if event_type == 'customer.subscription.deleted' else 'subscription_canceled',
+                    guild_id=str(guild_id),
+                    status=mapped_status,
+                )
 
     return {'received': True}
 

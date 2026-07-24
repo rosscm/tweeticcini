@@ -303,6 +303,40 @@ async def test_stripe_webhook_updates_entitlement(base_env, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_stripe_webhook_ignores_missing_plan_metadata(base_env, monkeypatch):
+    module = _load_dashboard_app()
+    fake_service = FakeGuildSettingsService()
+    fake_billing = FakeBillingService(
+        event={
+            'type': 'checkout.session.completed',
+            'data': {
+                'object': {
+                    'client_reference_id': 'guild-1',
+                    'customer': 'cus_123',
+                    'subscription': 'sub_123',
+                    'metadata': {'guild_id': 'guild-1'},
+                }
+            },
+        }
+    )
+    module.guild_settings_service = fake_service
+    module.billing_service = fake_billing
+    _build_request_test_app(module, monkeypatch)
+
+    class WebhookRequest:
+        headers = {'stripe-signature': 'sig'}
+
+        async def body(self):
+            return b'{}'
+
+    with fail_after(5):
+        response = await module.stripe_billing_webhook(WebhookRequest())
+
+    assert response == {'received': True}
+    assert fake_service.entitlement_calls == []
+
+
+@pytest.mark.asyncio
 async def test_guild_access_denied_for_unmanaged_server(base_env, monkeypatch):
     module = _load_dashboard_app()
     module.guild_settings_service = FakeGuildSettingsService()
