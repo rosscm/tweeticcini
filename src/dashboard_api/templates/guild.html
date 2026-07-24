@@ -21,7 +21,7 @@
             </div>
             <div class="sidebar-server-row">
               <div class="sidebar-server-name">{{ guild_name }}</div>
-              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
+              <span class="server-chip plan-badge plan-badge--{{ plan_badge_tone }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
             </div>
           </section>
 
@@ -144,7 +144,7 @@
             <p class="eyebrow">Navigation</p>
             <div class="mobile-nav-title">{{ guild_name }}</div>
             <div class="mobile-nav-title-row">
-              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
+              <span class="server-chip plan-badge plan-badge--{{ plan_badge_tone }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
             </div>
           </div>
           <button type="button" class="mobile-drawer-close" id="mobile-nav-close" aria-label="Close menu">×</button>
@@ -257,14 +257,20 @@
       </section>
 
       {% set can_start_paid_trial = guild_presentation.plan == 'free' and not guild_presentation.entitlement.trial_used_at %}
-      <section class="notice notice--announcement notice--announcement-compact" id="dashboard-plan-announcement" data-announcement-key="dashboard-plans-v2">
+      <section
+        class="notice notice--announcement notice--announcement-compact"
+        id="dashboard-plan-announcement"
+        data-announcement-id="plans-2026"
+        data-announcement-banner
+        data-announcement-storage-key="tweeticcini_announcement_plans_2026_dismissed"
+      >
         <div class="announcement-compact-copy">
           <strong>📣 Updated plans are available</strong>
           <span>Free includes 1 monitored account, Plus includes 3 with faster polling, and Premium includes 10 plus Rules.</span>
         </div>
         <div class="announcement-compact-actions">
           <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">{{ 'Start trial' if can_start_paid_trial else 'Compare plans' }}</a>
-          <button type="button" class="button-secondary notice-dismiss" data-dismiss-target="dashboard-plan-announcement" aria-label="Dismiss updated plans notice">Dismiss</button>
+          <button type="button" class="button-secondary notice-dismiss" data-announcement-dismiss data-dismiss-target="dashboard-plan-announcement" aria-label="Dismiss updated plans notice">Dismiss</button>
         </div>
       </section>
 
@@ -273,7 +279,7 @@
         <div class="status-card-head">
           <div>
             <p class="eyebrow">Operational status</p>
-            <h2>What needs attention</h2>
+            <h2>{{ overview.status_heading }}</h2>
           </div>
           <span class="app-status-badge app-status-badge--{{ status_banner.level }}">{{ status_chip_label }}</span>
         </div>
@@ -308,59 +314,6 @@
           </div>
         </div>
 
-        {% set onboarding_requires_test_alert = overview.get('onboarding', {}).get('test_alert_required') %}
-        {% set onboarding_step_total = 3 if onboarding_requires_test_alert else 2 %}
-        {% set onboarding_steps_done = (1 if overview.get('onboarding', {}).get('sessions_ready') else 0) + (1 if overview.get('onboarding', {}).get('monitors_ready') else 0) + ((1 if overview.get('onboarding', {}).get('test_alert_ready') else 0) if onboarding_requires_test_alert else 0) %}
-
-        {% if overview.get('onboarding', {}).get('show') %}
-        <section class="notice notice--warning onboarding-banner">
-          <div class="onboarding-banner-head">
-            <strong>{{ 'Setup complete:' if overview.get('onboarding', {}).get('completed') else 'Start here:' }}</strong>
-            {{ 'this server has finished the first-time setup flow.' if overview.get('onboarding', {}).get('completed') else 'finish the first-time setup flow for this server' }}
-            <span class="entity-meta">({{ onboarding_steps_done }}/{{ onboarding_step_total }} steps completed)</span>.
-          </div>
-          <div class="status-detail-list onboarding-status-tags">
-            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('sessions_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
-              {{ 'Twitter/X session connected' if overview.get('onboarding', {}).get('sessions_ready') else 'Connect Twitter/X Session' }}
-            </a>
-            <a class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('monitors_ready') else 'tag--warning' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
-              {{ 'Monitor added' if overview.get('onboarding', {}).get('monitors_ready') else 'Add Monitor' }}
-            </a>
-            {% if onboarding_requires_test_alert %}
-            <span class="tag {{ 'tag--soft' if overview.get('onboarding', {}).get('test_alert_ready') else 'tag--warning' }}">
-              {{ 'Test alert sent' if overview.get('onboarding', {}).get('test_alert_ready') else 'Send Test Alert' }}
-            </span>
-            {% endif %}
-          </div>
-          {% if onboarding_requires_test_alert and overview.get('onboarding', {}).get('monitors_ready') and overview.get('onboarding', {}).get('test_source') and not overview.get('onboarding', {}).get('test_alert_ready') %}
-          <div class="actions onboarding-actions">
-            <button
-              type="button"
-              class="button-secondary"
-              id="onboarding-send-test-alert"
-              data-username="{{ overview.get('onboarding', {}).get('test_source', {}).get('username') }}"
-              data-channel-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_id') }}"
-              data-role-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('role_id') or '' }}"
-            >
-              Send Test Alert
-            </button>
-            <a class="ghost-link" href="/dashboard/guilds/{{ guild_id }}/sources">Review Monitor</a>
-          </div>
-          <div class="field-help field-help--body onboarding-help">
-            Sends a non-pinging preview using the <strong>@{{ overview.get('onboarding', {}).get('test_source', {}).get('username') }}</strong> monitor into <strong>#{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_name') }}</strong> so you can confirm channel access and formatting safely.
-          </div>
-          {% elif onboarding_requires_test_alert and overview.get('onboarding', {}).get('test_alert_ready') and overview.get('onboarding', {}).get('test_alert_sent_at') %}
-          <div class="field-help field-help--body onboarding-help">
-            Last successful test alert: <strong>{{ overview.get('onboarding', {}).get('test_alert_sent_at') }}</strong>.
-          </div>
-          {% endif %}
-          <div id="onboarding-form-status" class="form-banner form-banner--inline form-banner--hidden" hidden></div>
-          {% if overview.get('onboarding', {}).get('completed') %}
-          <button type="button" class="button-secondary onboarding-dismiss-button" id="dismiss-onboarding-banner">Dismiss</button>
-          {% endif %}
-        </section>
-        {% endif %}
-
         {% if overview.get('bot_runtime_issue') %}
         <section class="notice notice--warning">
           <strong>{{ overview.bot_runtime_issue.label }}:</strong> {{ overview.bot_runtime_issue.message }}
@@ -388,6 +341,7 @@
         </section>
         {% endif %}
 
+        {% set setup_progress = overview.get('setup_progress', {}) %}
         <div class="plan-summary">
           <div class="plan-tile">
             <div class="plan-tile-head">
@@ -423,32 +377,75 @@
           <section class="default-block overview-card overview-card--setup">
             <div class="overview-card-head">
               <h3>Setup Progress</h3>
-              <span class="count-pill">{{ onboarding_steps_done if overview.get('onboarding', {}).get('show') else 3 }}/{{ onboarding_step_total if overview.get('onboarding', {}).get('show') else 3 }}</span>
+              <span class="count-pill">{{ setup_progress.completed_count }}/{{ setup_progress.step_total }}</span>
             </div>
             <div class="setup-checklist">
-              <a class="setup-step {{ 'setup-step--complete' if overview.get('onboarding', {}).get('sessions_ready') else 'setup-step--active' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
+              <a class="setup-step {{ 'setup-step--complete' if setup_progress.sessions_ready else 'setup-step--active' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
                 <span class="setup-step-marker" aria-hidden="true"></span>
                 <span>Connect session</span>
               </a>
-              <a class="setup-step {{ 'setup-step--complete' if overview.get('onboarding', {}).get('monitors_ready') else 'setup-step--active' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
+              <a class="setup-step {{ 'setup-step--complete' if setup_progress.monitors_ready else 'setup-step--active' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
                 <span class="setup-step-marker" aria-hidden="true"></span>
                 <span>Add monitor</span>
               </a>
-              <span class="setup-step {{ 'setup-step--complete' if overview.get('onboarding', {}).get('test_alert_ready') else 'setup-step--active' }}">
+              {% if setup_progress.delivery_ready %}
+              <span class="setup-step setup-step--complete">
                 <span class="setup-step-marker" aria-hidden="true"></span>
                 <span>Verify delivery</span>
               </span>
+              {% else %}
+              <a class="setup-step setup-step--active" href="/dashboard/guilds/{{ guild_id }}/sources">
+                <span class="setup-step-marker" aria-hidden="true"></span>
+                <span>Verify delivery</span>
+              </a>
+              {% endif %}
             </div>
+            {% if not setup_progress.delivery_ready and overview.get('onboarding', {}).get('monitors_ready') and overview.get('onboarding', {}).get('test_source') %}
+            <div class="actions onboarding-actions">
+              <button
+                type="button"
+                class="button-secondary"
+                id="onboarding-send-test-alert"
+                data-username="{{ overview.get('onboarding', {}).get('test_source', {}).get('username') }}"
+                data-channel-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_id') }}"
+                data-role-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('role_id') or '' }}"
+              >
+                Send Test Alert
+              </button>
+              <a class="ghost-link" href="/dashboard/guilds/{{ guild_id }}/sources">Review Monitor</a>
+            </div>
+            <div class="field-help field-help--body onboarding-help">
+              Sends a non-pinging preview using the <strong>@{{ overview.get('onboarding', {}).get('test_source', {}).get('username') }}</strong> monitor into <strong>#{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_name') }}</strong> so you can confirm channel access and formatting safely.
+            </div>
+            {% elif setup_progress.delivery_ready and overview.get('recent_deliveries') %}
+            <div class="field-help field-help--body onboarding-help">
+              Last successful delivery: <strong>{{ overview.get('recent_deliveries')[0].delivered_at }}</strong>.
+            </div>
+            {% endif %}
+            <div id="onboarding-form-status" class="form-banner form-banner--inline form-banner--hidden" hidden></div>
           </section>
 
-          <section class="default-block overview-card overview-card--usage">
+          <section class="default-block overview-card overview-card--next-step">
             <div class="overview-card-head">
-              <h3>Plan Usage</h3>
+              <h3>Next Step</h3>
             </div>
-            <div class="overview-usage-list">
-              <div class="overview-usage-row"><span>Sessions</span><strong>{{ delivery_session_options|length }} / {{ guild_presentation.features.max_twitter_sessions }}</strong></div>
-              <div class="overview-usage-row"><span>Monitors</span><strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong></div>
-              <div class="overview-usage-row"><span>Rules</span><strong>{{ plan_usage.rule_count if guild_presentation.features.max_rules > 0 else 'Locked' }}{% if guild_presentation.features.max_rules > 0 %} / {{ guild_presentation.features.max_rules }}{% endif %}</strong></div>
+            <strong class="panel-title">{{ overview.next_step.title }}</strong>
+            <div class="overview-note">{{ overview.next_step.body }}</div>
+            <div class="actions onboarding-actions">
+              {% if overview.next_step.use_test_alert and overview.get('onboarding', {}).get('test_source') %}
+              <button
+                type="button"
+                class="button-secondary"
+                id="next-step-send-test-alert"
+                data-username="{{ overview.get('onboarding', {}).get('test_source', {}).get('username') }}"
+                data-channel-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('channel_id') }}"
+                data-role-id="{{ overview.get('onboarding', {}).get('test_source', {}).get('role_id') or '' }}"
+              >
+                {{ overview.next_step.cta_label }}
+              </button>
+              {% else %}
+              <a class="ghost-link" href="/dashboard/guilds/{{ guild_id }}/{{ overview.next_step.cta_href }}">{{ overview.next_step.cta_label }}</a>
+              {% endif %}
             </div>
           </section>
         </div>
@@ -1357,27 +1354,55 @@
     <script>
       const guildId = {{ guild_id | tojson }};
       const blockedSingleWordKeywords = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'in', 'into', 'of', 'on', 'or', 'the', 'to', 'with']);
-      const announcementStorage = window.localStorage;
+      function getAnnouncementStorage() {
+        try {
+          return window.sessionStorage;
+        } catch (_error) {
+          return null;
+        }
+      }
 
-      document.querySelectorAll('.notice-dismiss').forEach(function (button) {
-        button.addEventListener('click', function () {
-          const targetId = button.dataset.dismissTarget;
-          const target = targetId ? document.getElementById(targetId) : null;
-          if (!target) return;
-          const announcementKey = target.dataset.announcementKey;
-          target.hidden = true;
-          if (announcementKey && announcementStorage) {
-            announcementStorage.setItem(`tweeticcini:${announcementKey}`, 'dismissed');
+      function setAnnouncementHidden(node, hidden) {
+        if (!node) return;
+        node.hidden = hidden;
+        if (hidden) {
+          node.setAttribute('hidden', '');
+          node.style.display = 'none';
+        } else {
+          node.removeAttribute('hidden');
+          node.style.display = '';
+        }
+      }
+
+      function initAnnouncementDismissal() {
+        const announcementStorage = getAnnouncementStorage();
+        document.querySelectorAll('[data-announcement-banner]').forEach(function (notice) {
+          const announcementStorageKey = notice.dataset.announcementStorageKey;
+          if (announcementStorageKey && announcementStorage && announcementStorage.getItem(announcementStorageKey) === 'dismissed') {
+            setAnnouncementHidden(notice, true);
           }
         });
-      });
 
-      document.querySelectorAll('[data-announcement-key]').forEach(function (notice) {
-        const announcementKey = notice.dataset.announcementKey;
-        if (announcementKey && announcementStorage && announcementStorage.getItem(`tweeticcini:${announcementKey}`) === 'dismissed') {
-          notice.hidden = true;
-        }
-      });
+        document.querySelectorAll('[data-announcement-dismiss]').forEach(function (button) {
+          button.addEventListener('click', function (event) {
+            event.preventDefault();
+            const targetId = button.dataset.dismissTarget;
+            const target = targetId ? document.getElementById(targetId) : null;
+            if (!target) return;
+            const announcementStorageKey = target.dataset.announcementStorageKey;
+            if (announcementStorageKey && announcementStorage) {
+              announcementStorage.setItem(announcementStorageKey, 'dismissed');
+            }
+            setAnnouncementHidden(target, true);
+          });
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAnnouncementDismissal, { once: true });
+      } else {
+        initAnnouncementDismissal();
+      }
 
       function collectKeywords(value) {
         const seen = new Set();
@@ -1960,28 +1985,14 @@
         });
       }
 
-      const dismissOnboardingBanner = document.getElementById('dismiss-onboarding-banner');
-      if (dismissOnboardingBanner) {
-        dismissOnboardingBanner.addEventListener('click', async function () {
-          try {
-            await jsonRequest(`/guilds/${guildId}/onboarding/dismiss`, { method: 'POST' });
-            reloadWithoutUnsavedPrompt();
-          } catch (error) {
-            setStatus(`Failed to dismiss onboarding: ${error.message}`, true);
-          }
-        });
-      }
-
-      const onboardingSendTest = document.getElementById('onboarding-send-test-alert');
-      if (onboardingSendTest) {
-        onboardingSendTest.addEventListener('click', async function () {
+      const runSetupTestAlert = async function (triggerButton) {
           const onboardingStatus = document.getElementById('onboarding-form-status');
           setFormStatus('onboarding-form-status');
-          onboardingSendTest.disabled = true;
+          triggerButton.disabled = true;
           try {
-            const username = onboardingSendTest.dataset.username || '';
-            const channelId = onboardingSendTest.dataset.channelId || '';
-            const roleId = onboardingSendTest.dataset.roleId || '';
+            const username = triggerButton.dataset.username || '';
+            const channelId = triggerButton.dataset.channelId || '';
+            const roleId = triggerButton.dataset.roleId || '';
             const sourceMessage = await jsonRequest(
               `/guilds/${guildId}/sources/${encodeURIComponent(username)}/${encodeURIComponent(channelId)}/message`
             );
@@ -1998,23 +2009,25 @@
             const summary = `${result.status_summary} Mentions were previewed in non-pinging mode: ${result.mention_preview}.`;
             setFormStatus('onboarding-form-status', summary);
             setStatus(`Test alert sent to #${result.channel_name}. ${summary}`);
-
-            document.querySelectorAll('.onboarding-status-tags .tag')[2]?.classList.remove('tag--warning');
-            document.querySelectorAll('.onboarding-status-tags .tag')[2]?.classList.add('tag--soft');
-            if (document.querySelectorAll('.onboarding-status-tags .tag')[2]) {
-              document.querySelectorAll('.onboarding-status-tags .tag')[2].textContent = 'Test alert sent';
-            }
-
-            const onboardingHead = document.querySelector('.onboarding-banner-head .entity-meta');
-            if (onboardingHead) {
-              onboardingHead.textContent = '(3/3 steps completed)';
-            }
           } catch (error) {
             setFormStatus('onboarding-form-status', `Failed to send test alert: ${error.message}`, true);
             setStatus(`Failed to send test alert: ${error.message}`, true);
           } finally {
-            onboardingSendTest.disabled = false;
+            triggerButton.disabled = false;
           }
+      };
+
+      const onboardingSendTest = document.getElementById('onboarding-send-test-alert');
+      if (onboardingSendTest) {
+        onboardingSendTest.addEventListener('click', async function () {
+          await runSetupTestAlert(onboardingSendTest);
+        });
+      }
+
+      const nextStepSendTest = document.getElementById('next-step-send-test-alert');
+      if (nextStepSendTest) {
+        nextStepSendTest.addEventListener('click', async function () {
+          await runSetupTestAlert(nextStepSendTest);
         });
       }
 

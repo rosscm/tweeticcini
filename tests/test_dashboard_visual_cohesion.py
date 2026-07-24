@@ -34,8 +34,21 @@ def test_guild_dashboard_uses_updated_locked_feature_and_support_copy():
     assert 'Change server' in html
     assert 'Setup Progress' in html
     assert 'Manage monitors' in html
+    assert 'What needs attention' not in html
+    assert 'Start here:' not in html
+    assert '>Plan Usage<' not in html
+    assert 'Next Step' in html
+    assert 'data-announcement-id="plans-2026"' in html
+    assert 'data-announcement-banner' in html
+    assert 'data-announcement-dismiss' in html
     assert 'Signed in as <strong>' not in html
     assert '>Choose a Server<' not in html
+    assert 'plan-badge--{{ plan_badge_tone }}' in html
+    assert 'data-announcement-storage-key="tweeticcini_announcement_plans_2026_dismissed"' in html
+    assert 'type="button" class="button-secondary notice-dismiss"' in html
+    assert 'href="/dashboard/guilds/{{ guild_id }}/twitter-sessions"' in html
+    assert 'href="/dashboard/guilds/{{ guild_id }}/sources"' in html
+    assert 'id="next-step-send-test-alert"' in html
     assert 'This feature is available with Premium. Customize how Tweeticcini alerts appear in your Discord server' in html
     assert 'embed behaviour' in html
     assert 'This feature is available with Premium. Use Rules to route matching posts to different channels, suppress unwanted content, and control which roles are mentioned.' in html
@@ -59,6 +72,9 @@ def test_dashboard_css_adds_topbar_summary_and_focus_tokens():
     assert '.notice--announcement-compact' in css
     assert '.site-footer-inner' in css
     assert '.footer-links-grid' in css
+    assert '.plan-badge--premium' in css
+    assert '.plan-badge--plus' in css
+    assert '.plan-badge--free' in css
     assert '@media (prefers-reduced-motion: reduce)' in css
 
 
