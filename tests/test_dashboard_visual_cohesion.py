@@ -37,9 +37,14 @@ def test_guild_dashboard_uses_updated_locked_feature_and_support_copy():
     assert 'Signed in as <strong>' not in html
     assert '>Choose a Server<' not in html
     assert 'This feature is available with Premium. Customize how Tweeticcini alerts appear in your Discord server' in html
-    assert 'This feature is available with Premium. Use Rules to route matching posts to different channels' in html
+    assert 'embed behaviour' in html
+    assert 'This feature is available with Premium. Use Rules to route matching posts to different channels, suppress unwanted content, and control which roles are mentioned.' in html
     assert 'Explore Premium' in html
-    assert 'Subscriptions and one-time support are separate.' in html
+    assert 'Need more from Tweeticcini?' in html
+    assert 'Happy with the Free plan?' in html
+    assert 'Buy me a coffee' in html
+    assert 'Your Free monitor is already in use' in html
+    assert 'Compare plans, check trial status, and manage billing details.' in html
     assert 'sidebar-summary-list' not in html
     assert 'Configure sessions, monitors, and delivery behavior for this server without leaving the dashboard.' not in html
 
