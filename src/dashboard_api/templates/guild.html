@@ -9,21 +9,20 @@
   </head>
   <body>
     <main class="shell">
-      <div class="dashboard-layout">
+      <div class="dashboard-layout dashboard-shell">
         <aside class="dashboard-sidebar">
           <section class="card sidebar-brand">
-            <div class="brand-mark">
+            <div class="brand-mark brand-mark--sidebar">
               <img class="brand-icon" src="/dashboard/static/tweeticcini-icon.png" alt="Tweeticcini icon">
-              <div>
-                <p class="eyebrow">Tweeticcini</p>
-                <div class="brand-name">Server Dashboard</div>
+              <div class="brand-lockup">
+                <div class="brand-name">Tweeticcini</div>
+                <div class="brand-subtitle">Dashboard</div>
               </div>
             </div>
-            <div class="page-title-row">
-              <h1>{{ guild_name }}</h1>
+            <div class="sidebar-server-row">
+              <div class="sidebar-server-name">{{ guild_name }}</div>
               <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
             </div>
-            <p class="lede lede--wide">Tweeticcini keeps watch on Twitter so the right posts land in the right channels, right when your server needs them 🚀</p>
           </section>
 
           <nav class="guild-subnav guild-subnav--sidebar">
@@ -79,17 +78,6 @@
             </a>
             {% endfor %}
           </nav>
-
-          <section class="card sidebar-utility desktop-only">
-            {% if discord_user %}
-            <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
-            {% endif %}
-            <a class="ghost-link" href="/dashboard">Choose a Server</a>
-            {% if public_site_url %}
-            <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Open Website</a>
-            {% endif %}
-          </section>
-
         </aside>
 
         <div class="dashboard-main {{ 'dashboard-main--overview' if active_section == 'overview' else '' }}">
@@ -215,12 +203,11 @@
           {% endfor %}
         </nav>
         <div class="mobile-nav-links">
-          {% if discord_user %}
-          <div class="signed-in-as">Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
-          {% endif %}
-          <a class="ghost-link" href="/dashboard">Choose a Server</a>
           {% if public_site_url %}
           <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Open Website</a>
+          {% endif %}
+          {% if support_server_url %}
+          <a class="ghost-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">Support</a>
           {% endif %}
         </div>
       </aside>
@@ -231,18 +218,69 @@
       </section>
       {% endif %}
 
-      {% set can_start_paid_trial = guild_presentation.plan == 'free' and not guild_presentation.entitlement.trial_used_at %}
-      <section class="notice notice--announcement">
-        <span class="announcement-line"><strong>📣 New simpler plans are live.</strong> Free now includes <strong>1 monitored account</strong>, Plus is <strong>$3.99/month</strong> for 3 accounts and faster polling, and Premium is <strong>$6.99/month</strong> for 10 accounts plus Rules. Existing Free servers keep their current monitor allowance!</span>
-        <span class="announcement-line announcement-line--support"><strong>Thank you for supporting Tweeticcini and the indie dev behind it 💖</strong>{% if can_start_paid_trial %} <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Try for free for 7 days</a>{% endif %}</span>
+      {% set page_title = guild_sections[active_section] %}
+      {% if delivery_sessions_required %}
+      {% set status_chip_label = 'Needs setup' %}
+      {% set status_action_href = '/dashboard/guilds/' ~ guild_id ~ '/twitter-sessions' %}
+      {% set status_action_label = 'Connect session' %}
+      {% elif plan_usage.source_count == 0 %}
+      {% set status_chip_label = 'Needs setup' %}
+      {% set status_action_href = '/dashboard/guilds/' ~ guild_id ~ '/sources' %}
+      {% set status_action_label = 'Add monitor' %}
+      {% elif overview.get('runtime_issue_sources') or overview.get('bot_runtime_issue') or status_banner.level == 'warning' %}
+      {% set status_chip_label = 'Needs attention' %}
+      {% set status_action_href = '/dashboard/guilds/' ~ guild_id ~ '/sources' %}
+      {% set status_action_label = 'Review monitors' %}
+      {% else %}
+      {% set status_chip_label = 'Active' %}
+      {% set status_action_href = '/dashboard/guilds/' ~ guild_id ~ '/sources' %}
+      {% set status_action_label = 'Manage monitors' %}
+      {% endif %}
+
+      <section class="card app-header">
+        <div class="app-header-main">
+          <div class="app-header-copy">
+            <p class="eyebrow">Dashboard</p>
+            <h1 class="app-page-title">{{ page_title }}</h1>
+            <div class="app-header-context">
+              <span class="app-header-server">{{ guild_name }}</span>
+              <span class="app-header-dot" aria-hidden="true">·</span>
+              <span class="server-chip server-chip--{{ guild_presentation.plan }}">{{ 'Premium' if guild_presentation.plan == 'pro' else ('Plus' if guild_presentation.plan == 'plus' else 'Free') }} plan</span>
+            </div>
+          </div>
+          <div class="app-header-actions">
+            <span class="app-status-badge app-status-badge--{{ status_banner.level }}">{{ status_chip_label }}</span>
+            <a class="ghost-link app-header-action" href="/dashboard">Change server</a>
+            {% if discord_user %}
+            <span class="account-pill" title="{{ discord_user.global_name or discord_user.username }}">
+              <span class="account-pill-label">Account</span>
+              <strong>{{ discord_user.global_name or discord_user.username }}</strong>
+            </span>
+            {% endif %}
+          </div>
+        </div>
       </section>
 
+      {% set can_start_paid_trial = guild_presentation.plan == 'free' and not guild_presentation.entitlement.trial_used_at %}
+      <section class="notice notice--announcement notice--announcement-compact" id="dashboard-plan-announcement" data-announcement-key="dashboard-plans-v2">
+        <div class="announcement-compact-copy">
+          <strong>📣 Updated plans are available</strong>
+          <span>Free includes 1 monitored account, Plus includes 3 with faster polling, and Premium includes 10 plus Rules.</span>
+        </div>
+        <div class="announcement-compact-actions">
+          <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">{{ 'Start trial' if can_start_paid_trial else 'Compare plans' }}</a>
+          <button type="button" class="button-secondary notice-dismiss" data-dismiss-target="dashboard-plan-announcement" aria-label="Dismiss updated plans notice">Dismiss</button>
+        </div>
+      </section>
+
+      {% if active_section == 'overview' %}
       <section class="card status-card">
-        <div class="card-header">
+        <div class="status-card-head">
           <div>
-            <p class="eyebrow">Activity Status</p>
-            <h2>Live Dashboard Status</h2>
+            <p class="eyebrow">Operational status</p>
+            <h2>What needs attention</h2>
           </div>
+          <span class="app-status-badge app-status-badge--{{ status_banner.level }}">{{ status_chip_label }}</span>
         </div>
         <p id="status-message" class="status-message status-message--{{ status_banner.level }}">{{ status_banner.message }}</p>
         {% if status_banner.details %}
@@ -252,14 +290,18 @@
         {% endif %}
         {% set status_tags = status_banner.details[1:] if status_note else status_banner.details %}
         {% if status_tags %}
-        <div class="status-detail-list">
+        <div class="status-detail-list status-detail-list--status">
           {% for detail in status_tags %}
           <span class="tag tag--soft">{{ detail }}</span>
           {% endfor %}
         </div>
         {% endif %}
         {% endif %}
+        <div class="status-card-actions">
+          <a class="ghost-link" href="{{ status_action_href }}">{{ status_action_label }}</a>
+        </div>
       </section>
+      {% endif %}
 
       {% if active_section == 'overview' %}
       <section class="card overview-shell">
@@ -271,11 +313,12 @@
           </div>
         </div>
 
+        {% set onboarding_requires_test_alert = overview.get('onboarding', {}).get('test_alert_required') %}
+        {% set onboarding_step_total = 3 if onboarding_requires_test_alert else 2 %}
+        {% set onboarding_steps_done = (1 if overview.get('onboarding', {}).get('sessions_ready') else 0) + (1 if overview.get('onboarding', {}).get('monitors_ready') else 0) + ((1 if overview.get('onboarding', {}).get('test_alert_ready') else 0) if onboarding_requires_test_alert else 0) %}
+
         {% if overview.get('onboarding', {}).get('show') %}
         <section class="notice notice--warning onboarding-banner">
-          {% set onboarding_requires_test_alert = overview.get('onboarding', {}).get('test_alert_required') %}
-          {% set onboarding_step_total = 3 if onboarding_requires_test_alert else 2 %}
-          {% set onboarding_steps_done = (1 if overview.get('onboarding', {}).get('sessions_ready') else 0) + (1 if overview.get('onboarding', {}).get('monitors_ready') else 0) + ((1 if overview.get('onboarding', {}).get('test_alert_ready') else 0) if onboarding_requires_test_alert else 0) %}
           <div class="onboarding-banner-head">
             <strong>{{ 'Setup complete:' if overview.get('onboarding', {}).get('completed') else 'Start here:' }}</strong>
             {{ 'this server has finished the first-time setup flow.' if overview.get('onboarding', {}).get('completed') else 'finish the first-time setup flow for this server' }}
@@ -379,6 +422,40 @@
             </div>
             <strong>{{ plan_usage.rule_count ~ ' / ' ~ guild_presentation.features.max_rules if guild_presentation.features.max_rules > 0 else 'Locked' }}</strong>
           </div>
+        </div>
+
+        <div class="overview-grid overview-grid--priority">
+          <section class="default-block overview-card overview-card--setup">
+            <div class="overview-card-head">
+              <h3>Setup Progress</h3>
+              <span class="count-pill">{{ onboarding_steps_done if overview.get('onboarding', {}).get('show') else 3 }}/{{ onboarding_step_total if overview.get('onboarding', {}).get('show') else 3 }}</span>
+            </div>
+            <div class="setup-checklist">
+              <a class="setup-step {{ 'setup-step--complete' if overview.get('onboarding', {}).get('sessions_ready') else 'setup-step--active' }}" href="/dashboard/guilds/{{ guild_id }}/twitter-sessions">
+                <span class="setup-step-marker" aria-hidden="true"></span>
+                <span>Connect session</span>
+              </a>
+              <a class="setup-step {{ 'setup-step--complete' if overview.get('onboarding', {}).get('monitors_ready') else 'setup-step--active' }}" href="/dashboard/guilds/{{ guild_id }}/sources">
+                <span class="setup-step-marker" aria-hidden="true"></span>
+                <span>Add monitor</span>
+              </a>
+              <span class="setup-step {{ 'setup-step--complete' if overview.get('onboarding', {}).get('test_alert_ready') else 'setup-step--active' }}">
+                <span class="setup-step-marker" aria-hidden="true"></span>
+                <span>Verify delivery</span>
+              </span>
+            </div>
+          </section>
+
+          <section class="default-block overview-card overview-card--usage">
+            <div class="overview-card-head">
+              <h3>Plan Usage</h3>
+            </div>
+            <div class="overview-usage-list">
+              <div class="overview-usage-row"><span>Sessions</span><strong>{{ delivery_session_options|length }} / {{ guild_presentation.features.max_twitter_sessions }}</strong></div>
+              <div class="overview-usage-row"><span>Monitors</span><strong>{{ plan_usage.source_count }} / {{ guild_presentation.features.max_sources }}</strong></div>
+              <div class="overview-usage-row"><span>Rules</span><strong>{{ plan_usage.rule_count if guild_presentation.features.max_rules > 0 else 'Locked' }}{% if guild_presentation.features.max_rules > 0 %} / {{ guild_presentation.features.max_rules }}{% endif %}</strong></div>
+            </div>
+          </section>
         </div>
 
         <div class="overview-grid">
@@ -624,12 +701,15 @@
         </div>
 
         <div class="workspace-grid workspace-grid--appearance">
-          <div class="workspace-panel workspace-panel--wide">
+          <div class="workspace-panel workspace-panel--wide {{ 'workspace-panel--locked' if not guild_presentation.features.can_customize_presentation else '' }}">
             <h3 class="panel-title">Appearance Overrides</h3>
             <form id="presentation-form" class="stack {{ '' if guild_presentation.features.can_customize_presentation else 'is-locked' }}">
               {% if not guild_presentation.features.can_customize_presentation %}
               <div class="form-banner">
-                This server is using Tweeticcini's default alert appearance. Upgrade to <a href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to customize the message, bot name, emoji style, and alert image.
+                ✨ This feature is available with Premium. Customize how Tweeticcini alerts appear in your Discord server, including message styling, bot display name, and embed behavior.
+                <div class="actions">
+                  <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Explore Premium</a>
+                </div>
               </div>
               {% elif guild_presentation.entitlement.entitlement_status == 'trialing' %}
               <div class="form-banner">
@@ -776,6 +856,9 @@
             {% if guild_presentation.entitlement.plan_source == 'manual_override' %}
             <div class="field-help">This server is currently using a manual support or testing override.</div>
             {% endif %}
+            <section class="notice notice--plain notice--compact">
+              <strong>Subscriptions and one-time support are separate.</strong> Paid plans unlock higher limits and advanced controls. Buy Me a Coffee is optional and helps with hosting and development.
+            </section>
             {% if buy_me_a_coffee_url %}
             <section class="notice notice--plain notice--compact">
               <strong>Prefer one-time support?</strong> If Tweeticcini helps this server and a subscription is not the right fit yet, you can <a class="inline-link" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">buy Pokaccini a coffee</a> instead.
@@ -811,7 +894,7 @@
           {% endif %}
 
           <div class="workspace-grid">
-            <div class="workspace-panel">
+            <div class="workspace-panel {{ 'workspace-panel--locked' if guild_presentation.features.max_rules == 0 else '' }}">
               <h3 class="panel-title">Add or Edit Monitor</h3>
               <form id="source-form" class="stack {{ 'is-locked' if delivery_sessions_required else '' }}">
                 <div class="form-banner">
@@ -1052,7 +1135,10 @@
               <form id="rule-form" class="stack {{ 'is-locked' if rules_locked else '' }}">
                 <div class="form-banner">
                   {% if guild_presentation.features.max_rules == 0 %}
-                  This server is using Tweeticcini's standard monitor controls. Start <a class="inline-link" href="/dashboard/guilds/{{ guild_id }}/billing">Premium</a> to unlock Rules for one tracked account or across the whole server. Use <code>Mute alerts</code> to suppress noise, or <code>Ping everyone</code> to surface high-priority posts.
+                  ✨ This feature is available with Premium. Use Rules to route matching posts to different channels, suppress unwanted content, and decide when high-priority posts should ping everyone.
+                  <div class="actions">
+                    <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing">Explore Premium</a>
+                  </div>
                   {% else %}
                   Build a rule for one tracked account or apply it across the whole server.<br>
                   Use <code>Mute alerts</code> rules to suppress noise, or use <code>Ping everyone</code> for high-priority posts that should stand out.
@@ -1195,31 +1281,52 @@
         </div>
 
       </div>
-      <footer class="dashboard-footer">
-        <span class="dashboard-footer-label">Resources</span>
-        <span class="dashboard-footer-links">
-          {% if public_site_url %}
-          <a class="dashboard-footer-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Website</a>
-          {% endif %}
-          {% if top_gg_vote_url %}
-          <a class="dashboard-footer-link" href="{{ top_gg_vote_url }}" target="_blank" rel="noreferrer">Vote on Top.gg</a>
-          {% endif %}
-          {% if support_server_url %}
-          <a class="dashboard-footer-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">Join Support Server</a>
-          {% endif %}
-          {% if buy_me_a_coffee_url %}
-          <a class="dashboard-footer-link" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
-          {% endif %}
-        </span>
-        <span class="dashboard-footer-meta">
-          <span>Tweeticcini Dashboard</span>
-          <span class="dashboard-footer-dot" aria-hidden="true">•</span>
-          <span>Built with ❤️ by <a class="inline-link" href="https://linktr.ee/pokaccini" target="_blank" rel="noreferrer">Pokaccini</a></span>
-          <span class="dashboard-footer-dot" aria-hidden="true">•</span>
-          <span>v{{ app_version }}</span>
-        </span>
-      </footer>
     </main>
+    <footer class="site-footer dashboard-footer">
+        <div class="site-footer-inner">
+          <div class="footer-brand-block">
+            <a class="footer-brand" href="{{ public_site_url or '/dashboard' }}" {% if public_site_url %}target="_blank" rel="noreferrer"{% endif %}>
+              <img class="footer-brand-icon" src="/dashboard/static/tweeticcini-icon.png" alt="Tweeticcini icon">
+              <div>
+                <strong>Tweeticcini</strong>
+                <p>Twitter alert routing for Discord</p>
+              </div>
+            </a>
+            <p class="footer-credit">Built with ❤️ by <a href="https://linktr.ee/pokaccini" target="_blank" rel="noreferrer">Pokaccini</a></p>
+          </div>
+          <nav class="footer-links-grid" aria-label="Footer">
+            <div class="footer-link-group">
+              <h2>Product</h2>
+              {% if public_site_url %}
+              <a href="{{ public_site_url }}" target="_blank" rel="noreferrer">Website</a>
+              <a href="{{ public_site_url }}/how-to-send-twitter-alerts-to-discord.html" target="_blank" rel="noreferrer">Setup Guide</a>
+              <a href="{{ public_site_url }}/twitter-alerts-for-discord.html" target="_blank" rel="noreferrer">Bot Overview</a>
+              {% endif %}
+              <a href="/dashboard">Change Server</a>
+            </div>
+            <div class="footer-link-group">
+              <h2>Trust and Support</h2>
+              {% if public_site_url %}
+              <a href="{{ public_site_url }}/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a>
+              <a href="{{ public_site_url }}/terms.html" target="_blank" rel="noreferrer">Terms of Service</a>
+              {% endif %}
+              {% if support_server_url %}
+              <a href="{{ support_server_url }}" target="_blank" rel="noreferrer">Support Server</a>
+              {% endif %}
+            </div>
+            <div class="footer-link-group">
+              <h2>Community</h2>
+              {% if top_gg_vote_url %}
+              <a href="{{ top_gg_vote_url }}" target="_blank" rel="noreferrer">Vote on Top.gg</a>
+              {% endif %}
+              {% if buy_me_a_coffee_url %}
+              <a href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
+              {% endif %}
+            </div>
+          </nav>
+          <div class="dashboard-footer-meta">Tweeticcini Dashboard · v{{ app_version }}</div>
+        </div>
+    </footer>
 
     <div class="unsaved-bar" id="unsaved-bar" hidden>
       <div class="unsaved-bar__copy">
@@ -1234,6 +1341,27 @@
     <script>
       const guildId = {{ guild_id | tojson }};
       const blockedSingleWordKeywords = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'in', 'into', 'of', 'on', 'or', 'the', 'to', 'with']);
+      const announcementStorage = window.localStorage;
+
+      document.querySelectorAll('.notice-dismiss').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const targetId = button.dataset.dismissTarget;
+          const target = targetId ? document.getElementById(targetId) : null;
+          if (!target) return;
+          const announcementKey = target.dataset.announcementKey;
+          target.hidden = true;
+          if (announcementKey && announcementStorage) {
+            announcementStorage.setItem(`tweeticcini:${announcementKey}`, 'dismissed');
+          }
+        });
+      });
+
+      document.querySelectorAll('[data-announcement-key]').forEach(function (notice) {
+        const announcementKey = notice.dataset.announcementKey;
+        if (announcementKey && announcementStorage && announcementStorage.getItem(`tweeticcini:${announcementKey}`) === 'dismissed') {
+          notice.hidden = true;
+        }
+      });
 
       function collectKeywords(value) {
         const seen = new Set();

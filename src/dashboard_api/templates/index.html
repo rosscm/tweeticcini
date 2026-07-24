@@ -10,6 +10,15 @@
   <body>
     <main class="shell shell--centered">
       <div class="shell-stack">
+      <header class="dashboard-topbar dashboard-topbar--centered" aria-label="Dashboard resources">
+        {% if public_site_url %}
+        <a class="dashboard-topbar-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Bot Overview</a>
+        {% endif %}
+        <a class="dashboard-topbar-link" href="https://discord.com/oauth2/authorize?client_id=1385046979662581780" target="_blank" rel="noreferrer">Add to Discord</a>
+        {% if support_server_url %}
+        <a class="dashboard-topbar-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">Support</a>
+        {% endif %}
+      </header>
       <section class="hero-card">
         <div class="brand-mark brand-mark--hero">
           <img class="brand-icon" src="/dashboard/static/tweeticcini-icon.png" alt="Tweeticcini icon">
@@ -20,18 +29,23 @@
         </div>
         <h1>Choose a Server</h1>
         <p class="lede">
-          Pick a server to connect Twitter sessions, set up monitors, fine-tune alerts, and customize how Tweeticcini posts.
+          Sign in, pick a server you manage, and finish the setup that keeps alerts flowing where your community expects them.
         </p>
         {% if pending_plan %}
-        <p class="section-copy">Selected plan: <strong>{{ 'Premium' if pending_plan == 'pro' else 'Plus' }}</strong>. Choose a server and Tweeticcini will take you to that billing flow.</p>
+        <p class="section-copy">Selected plan: <strong>{{ 'Premium' if pending_plan == 'pro' else 'Plus' }}</strong>. Choose a server and Tweeticcini will take you straight to that checkout flow.</p>
         {% endif %}
         {% if public_site_url and oauth_enabled and not discord_user %}
-        <p class="section-copy">Want a better sense of how it works first? Open the <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Bot Overview</a>, then come back when you're ready to configure a server.</p>
+        <p class="section-copy">Need the big picture first? Open the <a class="inline-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Bot Overview</a>, then come back when you're ready to configure a server.</p>
         {% endif %}
         {% if oauth_enabled %}
         {% if discord_user %}
-        <div class="notice">
-          <div>Signed in as <strong>{{ discord_user.global_name or discord_user.username }}</strong></div>
+        <div class="notice notice--plain notice--compact-card">
+          <div class="notice-title-row">
+            <div>
+              <strong>Signed in with Discord</strong>
+              <div class="section-copy section-copy--tight">Using <strong>{{ discord_user.global_name or discord_user.username }}</strong> to view manageable servers.</div>
+            </div>
+          </div>
           <div class="notice-actions">
             <a class="icon-action" href="/dashboard/logout" aria-label="Sign out">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -44,7 +58,10 @@
         </div>
         {% if manageable_guilds %}
         <div class="stack">
-          <label>Your servers</label>
+          <div class="section-heading-row">
+            <label>Your servers</label>
+            <span class="section-caption">{{ manageable_guilds|length }} available</span>
+          </div>
           <div class="guild-list">
             {% for guild in manageable_guilds %}
             {% if guild.bot_present is sameas false and guild.bot_invite_url %}
@@ -73,6 +90,13 @@
                 <div class="guild-link-topline">
                   <span class="guild-link-copy">{{ guild.name }}</span>
                 </div>
+                <div class="guild-link-meta">
+                  {% if guild.bot_present is sameas false and guild.bot_invite_url %}
+                  Tweeticcini is not in this server yet
+                  {% else %}
+                  Open dashboard and manage alerts
+                  {% endif %}
+                </div>
               </div>
               {% if guild.bot_present is sameas false and guild.bot_invite_url %}
               <span class="button-secondary guild-link-action">Invite</span>
@@ -90,18 +114,21 @@
           </div>
         </div>
         {% else %}
-        <div class="notice">
-          No servers with Dashboard access showed up for this account yet
+        <div class="notice notice--warning notice--compact-card">
+          <strong>No manageable servers found yet.</strong>
+          <div class="section-copy section-copy--tight">Make sure this Discord account can manage the server, or add Tweeticcini to a new server first.</div>
         </div>
         {% endif %}
         {% else %}
         <div class="stack">
           <a class="oauth-button" href="{{ discord_login_url }}">Sign In With Discord</a>
+          <p class="section-copy section-copy--tight">You will return here after Discord sign-in to choose the server you want to configure.</p>
         </div>
         {% endif %}
         {% else %}
-        <div class="notice">
-          Discord sign-in is not configured yet, so local testing uses the manual server picker below
+        <div class="notice notice--warning notice--compact-card">
+          <strong>Local dashboard mode</strong>
+          <div class="section-copy section-copy--tight">Discord sign-in is not configured here, so local testing uses the manual server picker below.</div>
         </div>
         <form id="guild-picker" class="stack">
           <label for="guild-id">Server ID</label>
@@ -110,32 +137,52 @@
         </form>
         {% endif %}
       </section>
-      <footer class="dashboard-footer dashboard-footer--centered">
-        <span class="dashboard-footer-label">Resources</span>
-        <span class="dashboard-footer-links">
-          {% if public_site_url %}
-          <a class="dashboard-footer-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Website</a>
-          {% endif %}
-          {% if top_gg_vote_url %}
-          <a class="dashboard-footer-link" href="{{ top_gg_vote_url }}" target="_blank" rel="noreferrer">Vote on Top.gg</a>
-          {% endif %}
-          {% if support_server_url %}
-          <a class="dashboard-footer-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">Join Support Server</a>
-          {% endif %}
-          {% if buy_me_a_coffee_url %}
-          <a class="dashboard-footer-link" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
-          {% endif %}
-        </span>
-        <span class="dashboard-footer-meta">
-          <span>Tweeticcini Dashboard</span>
-          <span class="dashboard-footer-dot" aria-hidden="true">•</span>
-          <span>Built with ❤️ by <a class="inline-link" href="https://linktr.ee/pokaccini" target="_blank" rel="noreferrer">Pokaccini</a></span>
-          <span class="dashboard-footer-dot" aria-hidden="true">•</span>
-          <span>v{{ app_version }}</span>
-        </span>
-      </footer>
-      </div>
     </main>
+    <footer class="site-footer dashboard-footer dashboard-footer--centered">
+        <div class="site-footer-inner">
+          <div class="footer-brand-block">
+            <a class="footer-brand" href="{{ public_site_url or '/dashboard' }}" {% if public_site_url %}target="_blank" rel="noreferrer"{% endif %}>
+              <img class="footer-brand-icon" src="/dashboard/static/tweeticcini-icon.png" alt="Tweeticcini icon">
+              <div>
+                <strong>Tweeticcini</strong>
+                <p>Twitter alert routing for Discord</p>
+              </div>
+            </a>
+            <p class="footer-credit">Built with ❤️ by <a href="https://linktr.ee/pokaccini" target="_blank" rel="noreferrer">Pokaccini</a></p>
+          </div>
+          <nav class="footer-links-grid" aria-label="Footer">
+            <div class="footer-link-group">
+              <h2>Product</h2>
+              {% if public_site_url %}
+              <a href="{{ public_site_url }}" target="_blank" rel="noreferrer">Website</a>
+              <a href="{{ public_site_url }}/how-to-send-twitter-alerts-to-discord.html" target="_blank" rel="noreferrer">Setup Guide</a>
+              <a href="{{ public_site_url }}/twitter-alerts-for-discord.html" target="_blank" rel="noreferrer">Bot Overview</a>
+              {% endif %}
+              <a href="/dashboard">Open Dashboard</a>
+            </div>
+            <div class="footer-link-group">
+              <h2>Trust and Support</h2>
+              {% if support_server_url %}
+              <a href="{{ support_server_url }}" target="_blank" rel="noreferrer">Support Server</a>
+              {% endif %}
+              {% if public_site_url %}
+              <a href="{{ public_site_url }}/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a>
+              <a href="{{ public_site_url }}/terms.html" target="_blank" rel="noreferrer">Terms of Service</a>
+              {% endif %}
+            </div>
+            <div class="footer-link-group">
+              <h2>Community</h2>
+              {% if top_gg_vote_url %}
+              <a href="{{ top_gg_vote_url }}" target="_blank" rel="noreferrer">Vote on Top.gg</a>
+              {% endif %}
+              {% if buy_me_a_coffee_url %}
+              <a href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
+              {% endif %}
+            </div>
+          </nav>
+          <div class="dashboard-footer-meta">Tweeticcini Dashboard · v{{ app_version }}</div>
+        </div>
+    </footer>
     {% if not oauth_enabled %}
     <script>
       document.getElementById('guild-picker').addEventListener('submit', function (event) {
