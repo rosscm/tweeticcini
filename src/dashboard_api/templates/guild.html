@@ -202,14 +202,6 @@
           </a>
           {% endfor %}
         </nav>
-        <div class="mobile-nav-links">
-          {% if public_site_url %}
-          <a class="ghost-link" href="{{ public_site_url }}" target="_blank" rel="noreferrer">Open Website</a>
-          {% endif %}
-          {% if support_server_url %}
-          <a class="ghost-link" href="{{ support_server_url }}" target="_blank" rel="noreferrer">Support</a>
-          {% endif %}
-        </div>
       </aside>
 
       {% if not discord_user %}
@@ -240,11 +232,13 @@
       <section class="card app-header">
         <div class="app-header-main">
           <div class="app-header-copy">
-            <p class="eyebrow">Dashboard</p>
-            <h1 class="app-page-title">{{ page_title }}</h1>
+            <p class="eyebrow app-header-eyebrow">Dashboard</p>
+            <div class="app-header-title-row">
+              <h1 class="app-page-title">{{ page_title }}</h1>
+              <span class="app-status-badge app-header-status app-status-badge--{{ status_banner.level }}">{{ status_chip_label }}</span>
+            </div>
           </div>
-          <div class="app-header-actions">
-            <span class="app-status-badge app-status-badge--{{ status_banner.level }}">{{ status_chip_label }}</span>
+          <div class="app-header-secondary">
             <a class="ghost-link app-header-action" href="/dashboard">Change server</a>
             {% if discord_user %}
             <span class="account-pill" title="{{ discord_user.global_name or discord_user.username }}">

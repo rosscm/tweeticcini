@@ -588,11 +588,6 @@ body::before {
   gap: 14px;
 }
 
-.mobile-nav-links {
-  display: grid;
-  gap: 12px;
-}
-
 .version-note {
   font-size: 0.78rem;
   color: var(--muted);
@@ -1008,12 +1003,25 @@ h2 {
   display: flex;
   justify-content: space-between;
   gap: 18px;
-  align-items: flex-start;
+  align-items: center;
+}
+
+.app-header-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.app-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .app-page-title {
   font-size: 1.65rem;
   line-height: 1.05;
+  min-width: 0;
 }
 
 .app-header-context {
@@ -1034,7 +1042,7 @@ h2 {
   color: var(--muted);
 }
 
-.app-header-actions {
+.app-header-secondary {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -1045,6 +1053,10 @@ h2 {
 .app-header-action {
   min-height: 38px;
   padding: 0 14px;
+}
+
+.app-header-status {
+  flex: 0 0 auto;
 }
 
 .app-status-badge {
@@ -1088,6 +1100,10 @@ h2 {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.04);
   min-width: 0;
+}
+
+.account-pill strong {
+  white-space: nowrap;
 }
 
 .account-pill-label {
@@ -2265,7 +2281,7 @@ code {
 
   .section-heading-row,
   .notice-title-row,
-  .app-header-actions {
+  .app-header-secondary {
     align-items: flex-start;
   }
 
@@ -2290,6 +2306,46 @@ code {
   .notice {
     padding: 12px 14px;
     margin-bottom: 16px;
+  }
+
+  .app-header-main {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .app-header-secondary {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(145px, auto);
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .app-header-title-row {
+    width: 100%;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .app-header-action,
+  .account-pill {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 999px;
+  }
+
+  .app-header-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+  }
+
+  .account-pill {
+    padding: 8px 14px;
+    align-content: center;
   }
 
   .form-banner {
@@ -2327,12 +2383,11 @@ code {
   }
 
   .announcement-compact-actions,
-  .app-header-actions {
+  .app-header-secondary {
     width: 100%;
   }
 
-  .announcement-compact-actions > *,
-  .app-header-actions > .ghost-link {
+  .announcement-compact-actions > * {
     flex: 1 1 0;
   }
 
@@ -2489,7 +2544,11 @@ code {
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 340px) {
+  .app-header-secondary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .plan-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
