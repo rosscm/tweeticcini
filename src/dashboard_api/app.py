@@ -1064,10 +1064,10 @@ def _build_next_step_panel(
 def _build_free_support_card(total_deliveries: Optional[int]) -> dict[str, str]:
     delivery_count = max(int(total_deliveries or 0), 0)
     if delivery_count > 0:
-        post_label = 'post' if delivery_count == 1 else 'posts'
-        title = f'☕ Tweeticcini has delivered {delivery_count:,} {post_label} to your server'
+        alert_label = 'alert' if delivery_count == 1 else 'alerts'
+        title = f'☕ Tweeticcini has delivered {delivery_count:,} {alert_label} through your current setup'
     else:
-        title = '☕ Happy with the Free plan?'
+        title = '☕ Want to support Tweeticcini?'
     return {
         'title': title,
         'body': (
@@ -1076,8 +1076,15 @@ def _build_free_support_card(total_deliveries: Optional[int]) -> dict[str, str]:
             'online and supports continued development.'
         ),
         'action_label': 'Buy Me a Coffee',
-        'footer_note': 'Paid memberships already support Tweeticcini directly, so this message is only shown on the Free plan. 🩷',
+        'footer_note': 'Paid memberships already support Tweeticcini directly, so this support note is only shown on the Free plan. 🩷',
     }
+
+
+def _coerce_non_negative_int(value: object) -> int:
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _build_status_banner(
@@ -1621,7 +1628,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 or bot_runtime_health.get('last_error_at'),
             }
     delivered_sources = [payload for payload in sources_payload if payload.get('last_delivery_success_at_raw')]
-    total_delivery_success_count = sum(int(payload.get('success_count') or 0) for payload in sources_payload)
+    total_delivery_success_count = sum(_coerce_non_negative_int(payload.get('success_count')) for payload in sources_payload)
     if delivered_sources:
         delivered_sources = sorted(
             delivered_sources,

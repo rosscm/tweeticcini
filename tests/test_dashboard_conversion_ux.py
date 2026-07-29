@@ -281,12 +281,24 @@ def test_free_support_card_uses_delivery_count_and_pluralization(base_env):
     zero = module._build_free_support_card(0)
     one = module._build_free_support_card(1)
     many = module._build_free_support_card(1234)
+    malformed = module._build_free_support_card(module._coerce_non_negative_int('oops'))
 
-    assert zero['title'] == '☕ Happy with the Free plan?'
-    assert one['title'] == '☕ Tweeticcini has delivered 1 post to your server'
-    assert many['title'] == '☕ Tweeticcini has delivered 1,234 posts to your server'
+    assert zero['title'] == '☕ Want to support Tweeticcini?'
+    assert one['title'] == '☕ Tweeticcini has delivered 1 alert through your current setup'
+    assert many['title'] == '☕ Tweeticcini has delivered 1,234 alerts through your current setup'
+    assert malformed['title'] == '☕ Want to support Tweeticcini?'
     assert many['action_label'] == 'Buy Me a Coffee'
-    assert many['footer_note'] == 'Paid memberships already support Tweeticcini directly, so this message is only shown on the Free plan. 🩷'
+    assert many['footer_note'] == 'Paid memberships already support Tweeticcini directly, so this support note is only shown on the Free plan. 🩷'
+
+
+def test_delivery_count_coercion_is_non_negative(base_env):
+    module = _load_dashboard_app()
+
+    assert module._coerce_non_negative_int(None) == 0
+    assert module._coerce_non_negative_int('') == 0
+    assert module._coerce_non_negative_int('7') == 7
+    assert module._coerce_non_negative_int(-5) == 0
+    assert module._coerce_non_negative_int('oops') == 0
 
 
 def test_existing_guilds_are_grandfathered_without_test_alert_requirement(tmp_path):
