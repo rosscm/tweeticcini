@@ -275,6 +275,20 @@ def test_next_step_panel_uses_setup_state_actions(base_env):
     assert completed['cta_label'] == 'Manage monitors'
 
 
+def test_free_support_card_uses_delivery_count_and_pluralization(base_env):
+    module = _load_dashboard_app()
+
+    zero = module._build_free_support_card(0)
+    one = module._build_free_support_card(1)
+    many = module._build_free_support_card(1234)
+
+    assert zero['title'] == '☕ Happy with the Free plan?'
+    assert one['title'] == '☕ Tweeticcini has delivered 1 post to your server'
+    assert many['title'] == '☕ Tweeticcini has delivered 1,234 posts to your server'
+    assert many['action_label'] == 'Buy Me a Coffee'
+    assert many['footer_note'] == 'Paid memberships already support Tweeticcini directly, so this message is only shown on the Free plan. 🩷'
+
+
 def test_existing_guilds_are_grandfathered_without_test_alert_requirement(tmp_path):
     db_path = str(tmp_path / 'tweeticcini.db')
     _ensure_onboarding_test_table(db_path)

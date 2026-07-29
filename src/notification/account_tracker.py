@@ -65,6 +65,14 @@ def _get_donation_url() -> str:
     return explicit_url or 'https://buymeacoffee.com/pokaccini'
 
 
+def _get_force_everyone_support_prompt_url() -> Optional[str]:
+    return _get_top_gg_vote_url()
+
+
+def _get_managed_support_prompt_default_text() -> str:
+    return "Enjoying Tweeticcini? Vote on top.gg! It would make Mocha's day 💛"
+
+
 def _get_support_prompt_server_ids() -> set[str]:
     raw = os.getenv('SUPPORT_PROMPT_SERVER_IDS', '').strip()
     if not raw:
@@ -662,12 +670,12 @@ class AccountTracker():
             support_prompt_text = None
             support_prompt_url = None
             if self._should_include_force_everyone_support_footer(server_id, bool(alert_decision.should_force_everyone)):
-                support_prompt_url = _get_donation_url()
+                support_prompt_url = self._get_support_prompt_url(server_id)
                 if support_prompt_url:
                     support_prompt_text = self._get_support_prompt_text(server_id)
             elif await self._should_include_support_footer(cursor, server_id, presentation.plan, str(data['channel_id'])):
                 support_prompt_text = self._get_support_prompt_text(server_id)
-                support_prompt_url = _get_donation_url()
+                support_prompt_url = self._get_support_prompt_url(server_id)
                 if not support_prompt_url:
                     support_prompt_text = None
 
@@ -948,9 +956,14 @@ class AccountTracker():
         return True
 
     def _get_support_prompt_text(self, server_id: str) -> str:
-        if server_id in self.support_prompt_server_ids and self.managed_support_prompt_text:
-            return self.managed_support_prompt_text
-        return '☕ Enjoying Tweeticcini? A small one-time contribution helps cover hosting and continued development.'
+        if server_id in self.support_prompt_server_ids:
+            return self.managed_support_prompt_text or _get_managed_support_prompt_default_text()
+        return '☕ Enjoying Tweeticcini? A small one-time contribution helps me cover hosting and keep the bot running. 🩷'
+
+    def _get_support_prompt_url(self, server_id: str) -> Optional[str]:
+        if server_id in self.support_prompt_server_ids:
+            return _get_top_gg_vote_url()
+        return _get_donation_url()
 
     async def _should_include_support_footer(
         self,

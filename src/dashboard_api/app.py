@@ -1061,6 +1061,25 @@ def _build_next_step_panel(
     }
 
 
+def _build_free_support_card(total_deliveries: Optional[int]) -> dict[str, str]:
+    delivery_count = max(int(total_deliveries or 0), 0)
+    if delivery_count > 0:
+        post_label = 'post' if delivery_count == 1 else 'posts'
+        title = f'☕ Tweeticcini has delivered {delivery_count:,} {post_label} to your server'
+    else:
+        title = '☕ Happy with the Free plan?'
+    return {
+        'title': title,
+        'body': (
+            'Tweeticcini is an independently run project, and I personally cover its hosting and upkeep. '
+            'If it has been useful to your community, a small one-time contribution helps keep the service '
+            'online and supports continued development.'
+        ),
+        'action_label': 'Buy Me a Coffee',
+        'footer_note': 'Paid memberships already support Tweeticcini directly, so this message is only shown on the Free plan. 🩷',
+    }
+
+
 def _build_status_banner(
     delivery_sessions: list[dict[str, str]],
     usage: dict[str, int],
@@ -1602,6 +1621,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
                 or bot_runtime_health.get('last_error_at'),
             }
     delivered_sources = [payload for payload in sources_payload if payload.get('last_delivery_success_at_raw')]
+    total_delivery_success_count = sum(int(payload.get('success_count') or 0) for payload in sources_payload)
     if delivered_sources:
         delivered_sources = sorted(
             delivered_sources,
@@ -1738,6 +1758,7 @@ async def _render_guild_dashboard(request: Request, guild_id: str, active_sectio
             'top_gg_vote_url': _get_top_gg_vote_url(),
             'buy_me_a_coffee_url': _get_buy_me_a_coffee_url(),
             'selected_checkout_plan': selected_checkout_plan,
+            'free_support_card': _build_free_support_card(total_delivery_success_count) if guild_presentation.plan == 'free' else None,
             'plan_catalog': {
                 'plus': {
                     'max_sources': PLAN_FEATURES[PLAN_PLUS].max_sources,

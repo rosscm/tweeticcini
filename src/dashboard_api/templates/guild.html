@@ -857,8 +857,12 @@
             {% endif %}
             {% if guild_presentation.plan == 'free' %}
             <section class="notice notice--plain notice--compact">
-              <strong>☕ Happy with the Free plan?</strong>
-              <div class="section-copy section-copy--tight">Tweeticcini is a one-person project, and I personally cover the hosting and upkeep. If it has been helpful for your server, a small contribution through <a class="inline-link" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">Buy Me a Coffee</a> genuinely helps keep the bot online and moving forward. 💖</div>
+              <strong>{{ free_support_card.title }}</strong>
+              <div class="section-copy section-copy--tight">{{ free_support_card.body }}</div>
+              <div class="actions">
+                <a class="button-secondary" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">{{ free_support_card.action_label }}</a>
+              </div>
+              <div class="field-help">{{ free_support_card.footer_note }}</div>
             </section>
             {% endif %}
           </div>
