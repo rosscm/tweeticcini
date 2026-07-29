@@ -19,7 +19,7 @@ def test_homepage_uses_requested_section_order():
     support_index = html.index('class="section-band support-section"')
     footer_index = html.index('<footer class="site-footer">')
 
-    assert hero_index < workflow_index < proof_index < spotlight_index < how_index < pricing_index < trust_index < faq_index < final_cta_index < support_index < footer_index
+    assert hero_index < workflow_index < proof_index < spotlight_index < how_index < pricing_index < support_index < trust_index < faq_index < final_cta_index < footer_index
 
 
 def test_header_navigation_uses_requested_labels_and_links():
@@ -159,7 +159,7 @@ def test_support_links_and_footer_resources_remain_destination_specific():
     assert 'Support Server' in html
     assert 'Vote on Top.gg' in html
     assert 'Buy Me a Coffee' in html
-    assert '>Support<' not in html
+    assert html.count('>Support<') == 1
 
 
 def test_reduced_motion_rules_exist_for_public_and_dashboard_css():

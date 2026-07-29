@@ -255,6 +255,7 @@ a {
 .spotlight-section,
 .how-section,
 .pricing-section,
+.support-section,
 .trust-section,
 .faq-section,
 .final-cta-section {
@@ -747,7 +748,6 @@ a {
 }
 
 .support-section {
-  margin-top: 20px;
   padding: 24px 28px;
 }
 
@@ -765,15 +765,8 @@ a {
 
 .support-copy {
   min-width: 0;
-  display: grid;
-  align-content: center;
-  gap: 8px;
-}
-
-.support-copy .eyebrow,
-.support-copy h2,
-.support-copy p {
-  margin: 0;
+  align-self: center;
+  margin-bottom: 0;
 }
 
 .bmc-embed-link {
