@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -134,11 +135,21 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     assert '.pricing-section,\n.support-section,\n.trust-section,\n.faq-section {' in css
     assert '.support-note--wide' in css
     assert 'grid-template-columns: minmax(0, 1.2fr) auto minmax(220px, 0.9fr);' in css
+    assert 'class="bmc-embed"' in html
     assert '.bmc-embed-image' in css
     assert 'max-width: 100%;' in css
     assert 'max-width: 640px;' not in css
     assert '.support-note,\n.proof-notes .support-card,' not in css
     assert '.signal-card,\n.support-note {' not in css
+    assert '.support-note .bmc-embed {' in css
+    assert 'display: block;' in css
+    assert 'width: fit-content;' in css
+    assert 'margin-block: 24px;' in css
+    assert 'order: 2;' in css
+    assert 'visibility: hidden;' not in css
+    mobile_embed_rule = re.search(r"\.support-note \.bmc-embed \{([^}]*)\}", css, re.MULTILINE)
+    assert mobile_embed_rule is not None
+    assert 'display: none;' not in mobile_embed_rule.group(1)
 
 
 def test_real_discord_delivery_image_has_desktop_constraint_and_mobile_fallback():

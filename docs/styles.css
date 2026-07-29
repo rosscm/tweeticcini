@@ -931,6 +931,25 @@ a {
     gap: 14px;
   }
 
+  .support-copy {
+    order: 1;
+  }
+
+  .support-note .bmc-embed {
+    display: block;
+    order: 2;
+    position: static;
+    width: fit-content;
+    max-width: 100%;
+    margin-block: 24px;
+    overflow: visible;
+    justify-self: start;
+  }
+
+  .support-quote {
+    order: 3;
+  }
+
   .workflow-stage-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
