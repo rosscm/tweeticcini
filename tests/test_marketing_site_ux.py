@@ -137,6 +137,8 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     assert '.bmc-embed-image' in css
     assert 'max-width: 100%;' in css
     assert 'max-width: 640px;' not in css
+    assert '.support-note,\n.proof-notes .support-card,' not in css
+    assert '.signal-card,\n.support-note {' not in css
 
 
 def test_real_discord_delivery_image_has_desktop_constraint_and_mobile_fallback():

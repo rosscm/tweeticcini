@@ -372,14 +372,12 @@ a {
 .signal-card,
 .workflow-demo,
 .tab-demo,
-.support-note,
 .proof-notes .support-card,
 .final-cta-card {
   background: linear-gradient(180deg, rgba(18, 24, 38, 0.98), rgba(13, 18, 30, 0.98));
 }
 
-.signal-card,
-.support-note {
+.signal-card {
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
