@@ -747,7 +747,8 @@ a {
 }
 
 .support-section {
-  padding-top: 4px;
+  margin-top: 20px;
+  padding: 24px 28px;
 }
 
 .support-note .bmc-embed {
@@ -764,6 +765,15 @@ a {
 
 .support-copy {
   min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.support-copy .eyebrow,
+.support-copy h2,
+.support-copy p {
+  margin: 0;
 }
 
 .bmc-embed-link {
@@ -782,6 +792,7 @@ a {
   padding-left: 14px;
   border-left: 1px solid rgba(138, 155, 194, 0.28);
   color: var(--text-muted);
+  align-self: center;
 }
 
 .support-quote p,
