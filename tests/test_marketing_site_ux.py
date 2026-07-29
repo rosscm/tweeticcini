@@ -115,9 +115,10 @@ def test_trust_faq_and_support_copy_remain_present():
     assert 'Tweeticcini is independently built and maintained. One-time support helps cover hosting and continued development. 🩷' in html
     assert '“Love what you built! Keep it going!”' in html
     assert '— Tweeticcini supporter' in html
-    assert 'https://img.buymeacoffee.com/button-api/?text=Buy me a booster pack' in html
+    assert 'https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20booster%20pack' in html
+    assert 'emoji=%F0%9F%83%8F' in html
     assert 'font_family=Bree' in html
-    assert html.count('https://img.buymeacoffee.com/button-api/?text=Buy me a booster pack') == 1
+    assert html.count('https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20booster%20pack') == 1
     assert 'button.prod.min.js' not in html
     assert 'cdnjs.buymeacoffee.com' not in html
     assert 'https://www.buymeacoffee.com/pokaccini' in html
@@ -136,6 +137,7 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     assert '.support-note--wide' in css
     assert 'grid-template-columns: minmax(0, 1.2fr) auto minmax(220px, 0.9fr);' in css
     assert 'class="bmc-embed"' in html
+    assert '&amp;emoji=%F0%9F%83%8F&amp;slug=pokaccini' in html
     assert '.bmc-embed-image' in css
     assert 'max-width: 100%;' in css
     assert 'max-width: 640px;' not in css
