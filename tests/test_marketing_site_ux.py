@@ -130,10 +130,13 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     assert "img-src 'self' data: https://img.buymeacoffee.com" in html
     assert 'https://app.tweeticcini.com' in html
     assert 'cdnjs.buymeacoffee.com' not in html
+    assert '.pricing-section,\n.support-section,\n.trust-section,' in css
+    assert '.pricing-section,\n.support-section,\n.trust-section,\n.faq-section {' in css
     assert '.support-note--wide' in css
     assert 'grid-template-columns: minmax(0, 1.2fr) auto minmax(220px, 0.9fr);' in css
     assert '.bmc-embed-image' in css
     assert 'max-width: 100%;' in css
+    assert 'max-width: 640px;' not in css
 
 
 def test_real_discord_delivery_image_has_desktop_constraint_and_mobile_fallback():
