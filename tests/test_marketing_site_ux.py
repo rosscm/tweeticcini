@@ -16,8 +16,10 @@ def test_homepage_uses_requested_section_order():
     trust_index = html.index('id="trust"')
     faq_index = html.index('id="faq"')
     final_cta_index = html.index('id="get-started"')
+    support_index = html.index('class="section-band support-section"')
+    footer_index = html.index('<footer class="site-footer">')
 
-    assert hero_index < workflow_index < proof_index < spotlight_index < how_index < pricing_index < trust_index < faq_index < final_cta_index
+    assert hero_index < workflow_index < proof_index < spotlight_index < how_index < pricing_index < trust_index < faq_index < final_cta_index < support_index < footer_index
 
 
 def test_header_navigation_uses_requested_labels_and_links():
@@ -112,12 +114,38 @@ def test_trust_faq_and_support_copy_remain_present():
     assert 'Tweeticcini is independently built and maintained. One-time support helps cover hosting and continued development. 🩷' in html
     assert '“Love what you built! Keep it going!”' in html
     assert '— Tweeticcini supporter' in html
-    assert 'data-name="bmc-button"' in html
-    assert 'data-text="Buy me a booster pack"' in html
-    assert html.count('data-name="bmc-button"') == 1
-    assert '<noscript>' in html
+    assert 'https://img.buymeacoffee.com/button-api/?text=Buy me a booster pack' in html
+    assert 'font_family=Bree' in html
+    assert html.count('https://img.buymeacoffee.com/button-api/?text=Buy me a booster pack') == 1
+    assert 'button.prod.min.js' not in html
+    assert 'cdnjs.buymeacoffee.com' not in html
     assert 'https://www.buymeacoffee.com/pokaccini' in html
     assert 'Start free, then upgrade when your server needs more speed or control.' in html
+
+
+def test_support_section_csp_and_layout_use_image_embed_only():
+    html = (REPO_ROOT / 'docs' / 'index.html').read_text(encoding='utf8')
+    css = (REPO_ROOT / 'docs' / 'styles.css').read_text(encoding='utf8')
+
+    assert "img-src 'self' data: https://img.buymeacoffee.com" in html
+    assert 'https://app.tweeticcini.com' in html
+    assert 'cdnjs.buymeacoffee.com' not in html
+    assert '.support-note--wide' in css
+    assert 'grid-template-columns: minmax(0, 1.2fr) auto minmax(220px, 0.9fr);' in css
+    assert '.bmc-embed-image' in css
+    assert 'max-width: 100%;' in css
+
+
+def test_real_discord_delivery_image_has_desktop_constraint_and_mobile_fallback():
+    css = (REPO_ROOT / 'docs' / 'styles.css').read_text(encoding='utf8')
+
+    assert 'grid-template-columns: minmax(0, 520px) minmax(320px, 1fr);' in css
+    assert '.proof-image-shell' in css
+    assert 'max-width: 520px;' in css
+    assert '.proof-image {' in css
+    assert 'object-fit: contain;' in css
+    assert '@media (max-width: 1100px)' in css
+    assert '.proof-layout {' in css
 
 
 def test_support_links_and_footer_resources_remain_destination_specific():

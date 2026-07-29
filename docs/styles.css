@@ -585,8 +585,8 @@ a {
 
 .proof-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.96fr) minmax(320px, 0.84fr);
-  gap: 28px;
+  grid-template-columns: minmax(0, 520px) minmax(320px, 1fr);
+  gap: 48px;
   align-items: center;
 }
 
@@ -601,15 +601,17 @@ a {
 }
 
 .proof-image-shell {
-  width: min(100%, 580px);
-  justify-self: center;
-  padding: 12px;
+  width: 100%;
+  max-width: 520px;
+  justify-self: start;
+  padding: 10px;
   background: linear-gradient(180deg, rgba(17, 23, 36, 0.98), rgba(13, 18, 28, 0.98));
 }
 
 .proof-image {
   width: 100%;
-  max-height: 720px;
+  max-width: 520px;
+  height: auto;
   display: block;
   border-radius: var(--radius-md);
   object-fit: contain;
@@ -745,20 +747,38 @@ a {
 }
 
 .support-section {
-  padding-top: 0;
+  padding-top: 4px;
 }
 
 .support-note .bmc-embed {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
-.inline-text-link {
-  color: var(--text);
-  text-decoration: underline;
+.support-note--wide {
+  max-width: none;
+  margin-top: 0;
+  grid-template-columns: minmax(0, 1.2fr) auto minmax(220px, 0.9fr);
+  align-items: center;
+  gap: 26px;
+}
+
+.support-copy {
+  min-width: 0;
+}
+
+.bmc-embed-link {
+  display: inline-block;
+}
+
+.bmc-embed-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
 }
 
 .support-quote {
-  margin: 8px 0 0;
+  margin: 0;
   padding-left: 14px;
   border-left: 1px solid rgba(138, 155, 194, 0.28);
   color: var(--text-muted);
@@ -891,8 +911,26 @@ a {
   .proof-layout,
   .workflow-demo,
   .tab-panel,
-  .final-cta-card {
+  .final-cta-card,
+  .support-note--wide {
     grid-template-columns: 1fr;
+  }
+
+  .proof-layout {
+    gap: 18px;
+  }
+
+  .proof-image-shell {
+    max-width: 100%;
+    justify-self: center;
+  }
+
+  .proof-image {
+    max-width: 100%;
+  }
+
+  .support-note--wide {
+    gap: 14px;
   }
 
   .workflow-stage-list {

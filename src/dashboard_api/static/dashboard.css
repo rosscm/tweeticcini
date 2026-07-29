@@ -1809,11 +1809,18 @@ h2 {
 
 .bmc-embed {
   margin-top: 10px;
+  margin-bottom: 20px;
 }
 
-.bmc-embed noscript a {
-  color: var(--ink);
-  text-decoration: underline;
+.bmc-embed-link {
+  display: inline-block;
+}
+
+.bmc-embed-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
 }
 
 .field-help--body {
@@ -1927,7 +1934,8 @@ textarea {
 }
 
 button,
-.ghost-link {
+.ghost-link,
+a.button-secondary {
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -1943,7 +1951,8 @@ button,
 }
 
 button:hover,
-.ghost-link:hover {
+.ghost-link:hover,
+a.button-secondary:hover {
   transform: translateY(-1px);
   filter: brightness(1.04);
 }
@@ -1966,6 +1975,11 @@ select:focus-visible {
   color: var(--ink);
   border: 1px solid var(--line);
   box-shadow: none;
+}
+
+.button-secondary--compact {
+  min-height: 38px;
+  padding: 0 14px;
 }
 
 .button-secondary:hover,

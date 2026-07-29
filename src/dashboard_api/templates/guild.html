@@ -6,7 +6,7 @@
     <title>{{ title }}</title>
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.buymeacoffee.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com https://www.buymeacoffee.com https://cdnjs.buymeacoffee.com; frame-src https://www.buymeacoffee.com; connect-src 'self'; font-src 'self' data: https://cdnjs.buymeacoffee.com; object-src 'none'; base-uri 'self';"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com https://img.buymeacoffee.com; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self';"
     >
     <link rel="icon" type="image/png" sizes="32x32" href="/dashboard/static/favicon-32.png">
     <link rel="stylesheet" href="/dashboard/static/dashboard.css">
@@ -270,7 +270,7 @@
           {% if can_start_paid_trial %}
           <button type="button" class="button-secondary" id="announcement-start-trial">Start trial</button>
           {% else %}
-          <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing" data-bypass-unsaved-warning>Compare plans</a>
+          <a class="button-secondary button-secondary--compact" href="/dashboard/guilds/{{ guild_id }}/billing" data-bypass-unsaved-warning>Compare plans</a>
           {% endif %}
           <button type="button" class="button-secondary notice-dismiss" data-announcement-dismiss data-dismiss-target="dashboard-plan-announcement" aria-label="Dismiss updated plans notice">Dismiss</button>
         </div>
@@ -840,7 +840,7 @@
               <div class="section-copy section-copy--tight">Upgrade to Plus or Premium for more monitors, faster checks, and additional control over how posts are delivered.</div>
               {% if public_site_url %}
               <div class="actions">
-                <a class="button-secondary" href="{{ public_site_url }}#pricing" target="_blank" rel="noreferrer">Compare plans</a>
+                <a class="button-secondary button-secondary--compact" href="{{ public_site_url }}#pricing" target="_blank" rel="noreferrer">Compare plans</a>
               </div>
               {% endif %}
             </section>
@@ -864,22 +864,9 @@
               <strong>{{ free_support_card.title }}</strong>
               <div class="section-copy section-copy--tight">{{ free_support_card.body }}</div>
               <div class="bmc-embed" aria-label="Buy Me a Coffee support button">
-                <script
-                  type="text/javascript"
-                  src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js"
-                  data-name="bmc-button"
-                  data-slug="pokaccini"
-                  data-color="#BD5FFF"
-                  data-emoji="🃏"
-                  data-font="Poppins"
-                  data-text="Buy me a booster pack"
-                  data-outline-color="#000000"
-                  data-font-color="#ffffff"
-                  data-coffee-color="#FFDD00"
-                ></script>
-                <noscript>
-                  <a class="inline-text-link" href="https://www.buymeacoffee.com/pokaccini" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
-                </noscript>
+                <a class="bmc-embed-link" href="https://www.buymeacoffee.com/pokaccini" target="_blank" rel="noopener noreferrer">
+                  <img class="bmc-embed-image" src="https://img.buymeacoffee.com/button-api/?text=Buy me a booster pack&amp;emoji=🃏&amp;slug=pokaccini&amp;button_colour=BD5FFF&amp;font_colour=ffffff&amp;font_family=Bree&amp;outline_colour=000000&amp;coffee_colour=FFDD00" alt="Support Tweeticcini by buying me a booster pack">
+                </a>
               </div>
               <div class="field-help">{{ free_support_card.footer_note }}</div>
             </section>
@@ -909,7 +896,7 @@
             <div class="actions">
               <a class="button-secondary" href="/dashboard/guilds/{{ guild_id }}/billing?plan=plus">Upgrade to Plus</a>
               {% if public_site_url %}
-              <a class="button-secondary" href="{{ public_site_url }}#pricing" target="_blank" rel="noreferrer">Compare plans</a>
+              <a class="button-secondary button-secondary--compact" href="{{ public_site_url }}#pricing" target="_blank" rel="noreferrer">Compare plans</a>
               {% endif %}
             </div>
             {% else %}

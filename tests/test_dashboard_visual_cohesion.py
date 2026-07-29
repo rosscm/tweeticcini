@@ -56,10 +56,13 @@ def test_guild_dashboard_uses_updated_locked_feature_and_support_copy():
     assert 'Need more from Tweeticcini?' in html
     assert '{{ free_support_card.title }}' in html
     assert '{{ free_support_card.body }}' in html
-    assert 'data-name="bmc-button"' in html
-    assert 'data-text="Buy me a booster pack"' in html
-    assert html.count('data-name="bmc-button"') == 1
-    assert '<noscript>' in html
+    assert 'https://img.buymeacoffee.com/button-api/?text=Buy me a booster pack' in html
+    assert 'font_family=Bree' in html
+    assert html.count('https://img.buymeacoffee.com/button-api/?text=Buy me a booster pack') == 1
+    assert 'button.prod.min.js' not in html
+    assert 'alt="Support Tweeticcini by buying me a booster pack"' in html
+    assert "img-src 'self' data: https://cdn.discordapp.com https://img.buymeacoffee.com" in html
+    assert 'cdnjs.buymeacoffee.com' not in html
     assert '{{ free_support_card.action_label }}' not in html
     assert '{{ free_support_card.footer_note }}' in html
     assert '“Love what you built! Keep it going!”' not in html
@@ -80,6 +83,9 @@ def test_dashboard_css_adds_topbar_summary_and_focus_tokens():
     assert '.notice--announcement-compact' in css
     assert '.site-footer-inner' in css
     assert '.footer-links-grid' in css
+    assert '.button-secondary--compact' in css
+    assert '.bmc-embed-image' in css
+    assert 'margin-bottom: 20px;' in css
     assert '.plan-badge--premium' in css
     assert '.plan-badge--plus' in css
     assert '.plan-badge--free' in css
