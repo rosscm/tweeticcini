@@ -1807,6 +1807,15 @@ h2 {
   line-height: 1.45;
 }
 
+.bmc-embed {
+  margin-top: 10px;
+}
+
+.bmc-embed noscript a {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
 .field-help--body {
   margin-top: 2px;
 }

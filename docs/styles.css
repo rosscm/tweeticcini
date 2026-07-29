@@ -744,6 +744,36 @@ a {
   margin: 18px auto 0;
 }
 
+.support-section {
+  padding-top: 0;
+}
+
+.support-note .bmc-embed {
+  margin-top: 8px;
+}
+
+.inline-text-link {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.support-quote {
+  margin: 8px 0 0;
+  padding-left: 14px;
+  border-left: 1px solid rgba(138, 155, 194, 0.28);
+  color: var(--text-muted);
+}
+
+.support-quote p,
+.support-quote footer {
+  margin: 0;
+}
+
+.support-quote footer {
+  margin-top: 6px;
+  font-size: 0.92rem;
+}
+
 .faq-list {
   display: grid;
   gap: 10px;

@@ -26,6 +26,10 @@
       content="Route the Twitter accounts that matter into the right Discord channel with filters, rules, and cleaner delivery."
     >
     <meta name="twitter:image" content="https://tweeticcini.com/tweeticcini-banner.jpg">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://cdnjs.buymeacoffee.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.buymeacoffee.com https://cdnjs.buymeacoffee.com; frame-src https://www.buymeacoffee.com; connect-src 'self' https://app.tweeticcini.com; font-src 'self' data: https://cdnjs.buymeacoffee.com; object-src 'none'; base-uri 'self';"
+    >
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="stylesheet" href="./styles.css">
@@ -431,10 +435,35 @@
           </table>
         </div>
 
+      </section>
+
+      <section class="section-band support-section" aria-labelledby="support-title">
         <div class="support-note">
-          <p class="support-note-kicker">💛 Prefer to support Tweeticcini another way?</p>
-          <p>Not every server needs a paid plan. If Tweeticcini has been useful to your community, you can support its continued development with a one-time contribution.</p>
-          <a class="button button-secondary" href="https://buymeacoffee.com/pokaccini" target="_blank" rel="noreferrer">Support on Buy Me a Coffee</a>
+          <p class="support-note-kicker">Independent support</p>
+          <h2 id="support-title">Help keep Tweeticcini running</h2>
+          <p>Tweeticcini is independently built and maintained. One-time support helps cover hosting and continued development. 🩷</p>
+          <div class="bmc-embed" aria-label="Buy Me a Coffee support button">
+            <script
+              type="text/javascript"
+              src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js"
+              data-name="bmc-button"
+              data-slug="pokaccini"
+              data-color="#BD5FFF"
+              data-emoji="🃏"
+              data-font="Poppins"
+              data-text="Buy me a booster pack"
+              data-outline-color="#000000"
+              data-font-color="#ffffff"
+              data-coffee-color="#FFDD00"
+            ></script>
+            <noscript>
+              <a class="inline-text-link" href="https://www.buymeacoffee.com/pokaccini" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
+            </noscript>
+          </div>
+          <blockquote class="support-quote">
+            <p>“Love what you built! Keep it going!”</p>
+            <footer>— Tweeticcini supporter</footer>
+          </blockquote>
         </div>
       </section>
 

@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.buymeacoffee.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com https://www.buymeacoffee.com https://cdnjs.buymeacoffee.com; frame-src https://www.buymeacoffee.com; connect-src 'self'; font-src 'self' data: https://cdnjs.buymeacoffee.com; object-src 'none'; base-uri 'self';"
+    >
     <link rel="icon" type="image/png" sizes="32x32" href="/dashboard/static/favicon-32.png">
     <link rel="stylesheet" href="/dashboard/static/dashboard.css">
   </head>
@@ -859,8 +863,23 @@
             <section class="notice notice--plain notice--compact">
               <strong>{{ free_support_card.title }}</strong>
               <div class="section-copy section-copy--tight">{{ free_support_card.body }}</div>
-              <div class="actions">
-                <a class="button-secondary" href="{{ buy_me_a_coffee_url }}" target="_blank" rel="noreferrer">{{ free_support_card.action_label }}</a>
+              <div class="bmc-embed" aria-label="Buy Me a Coffee support button">
+                <script
+                  type="text/javascript"
+                  src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js"
+                  data-name="bmc-button"
+                  data-slug="pokaccini"
+                  data-color="#BD5FFF"
+                  data-emoji="🃏"
+                  data-font="Poppins"
+                  data-text="Buy me a booster pack"
+                  data-outline-color="#000000"
+                  data-font-color="#ffffff"
+                  data-coffee-color="#FFDD00"
+                ></script>
+                <noscript>
+                  <a class="inline-text-link" href="https://www.buymeacoffee.com/pokaccini" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
+                </noscript>
               </div>
               <div class="field-help">{{ free_support_card.footer_note }}</div>
             </section>

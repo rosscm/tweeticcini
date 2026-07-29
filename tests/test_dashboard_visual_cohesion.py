@@ -56,8 +56,14 @@ def test_guild_dashboard_uses_updated_locked_feature_and_support_copy():
     assert 'Need more from Tweeticcini?' in html
     assert '{{ free_support_card.title }}' in html
     assert '{{ free_support_card.body }}' in html
-    assert 'Buy Me a Coffee' in html
+    assert 'data-name="bmc-button"' in html
+    assert 'data-text="Buy me a booster pack"' in html
+    assert html.count('data-name="bmc-button"') == 1
+    assert '<noscript>' in html
+    assert '{{ free_support_card.action_label }}' not in html
     assert '{{ free_support_card.footer_note }}' in html
+    assert '“Love what you built! Keep it going!”' not in html
+    assert 'Tweeticcini supporter' not in html
     assert 'Your Free monitor is already in use' in html
     assert 'Compare plans, check trial status, and manage billing details.' in html
     assert 'sidebar-summary-list' not in html

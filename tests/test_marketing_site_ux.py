@@ -108,7 +108,15 @@ def test_trust_faq_and_support_copy_remain_present():
     assert 'Why is a Twitter/X session required?' in html
     assert 'What Discord permissions do I need?' in html
     assert 'How do trials, cancellation, and billing work?' in html
-    assert 'Support on Buy Me a Coffee' in html
+    assert 'Help keep Tweeticcini running' in html
+    assert 'Tweeticcini is independently built and maintained. One-time support helps cover hosting and continued development. 🩷' in html
+    assert '“Love what you built! Keep it going!”' in html
+    assert '— Tweeticcini supporter' in html
+    assert 'data-name="bmc-button"' in html
+    assert 'data-text="Buy me a booster pack"' in html
+    assert html.count('data-name="bmc-button"') == 1
+    assert '<noscript>' in html
+    assert 'https://www.buymeacoffee.com/pokaccini' in html
     assert 'Start free, then upgrade when your server needs more speed or control.' in html
 
 
