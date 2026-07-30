@@ -64,6 +64,33 @@ document.documentElement.classList.add('js-enabled');
 })();
 
 (function () {
+  const embed = document.querySelector('.bmc-embed');
+  if (!embed) {
+    return;
+  }
+
+  const imageLink = embed.querySelector('.bmc-embed-link');
+  const image = embed.querySelector('.bmc-embed-image');
+  const fallbackLink = embed.querySelector('.bmc-fallback-link');
+
+  if (!imageLink || !image || !fallbackLink) {
+    return;
+  }
+
+  function showFallback() {
+    imageLink.hidden = true;
+    fallbackLink.hidden = false;
+    embed.classList.add('bmc-embed--failed');
+  }
+
+  image.addEventListener('error', showFallback, { once: true });
+
+  if (image.complete && image.naturalWidth === 0) {
+    showFallback();
+  }
+})();
+
+(function () {
   const form = document.querySelector('[data-workflow-form]');
   if (!form) {
     return;

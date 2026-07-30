@@ -122,12 +122,14 @@ def test_trust_faq_and_support_copy_remain_present():
     assert 'button.prod.min.js' not in html
     assert 'cdnjs.buymeacoffee.com' not in html
     assert 'https://www.buymeacoffee.com/pokaccini' in html
+    assert '🃏 Buy me a booster pack' in html
     assert 'Start free, then upgrade when your server needs more speed or control.' in html
 
 
 def test_support_section_csp_and_layout_use_image_embed_only():
     html = (REPO_ROOT / 'docs' / 'index.html').read_text(encoding='utf8')
     css = (REPO_ROOT / 'docs' / 'styles.css').read_text(encoding='utf8')
+    js = (REPO_ROOT / 'docs' / 'site.js').read_text(encoding='utf8')
 
     assert "img-src 'self' data: https://img.buymeacoffee.com" in html
     assert 'https://app.tweeticcini.com' in html
@@ -138,6 +140,8 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     assert 'grid-template-columns: minmax(0, 1.2fr) auto minmax(220px, 0.9fr);' in css
     assert 'class="bmc-embed"' in html
     assert '&amp;emoji=%F0%9F%83%8F&amp;slug=pokaccini' in html
+    assert 'class="button button-small bmc-fallback-link"' in html
+    assert 'hidden>🃏 Buy me a booster pack</a>' in html
     assert '.bmc-embed-image' in css
     assert 'max-width: 100%;' in css
     assert 'max-width: 640px;' not in css
@@ -152,6 +156,15 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     mobile_embed_rule = re.search(r"\.support-note \.bmc-embed \{([^}]*)\}", css, re.MULTILINE)
     assert mobile_embed_rule is not None
     assert 'display: none;' not in mobile_embed_rule.group(1)
+    assert '.bmc-fallback-link[hidden]' in css
+    assert '.bmc-embed--failed .bmc-embed-link' in css
+    assert '.bmc-embed--failed .bmc-fallback-link' in css
+    assert 'const embed = document.querySelector(\'.bmc-embed\');' in js
+    assert "image.addEventListener('error', showFallback, { once: true });" in js
+    assert 'if (image.complete && image.naturalWidth === 0)' in js
+    assert "imageLink.hidden = true;" in js
+    assert "fallbackLink.hidden = false;" in js
+    assert "embed.classList.add('bmc-embed--failed');" in js
 
 
 def test_real_discord_delivery_image_has_desktop_constraint_and_mobile_fallback():

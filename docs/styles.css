@@ -767,6 +767,40 @@ a {
   display: inline-block;
 }
 
+.bmc-fallback-link[hidden] {
+  display: none;
+}
+
+.bmc-fallback-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  background: #bd5fff;
+  border-color: #bd5fff;
+  color: #ffffff;
+  white-space: normal;
+}
+
+.bmc-fallback-link:hover {
+  background: #a44cff;
+  border-color: #a44cff;
+}
+
+.bmc-fallback-link:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.bmc-embed--failed .bmc-embed-link {
+  display: none;
+}
+
+.bmc-embed--failed .bmc-fallback-link {
+  display: inline-flex;
+}
+
 .bmc-embed-image {
   display: block;
   width: auto;
