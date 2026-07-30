@@ -160,8 +160,13 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     assert '.bmc-embed--failed .bmc-embed-link' in css
     assert '.bmc-embed--failed .bmc-fallback-link' in css
     assert 'const embed = document.querySelector(\'.bmc-embed\');' in js
+    assert 'let fallbackTimer = null;' in js
+    assert "window.clearTimeout(fallbackTimer);" in js
+    assert "image.addEventListener('load', handleLoad, { once: true });" in js
     assert "image.addEventListener('error', showFallback, { once: true });" in js
     assert 'if (image.complete && image.naturalWidth === 0)' in js
+    assert 'fallbackTimer = window.setTimeout(function () {' in js
+    assert '}, 2500);' in js
     assert "imageLink.hidden = true;" in js
     assert "fallbackLink.hidden = false;" in js
     assert "embed.classList.add('bmc-embed--failed');" in js
