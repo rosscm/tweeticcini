@@ -69,54 +69,28 @@ document.documentElement.classList.add('js-enabled');
     return;
   }
 
-  const imageLink = embed.querySelector('.bmc-embed-link');
   const image = embed.querySelector('.bmc-embed-image');
-  const fallbackLink = embed.querySelector('.bmc-fallback-link');
-  let fallbackTimer = null;
-
-  if (!imageLink || !image || !fallbackLink) {
+  if (!image) {
     return;
   }
 
-  function clearFallbackTimer() {
-    if (fallbackTimer === null) {
-      return;
-    }
-    window.clearTimeout(fallbackTimer);
-    fallbackTimer = null;
+  const userAgent = window.navigator.userAgent || '';
+  const platform = window.navigator.platform || '';
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent) || (platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+
+  function showFallbackButton() {
+    embed.classList.add('bmc-embed--fallback-only');
   }
 
-  function showFallback() {
-    clearFallbackTimer();
-    imageLink.hidden = true;
-    fallbackLink.hidden = false;
-    embed.classList.add('bmc-embed--failed');
+  if (isIOS) {
+    showFallbackButton();
+    return;
   }
 
-  function handleLoad() {
-    if (image.naturalWidth > 0) {
-      clearFallbackTimer();
-      return;
-    }
-    showFallback();
-  }
-
-  image.addEventListener('load', handleLoad, { once: true });
-  image.addEventListener('error', showFallback, { once: true });
+  image.addEventListener('error', showFallbackButton, { once: true });
 
   if (image.complete && image.naturalWidth === 0) {
-    showFallback();
-    return;
-  }
-
-  if (!(image.complete && image.naturalWidth > 0)) {
-    fallbackTimer = window.setTimeout(function () {
-      if (image.naturalWidth > 0) {
-        clearFallbackTimer();
-        return;
-      }
-      showFallback();
-    }, 2500);
+    showFallbackButton();
   }
 })();
 

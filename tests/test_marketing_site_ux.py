@@ -141,7 +141,7 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     assert 'class="bmc-embed"' in html
     assert '&amp;emoji=%F0%9F%83%8F&amp;slug=pokaccini' in html
     assert 'class="button button-small bmc-fallback-link"' in html
-    assert 'hidden>🃏 Buy me a booster pack</a>' in html
+    assert '>🃏 Buy me a booster pack</a>' in html
     assert '.bmc-embed-image' in css
     assert 'max-width: 100%;' in css
     assert 'max-width: 640px;' not in css
@@ -156,20 +156,16 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     mobile_embed_rule = re.search(r"\.support-note \.bmc-embed \{([^}]*)\}", css, re.MULTILINE)
     assert mobile_embed_rule is not None
     assert 'display: none;' not in mobile_embed_rule.group(1)
-    assert '.bmc-fallback-link[hidden]' in css
-    assert '.bmc-embed--failed .bmc-embed-link' in css
-    assert '.bmc-embed--failed .bmc-fallback-link' in css
-    assert 'const embed = document.querySelector(\'.bmc-embed\');' in js
-    assert 'let fallbackTimer = null;' in js
-    assert "window.clearTimeout(fallbackTimer);" in js
-    assert "image.addEventListener('load', handleLoad, { once: true });" in js
-    assert "image.addEventListener('error', showFallback, { once: true });" in js
+    assert '.bmc-embed-link {\n  display: inline-block;' in css
+    assert '.bmc-fallback-link {\n  display: none;' in css
+    assert '.bmc-embed--fallback-only .bmc-embed-link' in css
+    assert '.bmc-embed--fallback-only .bmc-fallback-link' in css
+    assert "const embed = document.querySelector('.bmc-embed');" in js
+    assert "const isIOS = /iPad|iPhone|iPod/.test(userAgent)" in js
+    assert "platform === 'MacIntel' && window.navigator.maxTouchPoints > 1" in js
+    assert "embed.classList.add('bmc-embed--fallback-only');" in js
+    assert "image.addEventListener('error', showFallbackButton, { once: true });" in js
     assert 'if (image.complete && image.naturalWidth === 0)' in js
-    assert 'fallbackTimer = window.setTimeout(function () {' in js
-    assert '}, 2500);' in js
-    assert "imageLink.hidden = true;" in js
-    assert "fallbackLink.hidden = false;" in js
-    assert "embed.classList.add('bmc-embed--failed');" in js
 
 
 def test_real_discord_delivery_image_has_desktop_constraint_and_mobile_fallback():

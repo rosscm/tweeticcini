@@ -767,12 +767,8 @@ a {
   display: inline-block;
 }
 
-.bmc-fallback-link[hidden] {
-  display: none;
-}
-
 .bmc-fallback-link {
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   width: fit-content;
@@ -793,11 +789,11 @@ a {
   outline-offset: 3px;
 }
 
-.bmc-embed--failed .bmc-embed-link {
+.bmc-embed--fallback-only .bmc-embed-link {
   display: none;
 }
 
-.bmc-embed--failed .bmc-fallback-link {
+.bmc-embed--fallback-only .bmc-fallback-link {
   display: inline-flex;
 }
 
