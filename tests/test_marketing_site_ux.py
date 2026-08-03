@@ -14,19 +14,18 @@ def test_homepage_uses_requested_section_order():
     spotlight_index = html.index('Dashboard Spotlight')
     how_index = html.index('id="how-it-works"')
     pricing_index = html.index('id="pricing"')
-    trust_index = html.index('id="trust"')
     faq_index = html.index('id="faq"')
     final_cta_index = html.index('id="get-started"')
     support_index = html.index('class="section-band support-section"')
     footer_index = html.index('<footer class="site-footer">')
 
-    assert hero_index < workflow_index < proof_index < spotlight_index < how_index < pricing_index < support_index < trust_index < faq_index < final_cta_index < footer_index
+    assert hero_index < workflow_index < proof_index < spotlight_index < how_index < pricing_index < support_index < faq_index < final_cta_index < footer_index
 
 
 def test_header_navigation_uses_requested_labels_and_links():
     html = (REPO_ROOT / 'docs' / 'index.html').read_text(encoding='utf8')
 
-    for label in ['Features', 'How It Works', 'Pricing', 'Trust', 'FAQ', 'Get Started', 'Add to Discord', 'Open Dashboard']:
+    for label in ['Features', 'How It Works', 'Pricing', 'FAQ', 'Get Started', 'Add to Discord', 'Open Dashboard']:
         assert f'>{label}<' in html
 
 
@@ -101,13 +100,9 @@ def test_marketing_seo_pages_use_shortened_add_to_discord_label():
     assert '>Add to Discord<' in overview_html
 
 
-def test_trust_faq_and_support_copy_remain_present():
+def test_faq_and_support_copy_remain_present():
     html = (REPO_ROOT / 'docs' / 'index.html').read_text(encoding='utf8')
 
-    assert 'Why a session is required' in html
-    assert 'How it is stored' in html
-    assert 'What happens if it expires' in html
-    assert 'What Tweeticcini can access' in html
     assert 'Why is a Twitter/X session required?' in html
     assert 'What Discord permissions do I need?' in html
     assert 'How do trials, cancellation, and billing work?' in html
@@ -134,8 +129,10 @@ def test_support_section_csp_and_layout_use_image_embed_only():
     assert "img-src 'self' data: https://img.buymeacoffee.com" in html
     assert 'https://app.tweeticcini.com' in html
     assert 'cdnjs.buymeacoffee.com' not in html
-    assert '.pricing-section,\n.support-section,\n.trust-section,' in css
-    assert '.pricing-section,\n.support-section,\n.trust-section,\n.faq-section {' in css
+    assert '.pricing-section,' in css
+    assert '.support-section,' in css
+    assert '.faq-section {' in css
+    assert 'padding: 30px;' in css
     assert '.support-note--wide' in css
     assert 'grid-template-columns: minmax(0, 1.2fr) auto minmax(220px, 0.9fr);' in css
     assert 'class="bmc-embed"' in html
