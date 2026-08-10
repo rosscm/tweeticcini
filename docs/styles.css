@@ -904,6 +904,31 @@ a {
   text-decoration: none;
 }
 
+.service-notice {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: rgba(111, 140, 255, 0.08);
+}
+
+.service-notice strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.service-notice p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.service-notice p + p {
+  margin-top: 6px;
+}
+
 #workflow,
 #how-it-works,
 #pricing,
