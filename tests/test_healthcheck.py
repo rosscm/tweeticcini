@@ -1,4 +1,5 @@
 import importlib
+import json
 import signal
 from contextlib import contextmanager
 
@@ -200,3 +201,45 @@ async def test_healthcheck_returns_ok_when_application_is_otherwise_healthy(base
     assert response['twitter_session_count'] == 0
     assert response['healthy_twitter_session_count'] == 0
     assert 'runtime_client_statuses' not in response
+
+
+@pytest.mark.asyncio
+async def test_public_status_defaults_to_ok_when_state_file_is_missing(base_env, monkeypatch, tmp_path):
+    monkeypatch.setenv('TWEETICCINI_PUBLIC_STATUS_FILE', str(tmp_path / 'public-status.json'))
+    module = _load_dashboard_app()
+
+    with fail_after(5):
+        response = await module.public_status()
+
+    payload = json.loads(response.body)
+    assert payload['status'] == 'ok'
+    assert payload['message'] == 'Tweeticcini is operating normally.'
+    assert payload['source'] == 'default'
+    assert payload['dashboard_url'] == 'https://app.tweeticcini.com/dashboard'
+
+
+@pytest.mark.asyncio
+async def test_public_status_reads_written_outage_state(base_env, monkeypatch, tmp_path):
+    status_file = tmp_path / 'public-status.json'
+    status_file.write_text(
+        json.dumps(
+            {
+                'status': 'offline',
+                'message': 'Tweeticcini is temporarily unavailable while the dashboard reconnects.',
+                'updated_at': '2026-08-12T12:00:00+00:00',
+                'source': 'tweeticcini-healthcheck',
+            }
+        ),
+        encoding='utf8',
+    )
+    monkeypatch.setenv('TWEETICCINI_PUBLIC_STATUS_FILE', str(status_file))
+    module = _load_dashboard_app()
+
+    with fail_after(5):
+        response = await module.public_status()
+
+    payload = json.loads(response.body)
+    assert payload['status'] == 'offline'
+    assert payload['message'] == 'Tweeticcini is temporarily unavailable while the dashboard reconnects.'
+    assert payload['updated_at'] == '2026-08-12T12:00:00+00:00'
+    assert payload['source'] == 'tweeticcini-healthcheck'

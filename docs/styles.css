@@ -912,6 +912,10 @@ a {
   background: rgba(111, 140, 255, 0.08);
 }
 
+.service-notice[hidden] {
+  display: none;
+}
+
 .service-notice strong {
   display: block;
   margin-bottom: 6px;
@@ -923,10 +927,6 @@ a {
   margin: 0;
   color: var(--text-muted);
   line-height: 1.55;
-}
-
-.service-notice p + p {
-  margin-top: 6px;
 }
 
 #workflow,

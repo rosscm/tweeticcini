@@ -35,9 +35,12 @@ def test_server_count_fallback_remains_safe_and_numeric_claim_starts_hidden():
 
     assert '>Trusted by Discord communities<' in html
     assert 'proof-primary--count" hidden' in html
+    assert 'data-service-notice' in html
     assert "fetch('https://app.tweeticcini.com/public/stats'" in js
+    assert "fetch('https://app.tweeticcini.com/public/status'" in js
     assert "window.localStorage.getItem('tweeticcini_server_count')" in js
     assert 'showFallback();' in js
+    assert "notice.hidden = false;" in js
     assert "node.setAttribute('aria-hidden', 'true');" in js
 
 

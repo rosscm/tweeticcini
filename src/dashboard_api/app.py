@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -1273,6 +1274,7 @@ notifier_service = NotifierService()
 guild_settings_service = GuildSettingsService()
 billing_service = BillingService()
 twitter_session_service = TwitterSessionService()
+PUBLIC_STATUS_FILE = Path(os.getenv('TWEETICCINI_PUBLIC_STATUS_FILE', '/tmp/tweeticcini-health/public-status.json'))
 
 
 @app.get('/', include_in_schema=False)
@@ -1308,6 +1310,64 @@ async def public_stats() -> JSONResponse:
             server_count = int(row[0] or 0) if row else 0
     return JSONResponse(
         {'server_count': server_count},
+        headers={
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-store',
+        },
+    )
+
+
+def _read_public_status_payload() -> dict[str, object]:
+    payload: dict[str, object] = {
+        'status': 'ok',
+        'message': 'Tweeticcini is operating normally.',
+        'updated_at': None,
+        'source': 'default',
+    }
+
+    try:
+        if PUBLIC_STATUS_FILE.is_file():
+            raw_payload = json.loads(PUBLIC_STATUS_FILE.read_text(encoding='utf8'))
+            status = str(raw_payload.get('status') or 'ok').lower()
+            if status in {'ok', 'degraded', 'offline'}:
+                payload['status'] = status
+            message = str(raw_payload.get('message') or '').strip()
+            if message:
+                payload['message'] = message
+            updated_at = raw_payload.get('updated_at')
+            if updated_at:
+                payload['updated_at'] = str(updated_at)
+            source = str(raw_payload.get('source') or '').strip()
+            if source:
+                payload['source'] = source
+    except Exception as exc:
+        log.warning(f'public status payload could not be read: {exc}')
+        payload = {
+            'status': 'degraded',
+            'message': 'Tweeticcini status is temporarily unavailable while the dashboard refreshes its health data.',
+            'updated_at': None,
+            'source': 'read_error',
+        }
+
+    return payload
+
+
+def _get_public_dashboard_url() -> str:
+    configured_url = str(os.getenv('DASHBOARD_BASE_URL', 'https://app.tweeticcini.com/dashboard')).strip()
+    parsed_url = urlparse(configured_url)
+    if parsed_url.scheme and parsed_url.netloc and parsed_url.path not in {'', '/'}:
+        return configured_url
+    if configured_url.endswith('/'):
+        return f'{configured_url}dashboard'
+    return f'{configured_url}/dashboard'
+
+
+@app.get('/public/status', include_in_schema=False)
+async def public_status() -> JSONResponse:
+    payload = _read_public_status_payload()
+    payload['dashboard_url'] = _get_public_dashboard_url()
+    return JSONResponse(
+        payload,
         headers={
             'Access-Control-Allow-Origin': '*',
             'Cache-Control': 'no-store',

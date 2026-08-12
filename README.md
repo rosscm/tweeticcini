@@ -459,6 +459,35 @@ journalctl -u tweeticcini-healthcheck.service -f
 
 This is intentionally conservative: it tries to restart only the affected service first. If you later decide you want an automatic Pi reboot after repeated failures, add that as a second stage after this lighter recovery path has had time to prove itself.
 
+The healthcheck also writes a public status file by default at `/tmp/tweeticcini-health/public-status.json`. The dashboard exposes that data at:
+
+- `http://127.0.0.1:8080/public/status`
+
+That endpoint is meant for the public marketing site banner and for external fallback systems.
+
+### Free Cloudflare fallback page for `app.tweeticcini.com`
+
+If you want a branded outage page instead of Cloudflare's default origin error page without paying for Cloudflare Custom Errors, use the Worker in:
+
+- [deploy/cloudflare/app-fallback-worker.js](/home/pi/discord_projects/tweeticcini/deploy/cloudflare/app-fallback-worker.js)
+
+Recommended setup:
+
+1. Create a Worker and paste in `deploy/cloudflare/app-fallback-worker.js`.
+2. Route it to `app.tweeticcini.com/*`.
+3. Set these optional Worker environment variables:
+   - `MAINTENANCE_MODE=0`
+   - `MAINTENANCE_MESSAGE=Tweeticcini is temporarily unavailable while services recover.`
+   - `DASHBOARD_URL=https://app.tweeticcini.com/dashboard`
+   - `ORIGIN_TIMEOUT_MS=8000`
+4. Leave `MAINTENANCE_MODE=0` for normal automatic pass-through.
+
+With that route in place:
+
+- normal requests pass through to the dashboard origin
+- origin failures return a branded `503` page for browser traffic
+- non-HTML requests receive a JSON `503` response instead of the generic Cloudflare error page
+
 # 📜 License
 
 This project is based on Tweetcord by Yuuzi261 and remains distributed under the MIT License.

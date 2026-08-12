@@ -1,6 +1,41 @@
 document.documentElement.classList.add('js-enabled');
 
 (function () {
+  const notice = document.querySelector('[data-service-notice]');
+  const titleNode = document.querySelector('[data-service-notice-title]');
+  const messageNode = document.querySelector('[data-service-notice-message]');
+
+  if (!notice || !titleNode || !messageNode) {
+    return;
+  }
+
+  fetch('https://app.tweeticcini.com/public/status', { cache: 'no-store' })
+    .then(function (response) {
+      if (!response.ok) {
+        return null;
+      }
+      return response.json();
+    })
+    .then(function (payload) {
+      if (!payload) {
+        return;
+      }
+      const status = String(payload.status || 'ok').toLowerCase();
+      if (status === 'ok') {
+        return;
+      }
+
+      titleNode.textContent = status === 'offline' ? 'Temporary downtime' : 'Service disruption';
+      messageNode.textContent = String(
+        payload.message || 'Tweeticcini is temporarily unavailable while services recover.'
+      );
+      notice.hidden = false;
+    })
+    .catch(function () {
+    });
+})();
+
+(function () {
   const countNodes = document.querySelectorAll('.server-count');
   const countClaims = document.querySelectorAll('.proof-primary--count');
   const fallbackClaims = document.querySelectorAll('.proof-primary--fallback');
